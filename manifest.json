@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "ParaLeagle Family I-130 Autofill",
+  "version": "0.1.0",
+  "description": "Autofill the online Form I-130 (Petition for Alien Relative) on myUSCIS from ParaLeagle family-visa data",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": [
+    "https://my.uscis.gov/*",
+    "https://api.family.paraleagle.ai/*",
+    "http://localhost:8001/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'"
+  },
+  "background": {
+    "service_worker": "download-proxy.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://my.uscis.gov/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://my.uscis.gov/*"],
+      "js": ["formik-bridge.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

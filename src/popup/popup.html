@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>ParaLeagle Family I-130</title>
+  </head>
+  <body>
+    <header>
+      <h1>ParaLeagle Family</h1>
+      <span class="sub">Online I-130 autofill</span>
+    </header>
+
+    <div id="error" class="error" style="display: none"></div>
+
+    <!-- Login -->
+    <section id="login-form">
+      <label>Email<input id="login-email" type="email" autocomplete="username" /></label>
+      <label>Password<input id="login-password" type="password" autocomplete="current-password" /></label>
+      <button id="login-btn" class="primary">Sign in</button>
+    </section>
+
+    <!-- Logged in -->
+    <section id="logged-in" style="display: none">
+      <div class="row between">
+        <span id="user-email" class="muted"></span>
+        <button id="logout-btn" class="link">Sign out</button>
+      </div>
+
+      <label class="field-label">Case</label>
+      <input id="case-search" type="search" placeholder="Search cases…" />
+      <div id="case-list" class="case-list">
+        <div class="empty">Loading…</div>
+      </div>
+
+      <button id="load-btn" class="primary">Load case</button>
+      <div id="status" class="status"></div>
+    </section>
+
+    <footer>
+      <label class="env">
+        Backend
+        <select id="api-env">
+          <option value="http://localhost:8001/api/v1">Local (8001)</option>
+          <option value="https://api.family.paraleagle.ai/api/v1">Production</option>
+        </select>
+      </label>
+    </footer>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
