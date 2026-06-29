@@ -84,9 +84,19 @@ export function planPageFill(
   };
 
   if (page.repeater) {
-    const rows = repeaterRowCount(page.repeater, page.fields, fieldValues);
+    // A page may MIX single-instance fields (no {i}) with a repeater sub-list —
+    // e.g. /about-you/your-name carries the primary name plus an "other names
+    // used" repeater. Fill the plain fields once (row 0 semantics); expand only
+    // the {i} fields per row. Counting rows from the {i} fields alone keeps a
+    // non-repeater field (which matches every index) from inflating the count.
+    // For a pure repeater page plainFields is empty, so behaviour is unchanged.
+    const repeaterFields = page.fields.filter((f) => f.name.includes("{i}"));
+    for (const field of page.fields) {
+      if (!field.name.includes("{i}")) collect(field, 0);
+    }
+    const rows = repeaterRowCount(page.repeater, repeaterFields, fieldValues);
     for (let i = 0; i < rows; i++) {
-      for (const field of page.fields) collect(field, i);
+      for (const field of repeaterFields) collect(field, i);
     }
   } else {
     for (const field of page.fields) collect(field, 0);
@@ -117,10 +127,13 @@ export async function fillPage(
   const results: SetResult[] = [];
 
   if (page.repeater) {
-    const maxRow = plan.reduce((m, p) => Math.max(m, p.rowIndex), -1);
-    // Ensure each needed row is rendered before filling (row 0 usually renders
-    // after one Add click; the dump shows repeaters render no inputs until Add).
-    for (let i = 0; i <= maxRow; i++) {
+    // Render each repeater row before filling it. Count rows from the {i} fields
+    // only (so single-instance fields on a mixed page don't inflate the count).
+    // Row 0 usually renders after one Add click; the dump shows repeaters render
+    // no inputs until Add (on a mixed page row 0 may already be present).
+    const repeaterFields = page.fields.filter((f) => f.name.includes("{i}"));
+    const rows = repeaterRowCount(page.repeater, repeaterFields, fieldValues);
+    for (let i = 0; i < rows; i++) {
       await ensureRepeaterRow(page.repeater, i);
     }
   }
@@ -180,16 +193,47 @@ function rowRendered(anchorPrefix: string): boolean {
 }
 
 function findAddButton(text: string): HTMLElement | null {
-  const want = text.toLowerCase();
-  const buttons = document.querySelectorAll<HTMLElement>('button, [role="button"], a');
-  for (const b of Array.from(buttons)) {
+  const want = text.toLowerCase().trim();
+  // Skip the global myUSCIS nav/sidebar — its "Change your client's address"
+  // link contains "add" (inside "address") and must never be taken for an "Add" row button.
+  const candidates = Array.from(
+    document.querySelectorAll<HTMLElement>('button, [role="button"], a'),
+  ).filter((b) => !b.closest('nav, aside, header, [role="navigation"]'));
+  // 1. A control whose label contains the specific add-phrase AND "add" as a
+  //    WHOLE WORD (so "add" never matches the "add" inside "address").
+  for (const b of candidates) {
     const t = (b.textContent || "").trim().toLowerCase();
-    if (t.includes(want) || t.startsWith("add")) return b;
+    if (t.includes(want) && /\badd\b/.test(t)) return b;
+  }
+  // 2. Generic "Add…" control: starts with the word "add" ("Add", "Add another"),
+  //    but not "Additional…" and never a stray "…address" link.
+  for (const b of candidates) {
+    const t = (b.textContent || "").trim().toLowerCase();
+    if (/^add\b/.test(t)) return b;
   }
   return null;
 }
 
 // ── Navigation ──────────────────────────────────────────────────────────────
+
+/** Default window to wait for Next to become enabled before clicking. */
+const DEFAULT_NEXT_TIMEOUT_MS = 12000;
+/** After clicking a repeater "Save Entry" commit button, how long to wait for
+ * the row to commit and a Next/Continue to appear + enable. */
+const SAVE_COMMIT_TIMEOUT_MS = 8000;
+/** Upload pages keep Next DISABLED while the just-attached file finishes
+ * uploading server-side (processing runs a few seconds past the point the
+ * doc-uploader reports "attached"); give Next much longer to enable. */
+const UPLOAD_NEXT_TIMEOUT_MS = 60000;
+/** Best-effort: how long to wait for an in-progress upload spinner to clear
+ * before we even start watching Next. The robust signal is Next enabling. */
+const UPLOAD_SETTLE_TIMEOUT_MS = 8000;
+/** Selectors that signal an active upload/progress indicator in the page body. */
+const UPLOAD_PROGRESS_SELECTOR =
+  '[role="progressbar"], progress, [class*="progress" i], [class*="spinner" i], [class*="uploading" i]';
+/** How long to wait for a recognized page's inputs to render before filling.
+ * Fresh drafts mount their Formik inputs slowly, so give them room. */
+const PAGE_READY_TIMEOUT_MS = 6000;
 
 /** Find the form's Next/Continue button (same selectors myUSCIS uses). */
 export function findNextButton(doc: Document = document): HTMLButtonElement | null {
@@ -203,7 +247,35 @@ export function findNextButton(doc: Document = document): HTMLButtonElement | nu
   return null;
 }
 
-async function waitForNextEnabled(timeoutMs = 12000): Promise<HTMLButtonElement | null> {
+/**
+ * Find a repeater "Save Entry" / "Save and continue" COMMIT button in the form
+ * body. On myUSCIS repeater pages (e.g. /other-information/other-petitions) the
+ * just-entered row must be committed with this button before any Next/Continue
+ * appears. Matches the explicit commit phrases, or a bare "save" that is NOT a
+ * leave-the-form action ("save and exit", "save draft", "save for later"). The
+ * global nav/sidebar/header (which carries the form-wide "Save and exit") is
+ * excluded so we never click out of the form.
+ */
+export function findSaveButton(doc: Document = document): HTMLElement | null {
+  // "Save and exit/close", "Save draft", "Save for later" all LEAVE the form.
+  const LEAVE = /save\s+(and|&)\s+(exit|close)|save\s+draft|save\s+for\s+later/;
+  const candidates = Array.from(
+    doc.querySelectorAll<HTMLElement>('button, [role="button"]'),
+  ).filter((b) => !b.closest('nav, aside, header, [role="navigation"]'));
+  // 1. Explicit commit phrases: "Save Entry", "Save and continue", "Save & continue".
+  for (const b of candidates) {
+    const t = (b.textContent || "").trim().toLowerCase();
+    if (/save\s+entry/.test(t) || /save\s+(and|&)\s+continue/.test(t)) return b;
+  }
+  // 2. A bare "save" that isn't a leave-the-form action.
+  for (const b of candidates) {
+    const t = (b.textContent || "").trim().toLowerCase();
+    if (/\bsave\b/.test(t) && !LEAVE.test(t)) return b;
+  }
+  return null;
+}
+
+async function waitForNextEnabled(timeoutMs = DEFAULT_NEXT_TIMEOUT_MS): Promise<HTMLButtonElement | null> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     const btn = findNextButton();
@@ -223,6 +295,88 @@ async function waitForPageChange(prevUrl: string, timeoutMs = 15000): Promise<bo
 }
 
 /**
+ * Wait until a recognized page's inputs have actually rendered, so a first-paint
+ * race (the page hasn't mounted when Fill All clicks) doesn't make every field
+ * whiff with "element not on page" and record the page 0/N.
+ *
+ * Resolves as soon as ANY field the payload supplies for this page is present in
+ * the DOM. For a repeater page (whose indexed rows don't exist until "Add" is
+ * clicked) the repeater's Add button counts as "rendered". Returns immediately
+ * when the page has nothing to fill (an empty plan is a legitimate 0/0 page, not
+ * a race — we must not stall there), and on the common case where the page is
+ * already rendered (the first probe passes, so no delay is added).
+ */
+export async function waitForPageReady(
+  page: FormPage,
+  fieldValues: Record<string, string>,
+  timeoutMs = PAGE_READY_TIMEOUT_MS,
+): Promise<void> {
+  const plan = planPageFill(page, fieldValues);
+  if (plan.length === 0) return; // nothing to fill -> nothing to wait for
+  // Plain (non-repeater-row) fields this page will fill. For a MIXED page (e.g.
+  // /about-you/your-name = a primary name + an "other names" repeater) the page
+  // is only truly "up" once a plain Formik input renders — the repeater's Add
+  // button can appear BEFORE the inputs do, which would otherwise make us fill
+  // too early and whiff every field with "element not on page".
+  const plainNames = (page.repeater
+    ? page.fields.filter((f) => !f.name.includes("{i}"))
+    : page.fields
+  )
+    .map((f) => f.name)
+    .filter((n) => fieldValues[n] !== undefined && fieldValues[n] !== "");
+  const ready = (): boolean => {
+    if (plainNames.length > 0) {
+      return plainNames.some((n) => findByName(n) !== null);
+    }
+    // Pure repeater page: rows render only after Add, so its presence = page up.
+    if (page.repeater && findAddButton(page.repeater.addButtonText)) return true;
+    return plan.some((p) => findByName(p.spec.name, p.spec.optionValue) !== null);
+  };
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (ready()) return;
+    await sleep(200);
+  }
+}
+
+/**
+ * Best-effort wait for an in-progress upload UI to disappear after a batch is
+ * attached. The authoritative signal that an upload finished is Next becoming
+ * enabled (the caller watches that next); this just avoids clicking before the
+ * spinner clears. Never throws — a bad selector or odd DOM simply resolves.
+ */
+async function waitForUploadToSettle(timeoutMs = UPLOAD_SETTLE_TIMEOUT_MS): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (!hasVisibleUploadProgress()) return;
+    await sleep(400);
+  }
+}
+
+function hasVisibleUploadProgress(): boolean {
+  try {
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>(UPLOAD_PROGRESS_SELECTOR))) {
+      // Ignore the form's persistent step/section progress in the nav/sidebar —
+      // we only care about an active upload spinner in the page body.
+      if (el.closest('nav, aside, header, [role="navigation"]')) continue;
+      if (isElementVisible(el)) return true;
+    }
+  } catch {
+    // Selector unsupported in this engine — treat as "nothing in progress".
+  }
+  return false;
+}
+
+function isElementVisible(el: HTMLElement): boolean {
+  if (!el.isConnected) return false;
+  const rect = el.getBoundingClientRect?.();
+  if (rect && rect.width === 0 && rect.height === 0) return false;
+  const style = typeof window.getComputedStyle === "function" ? window.getComputedStyle(el) : null;
+  if (style && (style.display === "none" || style.visibility === "hidden")) return false;
+  return true;
+}
+
+/**
  * Fill-All: from the current page, fill it, click Next, wait, repeat — walking
  * the descriptor order. NEVER URL-hops (respects the anti-deep-linking guard);
  * NEVER advances past the review page (so it can't reach Submit/Pay). Upload
@@ -234,40 +388,103 @@ export async function fillAll(
 ): Promise<PageFillResult[]> {
   const summaries: PageFillResult[] = [];
   const visited = new Set<string>();
-  const maxSteps = I130_PAGES.length + 5; // safety cap
+  const maxSteps = I130_PAGES.length + 10; // safety cap (room to skip unknown pages)
+  let consecutiveUnknown = 0;
+  const MAX_CONSECUTIVE_UNKNOWN = 4; // bail if we've clearly walked off the I-130 form
 
   for (let step = 0; step < maxSteps; step++) {
     const page = detectCurrentPage();
+    let isUploadPage = false;
     if (!page) {
-      dbg("fillAll: current page not recognized as an I-130 page, stopping");
-      break;
-    }
-    if (page.kind === "review") {
-      dbg("fillAll: reached Review — stopping before Submit/Pay (never automate those)");
-      break;
-    }
-    if (visited.has(page.slug)) {
-      dbg(`fillAll: already visited ${page.slug}, advancing without refilling`);
+      // Page not in the descriptor — e.g. the preparer detail sub-page, or an
+      // uncaptured conditional (the LPR-info page). Don't stop the whole run;
+      // skip past it via Next. Bail only if several unknown pages stack up,
+      // which means we've left the I-130 form entirely.
+      if (++consecutiveUnknown > MAX_CONSECUTIVE_UNKNOWN) {
+        dbg(`fillAll: ${MAX_CONSECUTIVE_UNKNOWN} unrecognized pages in a row — left the I-130 form, stopping`);
+        break;
+      }
+      dbg(`fillAll: page not in descriptor (${window.location.pathname}) — skipping past it`);
     } else {
-      visited.add(page.slug);
-      if (page.kind === "upload") {
-        await onUploadPage(page);
+      consecutiveUnknown = 0;
+      if (page.kind === "review") {
+        dbg("fillAll: reached Review — stopping before Submit/Pay (never automate those)");
+        break;
+      }
+      isUploadPage = page.kind === "upload";
+      if (visited.has(page.slug)) {
+        dbg(`fillAll: already visited ${page.slug}, advancing without refilling`);
       } else {
-        const res = await fillPage(page, fieldValues);
-        summaries.push(res);
-        dbg(`fillAll: ${page.slug} — ${res.filled}/${res.total} filled`);
+        visited.add(page.slug);
+        if (page.kind === "upload") {
+          await onUploadPage(page);
+        } else {
+          // Don't fill until the page's inputs have rendered, so a first-paint
+          // race doesn't whiff every field with "element not on page".
+          await waitForPageReady(page, fieldValues);
+          const res = await fillPage(page, fieldValues);
+          summaries.push(res);
+          dbg(`fillAll: ${page.slug} — ${res.filled}/${res.total} filled`);
+        }
       }
     }
 
     const prevUrl = window.location.href;
-    const next = await waitForNextEnabled();
-    if (!next) {
-      dbg("fillAll: no Next button, stopping");
-      break;
+
+    if (isUploadPage) {
+      // After an upload, Next stays DISABLED until the file finishes uploading
+      // server-side. Let any spinner clear, then give Next a much longer window
+      // to enable before clicking. The robust signal is Next becoming enabled —
+      // if it never does, stop rather than click a dead button forever.
+      await waitForUploadToSettle();
+      const next = await waitForNextEnabled(UPLOAD_NEXT_TIMEOUT_MS);
+      if (!next || next.disabled) {
+        dbg(
+          "fillAll: upload still processing — Next stayed disabled after the long " +
+            "wait; stopping. Verify the upload completed before filing.",
+        );
+        break;
+      }
+      next.click();
+    } else {
+      let next = await waitForNextEnabled();
+      if (!next) {
+        // Repeater pages (e.g. /other-information/other-petitions) expose NO
+        // Next/Continue until the just-entered row is COMMITTED via a "Save
+        // Entry" button; clicking it surfaces the page's Next. Try that
+        // save-then-next sequence before giving up.
+        const saveBtn = findSaveButton();
+        if (!saveBtn) {
+          dbg("fillAll: no Next button, stopping");
+          break;
+        }
+        dbg('fillAll: no Next — clicking "Save Entry" to commit the row, then advancing');
+        saveBtn.click();
+        next = await waitForNextEnabled(SAVE_COMMIT_TIMEOUT_MS);
+        if (!next) {
+          if (window.location.href !== prevUrl) {
+            // Saving committed and advanced directly (no separate Next). Fall
+            // through to the shared page-change check, which will see the URL
+            // change and let the loop re-detect the new page.
+            dbg("fillAll: Save Entry committed and advanced the page");
+          } else {
+            dbg("fillAll: Save Entry clicked but no Next appeared and URL unchanged — stopping");
+            break;
+          }
+        }
+      }
+      if (next) next.click();
     }
-    next.click();
+
     if (!(await waitForPageChange(prevUrl))) {
       dbg("fillAll: page did not change after Next, stopping");
+      break;
+    }
+    // Safety net: the walk must NEVER leave the I-130 form. If a stray Next/link
+    // click landed us on a myUSCIS account page (e.g. change-of-address), stop
+    // immediately rather than keep walking through account screens.
+    if (!window.location.pathname.includes("/forms/petition-for-a-relative/")) {
+      dbg(`fillAll: navigation left the I-130 form (${window.location.pathname}) — stopping`);
       break;
     }
     await sleep(600); // let the new page settle before re-detecting

@@ -96,11 +96,21 @@ export const I130_PAGES: FormPage[] = [
     slug: "/about-you/your-name",
     title: "Your name",
     kind: "form",
+    // P10 (captured 2026-06-29): "other names used = Yes" reveals an indexed
+    // other-name repeater (row 0 renders automatically; "add another name" adds
+    // rows 1+). The hasAdditionalNames toggle stays UI-meta (backend `skip`).
+    repeater: {
+      namePrefix: "applicant.yourName.additionalNames.otherNames",
+      addButtonText: "add another name",
+    },
     fields: [
       t("applicant.yourName.name.firstName"),
       t("applicant.yourName.name.middleName"),
       t("applicant.yourName.name.lastName"),
       radio("formikFactoryUIMeta.applicant.yourName.additionalNames.hasAdditionalNames", ["true", "false"]),
+      t("applicant.yourName.additionalNames.otherNames.{i}.firstName"),
+      t("applicant.yourName.additionalNames.otherNames.{i}.middleName"),
+      t("applicant.yourName.additionalNames.otherNames.{i}.lastName"),
     ],
   },
   {
@@ -198,6 +208,47 @@ export const I130_PAGES: FormPage[] = [
     kind: "form",
     fields: [
       radio("applicant.maritalStatus.maritalStatus", ["1", "2", "3", "4", "7", "5"]),
+      // P3 (captured 2026-06-29): prior-spouse COUNT. >=1 reveals the prior-
+      // marriages page; =Married reveals the current-spouse page. Backend leaves
+      // this unmapped (in `skip`) — our facts hold total times_married, not the
+      // online "previous spouses" count; the count is a backend follow-up.
+      t("applicant.maritalStatus.previousSpouses"),
+    ],
+  },
+  {
+    // P3 (captured 2026-06-29): shown when applicant.maritalStatus.maritalStatus
+    // = 2 (Married). The petitioner's current spouse + marriage details.
+    slug: "/your-family/your-current-spouse",
+    title: "Current spouse",
+    kind: "form",
+    conditional: true,
+    fields: [
+      t("applicant.currentSpouse.name.firstName"),
+      t("applicant.currentSpouse.name.middleName"),
+      t("applicant.currentSpouse.name.lastName"),
+      t("applicant.currentSpouse.marriageDate"),
+      search("applicant.currentSpouse.marriageLocation.country"),
+      t("applicant.currentSpouse.marriageLocation.city"),
+      search("applicant.currentSpouse.marriageLocation.state"),
+      t("applicant.currentSpouse.dateMarriageEnded"),
+    ],
+  },
+  {
+    // P3 (captured 2026-06-29): shown when previousSpouses >= 1 — REPEATER of the
+    // petitioner's prior marriages.
+    slug: "/your-family/your-prior-marriages",
+    title: "Prior marriages",
+    kind: "form",
+    conditional: true,
+    repeater: {
+      namePrefix: "applicant.priorMarriages",
+      addButtonText: "add another marriage",
+    },
+    fields: [
+      t("applicant.priorMarriages.{i}.name.firstName"),
+      t("applicant.priorMarriages.{i}.name.middleName"),
+      t("applicant.priorMarriages.{i}.name.lastName"),
+      t("applicant.priorMarriages.{i}.dateMarriageEnded"),
     ],
   },
   {
@@ -275,16 +326,39 @@ export const I130_PAGES: FormPage[] = [
       t("beneficiary.beneficiaryAddresses.physicalAddress.city"),
       search("beneficiary.beneficiaryAddresses.physicalAddress.state"),
       t("beneficiary.beneficiaryAddresses.physicalAddress.zipCode"),
+      // BONUS (captured 2026-06-29): conditional reveals for an intended US
+      // address / a foreign address -> applicant.intended_us_address /
+      // applicant.foreign_address. Skipped by the value-setter when not rendered.
+      t("beneficiary.beneficiaryAddresses.otherPhysicalAddressInUs.addressLineOne"),
+      t("beneficiary.beneficiaryAddresses.otherPhysicalAddressInUs.addressLineTwo"),
+      t("beneficiary.beneficiaryAddresses.otherPhysicalAddressInUs.city"),
+      search("beneficiary.beneficiaryAddresses.otherPhysicalAddressInUs.state"),
+      t("beneficiary.beneficiaryAddresses.otherPhysicalAddressInUs.zipCode"),
+      search("beneficiary.beneficiaryAddresses.otherPhysicalAddressOutsideUs.country"),
+      t("beneficiary.beneficiaryAddresses.otherPhysicalAddressOutsideUs.addressLineOne"),
+      t("beneficiary.beneficiaryAddresses.otherPhysicalAddressOutsideUs.addressLineTwo"),
+      t("beneficiary.beneficiaryAddresses.otherPhysicalAddressOutsideUs.city"),
+      t("beneficiary.beneficiaryAddresses.otherPhysicalAddressOutsideUs.province"),
+      t("beneficiary.beneficiaryAddresses.otherPhysicalAddressOutsideUs.postalCode"),
     ],
   },
   {
+    // P5 (captured 2026-06-29): shown when relationship filingPetitionFor = 1
+    // (Spouse) -> applicant.last_address_lived_together. SINGLE block (not indexed).
     slug: "/your-beneficiary/beneficiary-addresses/beneficiary-address-lived-together",
     title: "Addresses you lived together",
     kind: "form",
     conditional: true,
-    // SPOUSE-conditional repeater — the spike could not capture its field names
-    // (deep-link redirected). Marked conditional; the chain tolerates 0 fields.
-    fields: [],
+    fields: [
+      search("beneficiary.beneficiaryAddressLivedTogether.address.country"),
+      t("beneficiary.beneficiaryAddressLivedTogether.address.addressLineOne"),
+      t("beneficiary.beneficiaryAddressLivedTogether.address.addressLineTwo"),
+      t("beneficiary.beneficiaryAddressLivedTogether.address.city"),
+      search("beneficiary.beneficiaryAddressLivedTogether.address.state"),
+      t("beneficiary.beneficiaryAddressLivedTogether.address.zipCode"),
+      t("beneficiary.beneficiaryAddressLivedTogether.dates.fromDate"),
+      t("beneficiary.beneficiaryAddressLivedTogether.dates.toDate"),
+    ],
   },
   {
     slug: "/your-beneficiary/beneficiary-additional-information",
@@ -314,6 +388,22 @@ export const I130_PAGES: FormPage[] = [
     ],
   },
   {
+    // P7 (captured 2026-06-29): shown when
+    // beneficiary.immigrationInformation.hasBeenInImmigrationProceedings = true.
+    // Proceeding type/location/date. State input is unmapped by the backend (our
+    // applicant.proceedings_location is a single text field, mapped to the city).
+    slug: "/your-beneficiary/beneficiary-immigration-proceedings",
+    title: "Immigration proceedings",
+    kind: "form",
+    conditional: true,
+    fields: [
+      radio("beneficiary.immigrationProceeding.bnftProceedingType", ["1", "3", "4", "8"]),
+      t("beneficiary.immigrationProceeding.bnftProceedingLocation.city"),
+      search("beneficiary.immigrationProceeding.bnftProceedingLocation.state"),
+      t("beneficiary.immigrationProceeding.bnftExpirationDate"),
+    ],
+  },
+  {
     slug: "/your-beneficiary/beneficiary-employment-information",
     title: "Beneficiary employment information",
     kind: "form",
@@ -334,17 +424,76 @@ export const I130_PAGES: FormPage[] = [
   // pagination) on marital-status, all in the backend `skip`. additional-family
   // is a conditional repeater with no captured fields.
   {
+    // P4 (captured 2026-06-29): beneficiary marital status + prior-spouse count.
+    // previousSpouses is unmapped by the backend (in `skip`) — same total-vs-prior
+    // count caveat as the petitioner side.
     slug: "/beneficiarys-family/beneficiarys-marital-status",
     title: "Beneficiary's marital status",
     kind: "form",
-    fields: [],
+    fields: [
+      radio("beneficiary.maritalStatus.maritalStatus", ["1", "2", "3", "4", "7", "5"]),
+      t("beneficiary.maritalStatus.previousSpouses"),
+    ],
   },
   {
+    // P4 (captured 2026-06-29): shown when beneficiary.maritalStatus.maritalStatus
+    // = 2. Only the name maps (-> applicant.current_spouse); the marriage detail
+    // fields have no backing fact (applicant.current_marriage.* does not exist).
+    slug: "/beneficiarys-family/beneficiarys-current-spouse",
+    title: "Beneficiary's current spouse",
+    kind: "form",
+    conditional: true,
+    fields: [
+      t("beneficiary.currentSpouse.name.firstName"),
+      t("beneficiary.currentSpouse.name.middleName"),
+      t("beneficiary.currentSpouse.name.lastName"),
+      t("beneficiary.currentSpouse.marriageDate"),
+      search("beneficiary.currentSpouse.marriageLocation.country"),
+      t("beneficiary.currentSpouse.marriageLocation.city"),
+      search("beneficiary.currentSpouse.marriageLocation.state"),
+      t("beneficiary.currentSpouse.dateMarriageEnded"),
+    ],
+  },
+  {
+    // P4 (captured 2026-06-29): shown when previousSpouses >= 1 — REPEATER of the
+    // beneficiary's prior spouses -> applicant.prior_marriages. NOTE the online
+    // name prefix is beneficiary.previousSpouses (not priorMarriages).
+    slug: "/beneficiarys-family/beneficiarys-prior-marriages",
+    title: "Prior spouses",
+    kind: "form",
+    conditional: true,
+    repeater: {
+      namePrefix: "beneficiary.previousSpouses",
+      addButtonText: "add another spouse",
+    },
+    fields: [
+      t("beneficiary.previousSpouses.{i}.name.firstName"),
+      t("beneficiary.previousSpouses.{i}.name.middleName"),
+      t("beneficiary.previousSpouses.{i}.name.lastName"),
+      t("beneficiary.previousSpouses.{i}.dateMarriageEnded"),
+    ],
+  },
+  {
+    // P4 (captured 2026-06-29): REPEATER of the beneficiary's additional family
+    // members. The backend does NOT map this yet — there is no
+    // applicant.additional_family list fact (flagged as a vocab gap), so the
+    // resolver emits no rows until that fact key is added.
     slug: "/beneficiarys-family/beneficiarys-additional-family",
     title: "Beneficiary's additional family",
     kind: "form",
     conditional: true,
-    fields: [],
+    repeater: {
+      namePrefix: "beneficiary.additionalFamily",
+      addButtonText: "add another family member",
+    },
+    fields: [
+      t("beneficiary.additionalFamily.{i}.name.firstName"),
+      t("beneficiary.additionalFamily.{i}.name.middleName"),
+      t("beneficiary.additionalFamily.{i}.name.lastName"),
+      radio("beneficiary.additionalFamily.{i}.relationship", ["1", "24"]),
+      t("beneficiary.additionalFamily.{i}.dateOfBirth"),
+      search("beneficiary.additionalFamily.{i}.country"),
+    ],
   },
 
   // ── Other Information ─────────────────────────────────────────────────────
@@ -366,6 +515,24 @@ export const I130_PAGES: FormPage[] = [
     kind: "form",
     fields: [
       radio("otherInformation.priorPetitions.priorPetitions1.previouslyFiled", ["true", "false"]),
+    ],
+  },
+  {
+    // P8 (captured 2026-06-29): shown when
+    // otherInformation.priorPetitions.priorPetitions1.previouslyFiled = true.
+    // SINGLE detail block (not indexed) -> petitioner.prior_petitions[0].
+    slug: "/other-information/prior-petitions/prior-petitions-page-2",
+    title: "Prior petitions page 2",
+    kind: "form",
+    conditional: true,
+    fields: [
+      t("otherInformation.priorPetitions.petitionInformation.name.firstName"),
+      t("otherInformation.priorPetitions.petitionInformation.name.middleName"),
+      t("otherInformation.priorPetitions.petitionInformation.name.lastName"),
+      t("otherInformation.priorPetitions.petitionInformation.petitionLocation.city"),
+      search("otherInformation.priorPetitions.petitionInformation.petitionLocation.state"),
+      t("otherInformation.priorPetitions.petitionInformation.petitionDate"),
+      t("otherInformation.priorPetitions.petitionInformation.petitionResult"),
     ],
   },
   {

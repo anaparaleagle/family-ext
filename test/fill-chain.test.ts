@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { planPageFill, repeaterRowCount, fillPage } from "../src/i130/fill-chain";
+import {
+  planPageFill,
+  repeaterRowCount,
+  fillPage,
+  waitForPageReady,
+  findSaveButton,
+} from "../src/i130/fill-chain";
 import { I130_PAGES } from "../src/i130/form-descriptor";
 import { findByName } from "../src/engine/value-setter";
 import { setBody, textInput, radioGroup, addButton } from "./fixtures/dom";
@@ -73,6 +79,54 @@ describe("repeaterRowCount (pure)", () => {
   });
 });
 
+describe("findSaveButton (repeater commit)", () => {
+  beforeEach(() => setBody(""));
+
+  it('finds a "Save Entry" commit button', () => {
+    setBody('<button type="button">Save Entry</button>');
+    expect(findSaveButton()?.textContent).toBe("Save Entry");
+  });
+
+  it('finds "Save and continue" / "Save & continue"', () => {
+    setBody('<button>Save and continue</button>');
+    expect(findSaveButton()).not.toBeNull();
+    setBody('<button>Save &amp; continue</button>');
+    expect(findSaveButton()).not.toBeNull();
+  });
+
+  it('falls back to a bare "Save" that is not a leave-the-form action', () => {
+    setBody('<button>Save</button>');
+    expect(findSaveButton()?.textContent).toBe("Save");
+  });
+
+  it('ignores leave-the-form saves ("Save and exit", "Save draft", "Save for later")', () => {
+    setBody(
+      '<button>Save and exit</button>' +
+        "<button>Save draft</button>" +
+        "<button>Save for later</button>",
+    );
+    expect(findSaveButton()).toBeNull();
+  });
+
+  it("prefers the in-form Save Entry over a header Save-and-exit", () => {
+    setBody(
+      '<header><button>Save and exit</button></header>' +
+        '<button type="button">Save Entry</button>',
+    );
+    expect(findSaveButton()?.textContent).toBe("Save Entry");
+  });
+
+  it("excludes save buttons inside the global nav/sidebar", () => {
+    setBody('<nav><button>Save</button></nav>');
+    expect(findSaveButton()).toBeNull();
+  });
+
+  it("returns null when there is no save button", () => {
+    setBody('<button data-testid="next-button">Next</button>');
+    expect(findSaveButton()).toBeNull();
+  });
+});
+
 describe("fillPage (DOM)", () => {
   beforeEach(() => setBody(""));
 
@@ -110,6 +164,30 @@ describe("fillPage (DOM)", () => {
       'input[name="applicant.additionalInformation.immigrationStatus"]:checked',
     );
     expect(checked?.value).toBe("4");
+  });
+
+  it("waits for a not-yet-rendered page's first field before resolving", async () => {
+    setBody(""); // page hasn't mounted its inputs yet
+    const p = page("/about-you/your-name");
+    const fieldValues = { "applicant.yourName.name.firstName": "Daniel" };
+    // The input appears ~300ms later (simulating a React first-paint race).
+    setTimeout(() => setBody(textInput("applicant.yourName.name.firstName")), 300);
+
+    const start = Date.now();
+    await waitForPageReady(p, fieldValues, 3000);
+    const elapsed = Date.now() - start;
+
+    // It waited until the field rendered, then resolved (well before the cap).
+    expect(findByName("applicant.yourName.name.firstName")).not.toBeNull();
+    expect(elapsed).toBeLessThan(3000);
+  });
+
+  it("returns immediately when the page has no payload values (0/0)", async () => {
+    setBody("");
+    const start = Date.now();
+    await waitForPageReady(page("/about-you/your-name"), {}, 3000);
+    // An empty plan must not stall — no fields to wait for.
+    expect(Date.now() - start).toBeLessThan(150);
   });
 
   it("clicks Add then fills indexed repeater rows", async () => {
