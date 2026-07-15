@@ -237,19 +237,55 @@ const UPLOAD_PROGRESS_SELECTOR =
 const PAGE_READY_TIMEOUT_MS = 6000;
 
 /**
- * Advance controls we must NEVER click autonomously. The walk stops before the
- * review page of a form whose review slug is in the descriptor, but a form
- * whose review page has NOT been captured (the I-539's has not) would otherwise
- * be treated as an unrecognized page and advanced past — straight into
- * Submit/Pay/e-sign. This is the backstop that makes that impossible: whatever
- * a button's test-id says, its LABEL decides. Draft only, always.
+ * Advance controls we must NEVER click autonomously, matched on their LABEL —
+ * whatever a button's test-id says, its text decides. Draft only, always.
+ *
+ * This is a BACKSTOP, not the primary stop, and the 2026-07-15 I-539 review
+ * capture proved why it cannot be the primary one: the control that advances
+ * PAST the review page is a plain "Next" (id=button-button,
+ * data-testid=next-button) — byte-identical to the Next on every other page.
+ * No text guard can catch that without breaking the whole walk. What stops the
+ * walk at review is the descriptor's `kind: "review"` page; this regex only
+ * catches the pages DOWNSTREAM of review (pay-and-submit, e-sign, …) if we ever
+ * got that far.
  */
 const NEVER_CLICK_TEXT = /submit|pay\b|payment|e-?sign|sign\s+(and|&)|file\s+(and|&)|checkout/i;
+
+/**
+ * Path segment that means "you are at or past the review page". myUSCIS files
+ * everything terminal under this one parent: the review page itself
+ * (…/review-and-submit/review-your-application), then the applicant statement,
+ * the signature pages and …/review-and-submit/pay-and-submit (route table read
+ * live from the myUSCIS JS bundle 2026-07-15).
+ */
+const TERMINAL_PATH = /\/review-and-submit(\/|$)/i;
 
 /** True when a control must never be clicked by the walk (Submit/Pay/e-sign). */
 export function isForbiddenAdvanceControl(el: Element | null): boolean {
   if (!el) return false;
   return NEVER_CLICK_TEXT.test((el.textContent || "").trim());
+}
+
+/**
+ * True when the URL is at (or past) the form's terminal review/sign/pay section.
+ *
+ * Belt-and-braces for the descriptor's `kind: "review"` stop. If the review page
+ * is recognized, the walk stops on kind alone and never reaches this. This
+ * covers the DRIFT case: USCIS renames the review slug, `detectCurrentPage`
+ * returns null, and the walk's unknown-page branch would helpfully click "Next"
+ * — straight through the statement and signature pages toward pay-and-submit.
+ * Matching the stable PARENT path instead of one exact slug means a renamed leaf
+ * still stops us. Structural, not literal-text — the same reason the text guard
+ * can't do this job.
+ */
+export function onTerminalPath(url: string): boolean {
+  let path: string;
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    path = url;
+  }
+  return TERMINAL_PATH.test(path);
 }
 
 /**
@@ -435,6 +471,13 @@ export async function fillAll(
         "fillAll: myUSCIS is showing a sign-in page — your USCIS session expired. " +
           "Sign in again, reopen the draft, then run Fill all.",
       );
+      break;
+    }
+    // Terminal-section stop, checked BEFORE page detection so it holds even when
+    // the descriptor doesn't recognize the page (a renamed review slug must not
+    // fall through to the unknown-page branch, which advances via Next).
+    if (onTerminalPath(window.location.href)) {
+      dbg("fillAll: reached the review/sign/pay section — stopping (never automate those)");
       break;
     }
     const page = detectCurrentPage(config.pages);

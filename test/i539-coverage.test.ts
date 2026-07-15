@@ -17,7 +17,7 @@ import { I539_PAGES, I539_SKIP } from "../src/i539/form-descriptor";
 import { fieldNamesOf } from "../src/runner/types";
 
 const DUMP_DIR = resolve(__dirname, "../../i539-online-field-dump");
-/** The full happy-path capture: 23 primary screens (00..22b) of an F-1 change-of-status. */
+/** The full happy-path capture: 24 primary screens (00..23) of an F-1 change-of-status. */
 const PRIMARY_BRANCH = "f1-cos";
 /** The reason/status delta captures — same pages, different status/reason answers. */
 const DELTA_BRANCHES = ["f1-eos", "b1b2", "j1", "h4", "l2"];
@@ -120,11 +120,28 @@ describe("I-539 descriptor shape", () => {
     expect(page?.fields.every((f) => f.name.includes("{i}"))).toBe(true);
   });
 
-  it("has NO review page — it was never captured (documented gap)", () => {
-    // Guards the honesty of the descriptor: if someone later adds a review page,
-    // they must have captured its real slug, and this test should be updated to
-    // assert that slug rather than its absence.
-    expect(I539_PAGES.filter((p) => p.kind === "review")).toEqual([]);
+  it("terminates on the captured review page, which is last and fills nothing", () => {
+    // Was "has NO review page (documented gap)" until the live capture on
+    // 2026-07-15 (dump f1-cos/23-review-and-submit.json). The slug below is the
+    // real one, read off the sidebar link's href on draft 13218429 — not guessed.
+    const reviews = I539_PAGES.filter((p) => p.kind === "review");
+    expect(reviews.map((p) => p.slug)).toEqual(["/review-and-submit/review-your-application"]);
+    // The page renders no inputs at all, so there is nothing to type here.
+    expect(reviews[0].fields).toEqual([]);
+    // It must be LAST: fillAll breaks on kind === "review", so any page after it
+    // would be silently unreachable.
+    expect(I539_PAGES[I539_PAGES.length - 1].kind).toBe("review");
+  });
+
+  it("matches the review slug the live dump captured", () => {
+    // Locks descriptor <-> dump agreement for the one page whose slug is
+    // safety-critical: get it wrong and the walk clicks Next into Submit/Pay.
+    const dump = JSON.parse(
+      readFileSync(resolve(DUMP_DIR, PRIMARY_BRANCH, "23-review-and-submit.json"), "utf-8"),
+    );
+    const review = I539_PAGES.find((p) => p.kind === "review")!;
+    expect(new URL(dump.url).pathname.endsWith(review.slug)).toBe(true);
+    expect(dump.fields).toEqual([]);
   });
 
   it("uses no beneficiary.* names — the I-539 has a single applicant party", () => {

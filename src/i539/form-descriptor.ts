@@ -1,8 +1,9 @@
 // ===========================================================================
 // I-539 STRUCTURAL DESCRIPTOR — page order, URL slugs, per-field kind, repeater
 // flags, upload-only pages. Authored from paraleagle-dev/i539-online-field-dump/
-// (23 primary screens f1-cos/00..22b + the reason/status delta captures in
-// f1-eos, b1b2, j1, h4, l2; captured live 2026-07-15, throwaway draft 13212561).
+// (24 primary screens f1-cos/00..23 + the reason/status delta captures in
+// f1-eos, b1b2, j1, h4, l2; captured live 2026-07-15 — screens 00..22b on
+// throwaway draft 13212561, the review screen on throwaway draft 13218429).
 //
 // Form: I-539, Application To Extend/Change Nonimmigrant Status.
 // Host:  https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/
@@ -22,14 +23,16 @@
 //    disambiguate I-539 pages — the URL slug is the only signal. Titles below are
 //    the SIDEBAR labels, used for logging/audit output.
 //
+//  - THE REVIEW PAGE IS NOW CAPTURED (2026-07-15, draft 13218429, f1-cos/23):
+//    slug /review-and-submit/review-your-application, no inputs, and the walk
+//    terminates on it. It was reached by clicking the sidebar link on a BRAND-NEW
+//    empty draft — it does not bounce to the form start, so unlike the I-130 it
+//    has no anti-deep-linking prerequisite. Review is ONE screen; the statement /
+//    signature / pay-and-submit steps are separate routes below it that we never
+//    visit. See the entry at the bottom of I539_PAGES for the safety rationale.
+//
 // KNOWN GAPS (honest — do not paper over):
-//  1. THE REVIEW PAGE WAS NEVER CAPTURED. The sidebar shows a "Review and Submit"
-//     section but no screen dump exists, so its slug is unknown and it is NOT in
-//     this descriptor. The walk therefore treats it as an unrecognized page. The
-//     hard backstop is fill-chain's NEVER_CLICK_TEXT guard, which refuses to
-//     click any Submit/Pay/e-sign control. Capture that page and add a
-//     `kind: "review"` entry before any live end-to-end run.
-//  2. The `formikFactoryUIMeta.*` toggles are in I539_SKIP (below), not in any
+//  1. The `formikFactoryUIMeta.*` toggles are in I539_SKIP (below), not in any
 //     page's `fields` — see that list for the consequence.
 //
 // Field kinds follow the I-130 precedent + the live lesson from 2026-06-26:
@@ -516,6 +519,25 @@ export const I539_PAGES: FormPage[] = [
   },
 
   // ── Review and Submit ────────────────────────────────────────────────────
-  // NOT CAPTURED — see "KNOWN GAPS" at the top of this file. Deliberately absent
-  // rather than guessed; fill-chain's Submit/Pay/e-sign guard is the backstop.
+  {
+    // f1-cos/23. THE WALK STOPS HERE (fillAll breaks on kind === "review").
+    // Captured live 2026-07-15 (draft 13218429). No inputs at all: the page is a
+    // fee summary ($420) plus one red "There are errors in <section>" alert per
+    // incomplete section, each with an "Edit my responses" button.
+    //
+    // SAFETY — why this entry is load-bearing, not bookkeeping: the control that
+    // advances PAST review is a plain "Next" (id=button-button,
+    // data-testid=next-button), identical to every other page's, so the
+    // NEVER_CLICK_TEXT guard cannot catch it and findNextButton() matches it on
+    // its first selector. It is disabled ONLY while red alerts remain — a
+    // successful autofill clears them, which is exactly when it goes live. This
+    // descriptor entry is the primary stop; fill-chain's onTerminalPath() covers
+    // the slug-drift case. Downstream (never visited, read from the myUSCIS
+    // route table): /review-and-submit/your-statement, /your-signature,
+    // /representative-signature, /pay-and-submit.
+    slug: "/review-and-submit/review-your-application",
+    title: "Review your application",
+    kind: "review",
+    fields: [],
+  },
 ];

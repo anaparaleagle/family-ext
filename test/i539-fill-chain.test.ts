@@ -7,7 +7,12 @@
 // tolerance) so that when the backend map lands, only the VALUES are new.
 
 import { describe, it, expect } from "vitest";
-import { planPageFill, repeaterRowCount } from "../src/runner/fill-chain";
+import {
+  planPageFill,
+  repeaterRowCount,
+  isForbiddenAdvanceControl,
+  onTerminalPath,
+} from "../src/runner/fill-chain";
 import { pageForUrl } from "../src/runner/section-detector";
 import { I539_PAGES } from "../src/i539/form-descriptor";
 
@@ -47,6 +52,82 @@ describe("I-539 section detection", () => {
 
   it("returns null for a myUSCIS account page", () => {
     expect(pageForUrl(I539_PAGES, "https://my.uscis.gov/account/dashboard")).toBeNull();
+  });
+});
+
+describe("I-539 review page — never walk into Submit/Pay", () => {
+  it("detects the captured review page and marks it terminal", () => {
+    const p = pageForUrl(
+      I539_PAGES,
+      `${BASE}/review-and-submit/review-your-application?app_to_rep_id=d8249b5b`,
+    );
+    expect(p?.slug).toBe("/review-and-submit/review-your-application");
+    expect(p?.kind).toBe("review");
+  });
+
+  it("the review page's real Next button is NOT caught by the text guard", () => {
+    // Documents the live 2026-07-15 finding rather than pretending otherwise:
+    // the control that advances past review is a plain "Next" (id=button-button,
+    // data-testid=next-button). No Submit/Pay text to match, so the text guard
+    // is blind to it — which is exactly why the descriptor entry (kind:"review")
+    // and onTerminalPath() exist. If this ever starts returning true, the guard
+    // has become over-broad and will break the walk on every ordinary page.
+    const next = document.createElement("button");
+    next.id = "button-button";
+    next.setAttribute("data-testid", "next-button");
+    next.textContent = "Next";
+    expect(isForbiddenAdvanceControl(next)).toBe(false);
+  });
+
+  it("still refuses the downstream Submit/Pay/e-sign controls by text", () => {
+    for (const label of [
+      "Submit",
+      "Pay and submit",
+      "Continue to payment",
+      "E-sign",
+      "Sign and submit",
+      "File and pay",
+      "Checkout",
+    ]) {
+      const b = document.createElement("button");
+      b.textContent = label;
+      expect(isForbiddenAdvanceControl(b), `should refuse "${label}"`).toBe(true);
+    }
+  });
+
+  it("treats the whole review-and-submit section as terminal, by path", () => {
+    // The parent path is the stable signal: every terminal route myUSCIS has
+    // lives under it (routes read from the live JS bundle 2026-07-15).
+    for (const slug of [
+      "/review-and-submit/review-your-application",
+      "/review-and-submit/your-statement",
+      "/review-and-submit/your-signature",
+      "/review-and-submit/representative-signature",
+      "/review-and-submit/pay-and-submit",
+      "/review-and-submit/submit-confirmation",
+    ]) {
+      expect(onTerminalPath(`${BASE}${slug}?app_to_rep_id=d8249b5b`), slug).toBe(true);
+    }
+  });
+
+  it("stops even if USCIS RENAMES the review slug (drift case)", () => {
+    // The descriptor would no longer recognize this page, so the walk's
+    // unknown-page branch would click Next straight toward Submit. The path
+    // guard is what saves us.
+    const renamed = `${BASE}/review-and-submit/review-your-form-539`;
+    expect(pageForUrl(I539_PAGES, renamed)).toBeNull();
+    expect(onTerminalPath(renamed)).toBe(true);
+  });
+
+  it("does not treat ordinary form pages as terminal", () => {
+    for (const slug of [
+      "/about-you/your-name",
+      "/getting-started/basis-of-eligibility",
+      "/additional-information/additional-information",
+      "/evidence/form-i-94",
+    ]) {
+      expect(onTerminalPath(`${BASE}${slug}`), slug).toBe(false);
+    }
   });
 });
 
