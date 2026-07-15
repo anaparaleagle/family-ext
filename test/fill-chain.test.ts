@@ -5,7 +5,7 @@ import {
   fillPage,
   waitForPageReady,
   findSaveButton,
-} from "../src/i130/fill-chain";
+} from "../src/runner/fill-chain";
 import { I130_PAGES } from "../src/i130/form-descriptor";
 import { findByName } from "../src/engine/value-setter";
 import { setBody, textInput, radioGroup, addButton } from "./fixtures/dom";

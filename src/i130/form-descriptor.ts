@@ -20,55 +20,11 @@
 //    values for documentation/tests, but the engine selects by the emitted value.
 // ===========================================================================
 
-import { FieldKind } from "../engine/types";
+// The descriptor types + authoring helpers are shared with every other guided
+// online form (see src/runner/types.ts); only the page table below is I-130.
+import { FormPage, area, check, fieldNamesOf, phone, radio, search, t } from "../runner/types";
 
-export interface DescriptorField {
-  /** Formik `[name]` — matches the backend payload key exactly. */
-  name: string;
-  kind: FieldKind;
-  /** Documented radio option codes (engine selects by the backend value). */
-  options?: string[];
-}
-
-export interface RepeaterSpec {
-  /**
-   * Index-0 field-name prefix used to detect whether a row is rendered, e.g.
-   * "applicant.yourAddressHistory". Rows use `${prefix}.${i}.<rest>`.
-   */
-  namePrefix: string;
-  /**
-   * Visible text on the "Add ..." button for this repeater (lower-cased
-   * substring match). Clicking it renders the next indexed row.
-   */
-  addButtonText: string;
-}
-
-export type PageKind = "form" | "upload" | "review";
-
-export interface FormPage {
-  /** URL slug under the form base path. */
-  slug: string;
-  /** Human label (sidebar section / heading) for detection + logging. */
-  title: string;
-  kind: PageKind;
-  /** Fillable fields, in DOM order. Empty for upload/review pages. */
-  fields: DescriptorField[];
-  /** Present when this page is a repeater (address/employment history etc.). */
-  repeater?: RepeaterSpec;
-  /**
-   * Spouse-only / conditional page — only reachable when the relationship is
-   * Spouse (or upstream answers are set). The chain tolerates these being
-   * absent for non-spouse cases.
-   */
-  conditional?: boolean;
-}
-
-const t = (name: string): DescriptorField => ({ name, kind: "text" });
-const search = (name: string): DescriptorField => ({ name, kind: "search" });
-const phone = (name: string): DescriptorField => ({ name, kind: "phone" });
-const radio = (name: string, options: string[]): DescriptorField => ({ name, kind: "radio", options });
-const check = (name: string): DescriptorField => ({ name, kind: "checkbox" });
-const area = (name: string): DescriptorField => ({ name, kind: "textarea" });
+export type { DescriptorField, FormPage, PageKind, RepeaterSpec } from "../runner/types";
 
 /**
  * The I-130 page walk, in order. The base path is
@@ -629,11 +585,5 @@ export const I130_PAGES: FormPage[] = [
 /** Every distinct fillable field name the descriptor drives (index 0 for
  * repeaters), for coverage accounting against the backend payload. */
 export function descriptorFieldNames(): string[] {
-  const names = new Set<string>();
-  for (const page of I130_PAGES) {
-    for (const f of page.fields) {
-      names.add(f.name.replace(/\{i\}/g, "0"));
-    }
-  }
-  return [...names];
+  return fieldNamesOf(I130_PAGES);
 }

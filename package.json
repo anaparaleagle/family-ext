@@ -1,8 +1,8 @@
 {
   "name": "paraleagle-family-ext",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "Autofill the online Form I-130 (Petition for Alien Relative) on myUSCIS from the family-visa FACT store",
+  "description": "Autofill the guided online Forms I-130 and I-539 on myUSCIS from the family-visa FACT store",
   "scripts": {
     "build": "node esbuild.config.mjs",
     "watch": "node esbuild.config.mjs --watch",

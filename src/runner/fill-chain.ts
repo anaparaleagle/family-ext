@@ -1,11 +1,12 @@
-// The I-130 page-walk. Two layers:
+// The guided-online-form page-walk. Two layers:
 //   - PURE planning (planPageFill, repeaterRowCount, orderFields) — no DOM, no
 //     async, fully unit-tested.
 //   - DOM driving (fillPage, fillAll, navigation) — uses the engine value-setter,
 //     clicks repeater Add buttons, walks via the form's own Next button.
 //
-// The chain is data-agnostic: it fills a page's descriptor fields by matching
-// their `[name]` against the backend payload. Names absent from the payload are
+// The chain is form-agnostic AND data-agnostic: it takes the descriptor pages
+// (via FormConfig) as a parameter and fills a page's fields by matching their
+// `[name]` against the backend payload. Names absent from the payload are
 // skipped. Radios are filled first (they can reveal conditional fields). For
 // repeater pages, it counts how many indexed rows the payload supplies, clicks
 // "Add" to render each, then fills the indexed names.
@@ -13,7 +14,7 @@
 import { setValue, findByName } from "../engine/value-setter";
 import { FieldSpec, SetResult } from "../engine/types";
 import { dbg } from "../engine/logger";
-import { DescriptorField, FormPage, I130_PAGES, RepeaterSpec } from "./form-descriptor";
+import { DescriptorField, FormConfig, FormPage, RepeaterSpec } from "./types";
 import { detectCurrentPage } from "./section-detector";
 
 export interface PlannedField {
@@ -235,12 +236,33 @@ const UPLOAD_PROGRESS_SELECTOR =
  * Fresh drafts mount their Formik inputs slowly, so give them room. */
 const PAGE_READY_TIMEOUT_MS = 6000;
 
-/** Find the form's Next/Continue button (same selectors myUSCIS uses). */
+/**
+ * Advance controls we must NEVER click autonomously. The walk stops before the
+ * review page of a form whose review slug is in the descriptor, but a form
+ * whose review page has NOT been captured (the I-539's has not) would otherwise
+ * be treated as an unrecognized page and advanced past — straight into
+ * Submit/Pay/e-sign. This is the backstop that makes that impossible: whatever
+ * a button's test-id says, its LABEL decides. Draft only, always.
+ */
+const NEVER_CLICK_TEXT = /submit|pay\b|payment|e-?sign|sign\s+(and|&)|file\s+(and|&)|checkout/i;
+
+/** True when a control must never be clicked by the walk (Submit/Pay/e-sign). */
+export function isForbiddenAdvanceControl(el: Element | null): boolean {
+  if (!el) return false;
+  return NEVER_CLICK_TEXT.test((el.textContent || "").trim());
+}
+
+/**
+ * Find the form's Next/Continue button (same selectors myUSCIS uses). Never
+ * returns a Submit/Pay/e-sign control, whatever its test-id or id says.
+ */
 export function findNextButton(doc: Document = document): HTMLButtonElement | null {
   const byTestId = doc.querySelector<HTMLButtonElement>('button[data-testid="next-button"]');
-  if (byTestId) return byTestId;
+  if (byTestId && !isForbiddenAdvanceControl(byTestId)) return byTestId;
   const byId = doc.querySelector<HTMLButtonElement>("button#button-button");
-  if (byId && /next|continue/i.test(byId.textContent || "")) return byId;
+  if (byId && /next|continue/i.test(byId.textContent || "") && !isForbiddenAdvanceControl(byId)) {
+    return byId;
+  }
   for (const b of Array.from(doc.querySelectorAll<HTMLButtonElement>("button"))) {
     if (/^(next|continue)$/i.test((b.textContent || "").trim())) return b;
   }
@@ -377,31 +399,56 @@ function isElementVisible(el: HTMLElement): boolean {
 }
 
 /**
+ * True when the page we're on is a myUSCIS sign-in / session-expired screen
+ * rather than a form page. myUSCIS bounces an expired session to the account
+ * login, and the walk must stop there with a clear message instead of clicking
+ * "Next"-ish controls through account screens.
+ */
+export function onLoginPage(doc: Document = document): boolean {
+  const path = (doc.location?.pathname ?? "").toLowerCase();
+  if (/\/(sign-?in|log-?in|session|account\/login)/.test(path)) return true;
+  // A password field outside the form host is the unambiguous DOM signal.
+  return doc.querySelector('input[type="password"]') !== null;
+}
+
+/**
  * Fill-All: from the current page, fill it, click Next, wait, repeat — walking
- * the descriptor order. NEVER URL-hops (respects the anti-deep-linking guard);
- * NEVER advances past the review page (so it can't reach Submit/Pay). Upload
- * pages are filled by the doc-flow (caller wires that) — here we only TYPE.
+ * the descriptor order for the given form. NEVER URL-hops (respects the
+ * anti-deep-linking guard); NEVER advances past the review page and NEVER
+ * clicks Submit/Pay/e-sign. Upload pages are filled by the doc-flow (caller
+ * wires that) — here we only TYPE.
  */
 export async function fillAll(
+  config: FormConfig,
   fieldValues: Record<string, string>,
   onUploadPage: (page: FormPage) => Promise<void>,
 ): Promise<PageFillResult[]> {
   const summaries: PageFillResult[] = [];
   const visited = new Set<string>();
-  const maxSteps = I130_PAGES.length + 10; // safety cap (room to skip unknown pages)
+  const maxSteps = config.pages.length + 10; // safety cap (room to skip unknown pages)
   let consecutiveUnknown = 0;
-  const MAX_CONSECUTIVE_UNKNOWN = 4; // bail if we've clearly walked off the I-130 form
+  const MAX_CONSECUTIVE_UNKNOWN = 4; // bail if we've clearly walked off the form
 
   for (let step = 0; step < maxSteps; step++) {
-    const page = detectCurrentPage();
+    if (onLoginPage()) {
+      dbg(
+        "fillAll: myUSCIS is showing a sign-in page — your USCIS session expired. " +
+          "Sign in again, reopen the draft, then run Fill all.",
+      );
+      break;
+    }
+    const page = detectCurrentPage(config.pages);
     let isUploadPage = false;
     if (!page) {
-      // Page not in the descriptor — e.g. the preparer detail sub-page, or an
-      // uncaptured conditional (the LPR-info page). Don't stop the whole run;
-      // skip past it via Next. Bail only if several unknown pages stack up,
-      // which means we've left the I-130 form entirely.
+      // Page not in the descriptor — e.g. a preparer detail sub-page, or an
+      // uncaptured conditional. Don't stop the whole run; skip past it via Next.
+      // Bail only if several unknown pages stack up, which means we've left the
+      // form entirely.
       if (++consecutiveUnknown > MAX_CONSECUTIVE_UNKNOWN) {
-        dbg(`fillAll: ${MAX_CONSECUTIVE_UNKNOWN} unrecognized pages in a row — left the I-130 form, stopping`);
+        dbg(
+          `fillAll: ${MAX_CONSECUTIVE_UNKNOWN} unrecognized pages in a row — ` +
+            `left the ${config.formType} form, stopping`,
+        );
         break;
       }
       dbg(`fillAll: page not in descriptor (${window.location.pathname}) — skipping past it`);
@@ -440,8 +487,9 @@ export async function fillAll(
       const next = await waitForNextEnabled(UPLOAD_NEXT_TIMEOUT_MS);
       if (!next || next.disabled) {
         dbg(
-          "fillAll: upload still processing — Next stayed disabled after the long " +
-            "wait; stopping. Verify the upload completed before filing.",
+          "fillAll: Next never enabled on this upload page — either no file was " +
+            "attached (a required upload with nothing resolved) or the upload is " +
+            "still processing. Stopping; attach the file by hand and re-run.",
         );
         break;
       }
@@ -480,11 +528,14 @@ export async function fillAll(
       dbg("fillAll: page did not change after Next, stopping");
       break;
     }
-    // Safety net: the walk must NEVER leave the I-130 form. If a stray Next/link
+    // Safety net: the walk must NEVER leave this form. If a stray Next/link
     // click landed us on a myUSCIS account page (e.g. change-of-address), stop
     // immediately rather than keep walking through account screens.
-    if (!window.location.pathname.includes("/forms/petition-for-a-relative/")) {
-      dbg(`fillAll: navigation left the I-130 form (${window.location.pathname}) — stopping`);
+    if (!window.location.pathname.includes(config.hostPath)) {
+      dbg(
+        `fillAll: navigation left the ${config.formType} form ` +
+          `(${window.location.pathname}) — stopping`,
+      );
       break;
     }
     await sleep(600); // let the new page settle before re-detecting

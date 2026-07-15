@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { fillUploadPage } from "../src/i130/doc-flow";
-import type { UploadPageDescriptor } from "../src/i130/payload";
+import { fillUploadPage } from "../src/runner/doc-flow";
+import type { UploadPageDescriptor } from "../src/runner/payload";
 
 const CTX = {
   apiBaseUrl: "http://localhost:8001/api/v1",

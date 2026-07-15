@@ -1,4 +1,4 @@
-// Resolve I-130 upload-page descriptors to real files and attach them.
+// Resolve upload-page descriptors to real files and attach them.
 //
 // The backend `myuscis-preview` endpoint returns upload_pages as METADATA only
 // (which doc_type / generated form goes on which page) — it does not resolve to
@@ -15,7 +15,8 @@
 //                              filled PDF, downloaded through the background
 //                              proxy with the bearer token.
 //
-// Both file URLs come from the same backend contract:
+// Form-agnostic: it acts on whatever upload_pages the backend sent for whatever
+// form was loaded. Both file URLs come from the same backend contract:
 //   - documents:        DocumentSerializer.file_url        (GET /documents/?case=)
 //   - generated forms:  GeneratedFormSerializer.file_url   (GET /forms/generated/?case=)
 // Both are absolute media URLs the download-proxy fetches with the firm token.
@@ -49,13 +50,25 @@ interface ResolveContext {
   caseId: string;
 }
 
+/**
+ * The message shown whenever the family backend rejects our bearer token. The
+ * popup mirrors the Firebase token into storage on "Load case"; once it ages
+ * out, every doc fetch 401s and the only fix is to reopen the popup.
+ */
+export const SESSION_EXPIRED_MESSAGE =
+  "Session expired — reopen the popup and Load case.";
+
 /** Fetch the family-backend documents list for a case (firm-scoped, STAFF). */
 async function fetchDocuments(ctx: ResolveContext): Promise<DocRow[]> {
   const res = await fetch(`${ctx.apiBaseUrl}/documents/?case=${encodeURIComponent(ctx.caseId)}`, {
     headers: { Authorization: `Bearer ${ctx.accessToken}` },
   });
   if (!res.ok) {
-    dbg(`doc-flow: documents list failed (${res.status})`);
+    dbg(
+      res.status === 401
+        ? `doc-flow: documents list 401 — ${SESSION_EXPIRED_MESSAGE}`
+        : `doc-flow: documents list failed (${res.status})`,
+    );
     return [];
   }
   const data = await res.json();
@@ -88,7 +101,11 @@ async function fetchGeneratedForm(
     headers: { Authorization: `Bearer ${ctx.accessToken}` },
   });
   if (!res.ok) {
-    dbg(`doc-flow: generated-forms list failed (${res.status})`);
+    dbg(
+      res.status === 401
+        ? `doc-flow: generated-forms list 401 — ${SESSION_EXPIRED_MESSAGE}`
+        : `doc-flow: generated-forms list failed (${res.status})`,
+    );
     return null;
   }
   const data = await res.json();
@@ -103,7 +120,14 @@ async function fetchGeneratedForm(
 async function downloadAsFile(url: string, accessToken: string, filename: string): Promise<File | null> {
   const response = await chrome.runtime.sendMessage({ type: "DOWNLOAD_FILE", url, accessToken });
   if (!response?.success) {
-    dbg(`doc-flow: download failed for ${url}: ${response?.error}`);
+    // The proxy reports a failed fetch as "HTTP <status>"; a 401 there means the
+    // mirrored token aged out, which is worth naming rather than showing raw.
+    const error = String(response?.error ?? "unknown error");
+    dbg(
+      /\b401\b/.test(error)
+        ? `doc-flow: download 401 for ${url} — ${SESSION_EXPIRED_MESSAGE}`
+        : `doc-flow: download failed for ${url}: ${error}`,
+    );
     return null;
   }
   const blob = new Blob([new Uint8Array(response.data)], { type: response.contentType });

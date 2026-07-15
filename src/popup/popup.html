@@ -4,12 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="popup.css" />
-    <title>ParaLeagle Family I-130</title>
+    <title>ParaLeagle Family myUSCIS Autofill</title>
   </head>
   <body>
     <header>
       <h1>ParaLeagle Family</h1>
-      <span class="sub">Online I-130 autofill</span>
+      <span class="sub">myUSCIS online form autofill</span>
     </header>
 
     <div id="error" class="error" style="display: none"></div>
@@ -28,14 +28,20 @@
         <button id="logout-btn" class="link">Sign out</button>
       </div>
 
-      <label class="field-label">Case</label>
+      <label class="field-label" for="case-search">Case</label>
       <input id="case-search" type="search" placeholder="Search cases…" />
       <div id="case-list" class="case-list">
         <div class="empty">Loading…</div>
       </div>
 
+      <label class="field-label" for="form-type">Form to fill</label>
+      <select id="form-type" aria-describedby="form-type-help"></select>
+      <p id="form-type-help" class="help">
+        Pick the myUSCIS form you have open, then load the case to fill it.
+      </p>
+
       <button id="load-btn" class="primary">Load case</button>
-      <div id="status" class="status"></div>
+      <div id="status" class="status" role="status" aria-live="polite"></div>
     </section>
 
     <footer>

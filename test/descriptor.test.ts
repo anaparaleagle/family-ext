@@ -1,34 +1,34 @@
 import { describe, it, expect } from "vitest";
 import { I130_PAGES, descriptorFieldNames } from "../src/i130/form-descriptor";
-import { pageForUrl, pageForHeading } from "../src/i130/section-detector";
-import { descriptorForPath } from "../src/i130/doc-flow";
-import type { UploadPageDescriptor } from "../src/i130/payload";
+import { pageForUrl, pageForHeading } from "../src/runner/section-detector";
+import { descriptorForPath } from "../src/runner/doc-flow";
+import type { UploadPageDescriptor } from "../src/runner/payload";
 
 const BASE = "https://my.uscis.gov/forms/petition-for-a-relative/12993840";
 
 describe("section-detector", () => {
   it("detects a page by URL slug", () => {
-    const p = pageForUrl(`${BASE}/about-you/your-name`);
+    const p = pageForUrl(I130_PAGES, `${BASE}/about-you/your-name`);
     expect(p?.slug).toBe("/about-you/your-name");
   });
 
   it("prefers the longer nested slug over its prefix", () => {
-    const p = pageForUrl(`${BASE}/your-family/your-parents/your-parents`);
+    const p = pageForUrl(I130_PAGES, `${BASE}/your-family/your-parents/your-parents`);
     expect(p?.slug).toBe("/your-family/your-parents/your-parents");
   });
 
   it("tolerates a trailing slash", () => {
-    const p = pageForUrl(`${BASE}/about-you/describe-yourself/`);
+    const p = pageForUrl(I130_PAGES, `${BASE}/about-you/describe-yourself/`);
     expect(p?.slug).toBe("/about-you/describe-yourself");
   });
 
   it("falls back to heading match", () => {
-    const p = pageForHeading("Beneficiary relationship");
+    const p = pageForHeading(I130_PAGES, "Beneficiary relationship");
     expect(p?.slug).toBe("/your-beneficiary/beneficiary-relationship");
   });
 
   it("returns null for an unknown URL", () => {
-    expect(pageForUrl("https://my.uscis.gov/account/dashboard")).toBeNull();
+    expect(pageForUrl(I130_PAGES, "https://my.uscis.gov/account/dashboard")).toBeNull();
   });
 });
 

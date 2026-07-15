@@ -1,25 +1,31 @@
-// I-130 content script (isolated world). Renders a small toolbar on the online
-// Petition-for-a-Relative form, reads the stored payload, and drives the fill.
-// All form knowledge lives in the i130 layer; all DOM-setting in the engine.
-// This file is glue + UI only.
+// myUSCIS content script (isolated world). Renders a small toolbar on any guided
+// online form the registry knows about, reads the stored payload, and drives the
+// fill.
+//
+// Form-agnostic orchestrator: it picks the FormConfig whose hostPath matches the
+// current URL, and everything downstream (toolbar label, page detection, the
+// walk) is driven by that config. All form knowledge lives in the descriptors;
+// all DOM-setting in the engine. This file is glue + UI only.
 
 import { dbg, debugLog, resetDebugLog, hydrateDebugLog, renderDebugLogInto } from "../engine/logger";
 import { detectCurrentPage } from "./section-detector";
-import { fillAll, fillPage } from "./fill-chain";
+import { fillAll, fillPage, onLoginPage } from "./fill-chain";
+import { auditPage, summarizeAudit } from "./audit";
 import { descriptorForPath, fillUploadPage } from "./doc-flow";
 import { STORAGE_KEYS } from "./payload";
-import { FormPage } from "./form-descriptor";
+import { configForPath } from "./registry";
+import { FormConfig, FormPage } from "./types";
 
-const FORM_HOST_PATH = "/forms/petition-for-a-relative/";
-
-function onI130Form(): boolean {
-  return window.location.pathname.includes(FORM_HOST_PATH);
+/** The form this page belongs to, or null when we're not on one of ours. */
+function currentConfig(): FormConfig | null {
+  return configForPath(window.location.pathname);
 }
 
 interface LoadedPayload {
   fieldValues: Record<string, string>;
   uploadPages: import("./payload").UploadPageDescriptor[];
   caseId: string;
+  formType: string;
   accessToken: string;
   apiBaseUrl: string;
 }
@@ -29,6 +35,7 @@ async function loadPayload(): Promise<LoadedPayload | null> {
     STORAGE_KEYS.fieldValues,
     STORAGE_KEYS.uploadPages,
     STORAGE_KEYS.caseId,
+    STORAGE_KEYS.formType,
     STORAGE_KEYS.accessToken,
     STORAGE_KEYS.apiBaseUrl,
   ]);
@@ -38,9 +45,32 @@ async function loadPayload(): Promise<LoadedPayload | null> {
     fieldValues,
     uploadPages: (s[STORAGE_KEYS.uploadPages] as LoadedPayload["uploadPages"]) ?? [],
     caseId: (s[STORAGE_KEYS.caseId] as string) ?? "",
+    formType: (s[STORAGE_KEYS.formType] as string) ?? "",
     accessToken: (s[STORAGE_KEYS.accessToken] as string) ?? "",
     apiBaseUrl: (s[STORAGE_KEYS.apiBaseUrl] as string) ?? "http://localhost:8001/api/v1",
   };
+}
+
+/**
+ * Load the payload and check it belongs to the form on screen. Returns null (and
+ * sets a status) when there's nothing loaded, or when the loaded case was
+ * resolved for a DIFFERENT form — an I-539 payload cannot fill an I-130, the
+ * Formik names don't overlap, so it would silently record 0/N on every page.
+ */
+async function loadPayloadFor(config: FormConfig): Promise<LoadedPayload | null> {
+  const payload = await loadPayload();
+  if (!payload) {
+    setStatus("No data loaded — open the popup and load a case.");
+    return null;
+  }
+  if (payload.formType && payload.formType !== config.formType) {
+    setStatus(
+      `Loaded data is for ${payload.formType}, but this is the ${config.formType} form. ` +
+        `Open the popup and load the case for ${config.formType}.`,
+    );
+    return null;
+  }
+  return payload;
 }
 
 async function handleUploadPage(page: FormPage, payload: LoadedPayload): Promise<void> {
@@ -159,18 +189,27 @@ function makeDraggable(target: HTMLElement, handle: HTMLElement): void {
 
 // Create the collapsed-state badge: a small clickable pill that re-expands the
 // toolbar when clicked. Shares the same stored position as the toolbar.
-function createBadge(): HTMLDivElement {
+function createBadge(config: FormConfig): HTMLDivElement {
   const badge = document.createElement("div");
   badge.id = BADGE_ID;
-  badge.title = "Click to expand the ParaLeagle I-130 toolbar";
+  badge.setAttribute("role", "button");
+  badge.setAttribute("tabindex", "0");
+  badge.title = `Expand the ${config.label} toolbar`;
+  badge.setAttribute("aria-label", `Expand the ${config.label} toolbar`);
   badge.style.cssText =
     "position:fixed;top:8px;right:8px;z-index:2147483647;display:none;align-items:center;" +
     "gap:4px;padding:6px 12px;background:#0b3d91;color:#fff;border-radius:999px;" +
     "box-shadow:0 2px 8px rgba(0,0,0,.3);font:700 12px/1 system-ui,sans-serif;" +
     "cursor:pointer;user-select:none;";
-  badge.textContent = "I-130 ▲"; // ▲
+  badge.textContent = `${config.formType} ▲`; // ▲
   badge.addEventListener("click", () => {
     void expandToolbar();
+  });
+  badge.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      void expandToolbar();
+    }
   });
   return badge;
 }
@@ -210,7 +249,7 @@ async function expandToolbar(): Promise<void> {
 const DEBUG_PANEL_ID = "mk-family-debug-panel";
 const DEBUG_CONTENT_ID = "mk-family-debug-content";
 
-function createDebugPanel(): HTMLDivElement {
+function createDebugPanel(config: FormConfig): HTMLDivElement {
   const existing = document.getElementById(DEBUG_PANEL_ID) as HTMLDivElement | null;
   if (existing) return existing;
 
@@ -227,7 +266,7 @@ function createDebugPanel(): HTMLDivElement {
     "background:rgba(30,30,50,.95);border-bottom:1px solid rgba(255,255,255,.1);";
 
   const title = document.createElement("span");
-  title.textContent = "ParaLeagle I-130 Log";
+  title.textContent = `${config.label} Log`;
   title.style.cssText = "font-weight:600;font-size:11px;color:#94a3b8;";
 
   const btnGroup = document.createElement("div");
@@ -257,6 +296,7 @@ function createDebugPanel(): HTMLDivElement {
   const closeBtn = panelButton("×", "transparent");
   closeBtn.style.color = "#94a3b8";
   closeBtn.style.fontSize = "14px";
+  closeBtn.setAttribute("aria-label", "Close the log panel");
   closeBtn.addEventListener("click", () => hideDebugPanel());
 
   btnGroup.append(copyBtn, clearBtn, closeBtn);
@@ -288,7 +328,8 @@ function panelButton(label: string, bg: string): HTMLButtonElement {
 }
 
 function showDebugPanel(): void {
-  createDebugPanel().style.display = "block";
+  const config = currentConfig();
+  if (config) createDebugPanel(config).style.display = "block";
 }
 
 function hideDebugPanel(): void {
@@ -304,25 +345,27 @@ function toggleDebugPanel(): void {
 
 // ── Toolbar ────────────────────────────────────────────────────────────────
 
-function buildToolbar(): void {
+function buildToolbar(config: FormConfig): void {
   // Ensure the debug panel exists so dbg() output has somewhere to land.
-  createDebugPanel();
+  createDebugPanel(config);
 
   const haveToolbar = !!document.getElementById(TOOLBAR_ID);
   const haveBadge = !!document.getElementById(BADGE_ID);
   if (haveToolbar && haveBadge) return; // already mounted — leave state untouched
 
-  if (!haveBadge) document.body.appendChild(createBadge());
-  if (!haveToolbar) document.body.appendChild(createToolbar());
+  if (!haveBadge) document.body.appendChild(createBadge(config));
+  if (!haveToolbar) document.body.appendChild(createToolbar(config));
 
   // Restore saved position + collapsed state after mount (so offsetWidth/Height
   // are measurable for clamping). Mirrors paraleagle-ext's init().
   void restoreToolbarState();
 }
 
-function createToolbar(): HTMLDivElement {
+function createToolbar(config: FormConfig): HTMLDivElement {
   const bar = document.createElement("div");
   bar.id = TOOLBAR_ID;
+  bar.setAttribute("role", "region");
+  bar.setAttribute("aria-label", `${config.label} autofill toolbar`);
   bar.style.cssText =
     "position:fixed;top:8px;right:8px;z-index:2147483647;background:#0b3d91;color:#fff;" +
     "font:13px/1.4 system-ui,sans-serif;padding:8px 10px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.3);" +
@@ -337,16 +380,18 @@ function createToolbar(): HTMLDivElement {
 
   const grip = document.createElement("span");
   grip.textContent = "⋮⋮"; // ⋮⋮
+  grip.setAttribute("aria-hidden", "true");
   grip.style.cssText = "color:#cbd5e1;font-size:15px;font-weight:700;letter-spacing:-2px;line-height:1;";
 
   const title = document.createElement("div");
-  title.textContent = "ParaLeagle I-130";
+  title.textContent = config.label;
   title.style.cssText = "font-weight:600;flex:1;";
 
   const logsBtn = headerButton("Logs", "Show the debug log panel");
   logsBtn.addEventListener("click", toggleDebugPanel);
 
   const minBtn = headerButton("–", "Minimize toolbar (click badge to restore)"); // – en dash
+  minBtn.setAttribute("aria-label", "Minimize toolbar");
   minBtn.style.minWidth = "24px";
   minBtn.addEventListener("click", () => {
     void collapseToolbar();
@@ -357,12 +402,31 @@ function createToolbar(): HTMLDivElement {
 
   const btnRow = document.createElement("div");
   btnRow.style.cssText = "display:flex;gap:6px;";
-  btnRow.appendChild(button("Fill section", onFillSection));
-  btnRow.appendChild(button("Fill all", onFillAll));
+  btnRow.appendChild(
+    button("Fill section", "Fill only the page you are on", () => void onFillSection()),
+  );
+  btnRow.appendChild(
+    button("Fill all", `Fill every ${config.formType} page from here to Review`, () => void onFillAll()),
+  );
   bar.appendChild(btnRow);
+
+  const auditRow = document.createElement("div");
+  auditRow.style.cssText = "display:flex;gap:6px;";
+  auditRow.appendChild(
+    button(
+      "Audit page",
+      "Compare this page's fields against the descriptor — catches USCIS renames",
+      () => void onAuditPage(),
+      "secondary",
+    ),
+  );
+  bar.appendChild(auditRow);
 
   statusEl = document.createElement("div");
   statusEl.id = "mk-family-status";
+  // Announce status changes to screen readers without stealing focus.
+  statusEl.setAttribute("role", "status");
+  statusEl.setAttribute("aria-live", "polite");
   statusEl.style.cssText = "font-size:12px;opacity:.9;";
   statusEl.textContent = "Ready";
   bar.appendChild(statusEl);
@@ -409,20 +473,36 @@ function headerButton(label: string, titleText: string): HTMLButtonElement {
   return b;
 }
 
-function button(label: string, onClick: () => void): HTMLButtonElement {
+function button(
+  label: string,
+  titleText: string,
+  onClick: () => void,
+  variant: "primary" | "secondary" = "primary",
+): HTMLButtonElement {
   const b = document.createElement("button");
   b.textContent = label;
+  b.title = titleText;
   b.style.cssText =
-    "flex:1;cursor:pointer;border:0;border-radius:5px;padding:5px 8px;background:#fff;color:#0b3d91;font-weight:600;";
+    "flex:1;cursor:pointer;border-radius:5px;padding:5px 8px;font-weight:600;" +
+    (variant === "primary"
+      ? "border:0;background:#fff;color:#0b3d91;"
+      : "border:1px solid rgba(255,255,255,.5);background:transparent;color:#fff;");
   b.addEventListener("click", onClick);
   return b;
 }
 
+// ── Actions ─────────────────────────────────────────────────────────────────
+
 async function onFillSection(): Promise<void> {
-  const payload = await loadPayload();
-  if (!payload) return setStatus("No data loaded — open the popup and load a case.");
-  const page = detectCurrentPage();
-  if (!page) return setStatus("Not on a recognized I-130 page.");
+  const config = currentConfig();
+  if (!config) return setStatus("Not on a ParaLeagle-supported myUSCIS form.");
+  if (onLoginPage()) {
+    return setStatus("myUSCIS is signed out. Sign in, reopen the draft, then try again.");
+  }
+  const payload = await loadPayloadFor(config);
+  if (!payload) return;
+  const page = detectCurrentPage(config.pages);
+  if (!page) return setStatus(`Not on a recognized ${config.formType} page.`);
   if (page.kind === "upload") {
     await handleUploadPage(page, payload);
     return;
@@ -433,20 +513,54 @@ async function onFillSection(): Promise<void> {
 }
 
 async function onFillAll(): Promise<void> {
-  const payload = await loadPayload();
-  if (!payload) return setStatus("No data loaded — open the popup and load a case.");
+  const config = currentConfig();
+  if (!config) return setStatus("Not on a ParaLeagle-supported myUSCIS form.");
+  if (onLoginPage()) {
+    return setStatus("myUSCIS is signed out. Sign in, reopen the draft, then try again.");
+  }
+  const payload = await loadPayloadFor(config);
+  if (!payload) return;
   setStatus("Filling all pages…");
-  const summaries = await fillAll(payload.fieldValues, (page) => handleUploadPage(page, payload));
+  const summaries = await fillAll(config, payload.fieldValues, (page) =>
+    handleUploadPage(page, payload),
+  );
   const filled = summaries.reduce((n, s) => n + s.filled, 0);
   const total = summaries.reduce((n, s) => n + s.total, 0);
   setStatus(`Done — ${filled}/${total} fields across ${summaries.length} pages`);
 }
 
+/**
+ * Audit the current page: what the descriptor expects vs what's really rendered.
+ * This is the early-warning for USCIS renaming Formik fields — without it a
+ * rename looks identical to "this case has no data for that field".
+ */
+async function onAuditPage(): Promise<void> {
+  const config = currentConfig();
+  if (!config) return setStatus("Not on a ParaLeagle-supported myUSCIS form.");
+  const page = detectCurrentPage(config.pages);
+  if (!page) {
+    setStatus(`Page not in the ${config.formType} descriptor (${window.location.pathname}).`);
+    dbg(
+      `audit: no descriptor entry for ${window.location.pathname} — either a page we ` +
+        `never captured, or USCIS renamed the slug. Capture it and add it to the descriptor.`,
+    );
+    showDebugPanel();
+    return;
+  }
+  const audit = auditPage(page);
+  setStatus(summarizeAudit(audit));
+  dbg(`audit: ${summarizeAudit(audit)}`);
+  if (audit.missing.length > 0) dbg(`audit: MISSING -> ${audit.missing.join(", ")}`);
+  if (audit.extra.length > 0) dbg(`audit: EXTRA (not in descriptor) -> ${audit.extra.join(", ")}`);
+  for (const note of audit.notes) dbg(`audit: note — ${note}`);
+  showDebugPanel(); // the detail lives in the log, so open it for the user
+}
+
 // ── Boot ─────────────────────────────────────────────────────────────────────
 
 function boot(): void {
-  if (!onI130Form()) return;
-  buildToolbar();
+  const config = currentConfig();
+  if (config) buildToolbar(config);
 }
 
 // myUSCIS is an SPA — re-check on route changes (and whenever the SPA wiped the
@@ -456,11 +570,11 @@ function boot(): void {
 let lastPath = "";
 function watchRoute(): void {
   const path = window.location.pathname;
-  const onForm = onI130Form();
-  const wiped = onForm && !document.getElementById("mk-family-toolbar");
+  const config = currentConfig();
+  const wiped = !!config && !document.getElementById(TOOLBAR_ID);
   if (path !== lastPath || wiped) {
     lastPath = path;
-    if (onForm) buildToolbar();
+    if (config) buildToolbar(config);
   }
 }
 

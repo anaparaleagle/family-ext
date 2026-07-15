@@ -4,10 +4,14 @@
 
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 import { auth } from "../engine/firebase";
-import { STORAGE_KEYS, I130Payload } from "../i130/payload";
+import { STORAGE_KEYS, MyuscisPayload } from "../runner/payload";
+import { FORM_CONFIGS } from "../runner/registry";
 
 const DEFAULT_API_URL = "http://localhost:8001/api/v1";
 const ALLOWED_API_ORIGINS = ["https://api.family.paraleagle.ai", "http://localhost:8001"];
+
+/** Shown whenever the backend rejects our Firebase token. */
+const SESSION_EXPIRED = "Session expired — reopen the popup and Load case.";
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -25,6 +29,7 @@ const caseList = $("case-list");
 const caseSearch = $<HTMLInputElement>("case-search");
 const loadBtn = $<HTMLButtonElement>("load-btn");
 const apiEnvSelect = $<HTMLSelectElement>("api-env");
+const formTypeSelect = $<HTMLSelectElement>("form-type");
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 function showError(msg: string): void {
@@ -43,24 +48,54 @@ async function getApiUrl(): Promise<string> {
   return (stored[STORAGE_KEYS.apiBaseUrl] as string) || DEFAULT_API_URL;
 }
 
-async function getToken(): Promise<string | null> {
+/**
+ * Get a Firebase ID token and mirror it into storage for the content script +
+ * download proxy.
+ *
+ * `forceRefresh` is used on "Load case": the mirrored token is what the content
+ * script uses for doc downloads for the rest of the session, so it must be as
+ * fresh as possible at the moment we hand it over — otherwise a popup left open
+ * past the token's hour hands out a token that 401s on the first attachment.
+ */
+async function getToken(forceRefresh = false): Promise<string | null> {
   const user = auth.currentUser;
   if (!user) return null;
-  const token = await user.getIdToken();
+  const token = await user.getIdToken(forceRefresh);
   await chrome.storage.local.set({ [STORAGE_KEYS.accessToken]: token });
   return token;
 }
 
-async function apiRequest(path: string): Promise<Response> {
+async function apiRequest(path: string, forceRefresh = false): Promise<Response> {
   const baseUrl = await getApiUrl();
   const url = `${baseUrl}${path}`;
   if (!ALLOWED_API_ORIGINS.some((o) => url.startsWith(o))) {
     throw new Error("API URL not in allowlist");
   }
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  const token = await getToken();
+  const token = await getToken(forceRefresh);
   if (token) headers["Authorization"] = `Bearer ${token}`;
   return fetch(url, { headers });
+}
+
+/**
+ * Turn a DRF error body into something a paralegal can act on. DRF reports a
+ * failed guard as {"<field>": ["message"]}, NOT {"detail": ...} — reading only
+ * `detail` is how you end up showing a bare "[400] Failed to load data." and
+ * hiding the one sentence that says what went wrong (e.g. "I-539 has no online
+ * myUSCIS map").
+ */
+function describeApiError(status: number, data: unknown): string {
+  if (status === 401 || status === 403) return SESSION_EXPIRED;
+  const body = data as Record<string, unknown> | null;
+  if (body && typeof body === "object") {
+    if (typeof body.detail === "string") return `[${status}] ${body.detail}`;
+    // First field-keyed error wins; that's the guard that actually rejected us.
+    for (const value of Object.values(body)) {
+      if (typeof value === "string") return `[${status}] ${value}`;
+      if (Array.isArray(value) && typeof value[0] === "string") return `[${status}] ${value[0]}`;
+    }
+  }
+  return `[${status}] Request failed.`;
 }
 
 // ── Auth ────────────────────────────────────────────────────────────────
@@ -98,6 +133,7 @@ async function handleLogout(): Promise<void> {
     STORAGE_KEYS.fieldValues,
     STORAGE_KEYS.uploadPages,
     STORAGE_KEYS.caseId,
+    STORAGE_KEYS.formType,
     STORAGE_KEYS.loadedAt,
   ]);
   showLogin();
@@ -162,12 +198,13 @@ async function loadCases(): Promise<void> {
   selectedCaseId = "";
   setEmpty("Loading…");
   try {
-    // I-130 lives on IR-1 (spouse) cases; the family list returns every case in
-    // the firm. No status filter — a draft I-130 can be filled at any stage.
+    // The family list returns every case in the firm; which form we resolve is
+    // chosen separately (the form picker). No status filter — a draft can be
+    // filled at any stage.
     const res = await apiRequest("/cases/?page_size=500");
     if (!res.ok) {
       cases = [];
-      return setEmpty(`Failed to load cases (${res.status})`);
+      return setEmpty(res.status === 401 ? SESSION_EXPIRED : `Failed to load cases (${res.status})`);
     }
     const data = await res.json();
     cases = (data.results || data) as CaseRow[];
@@ -181,34 +218,40 @@ async function loadCases(): Promise<void> {
 async function handleLoadCase(): Promise<void> {
   hideError();
   if (!selectedCaseId) return showError("Select a case first.");
+  const formType = formTypeSelect.value;
   loadBtn.textContent = "Loading…";
   loadBtn.disabled = true;
   try {
+    // forceRefresh: this is the token the content script will reuse for doc
+    // downloads for the rest of the session — hand it over fresh.
     const res = await apiRequest(
-      `/forms/myuscis-preview/?case=${encodeURIComponent(selectedCaseId)}&form_type=I-130`,
+      `/forms/myuscis-preview/?case=${encodeURIComponent(selectedCaseId)}` +
+        `&form_type=${encodeURIComponent(formType)}`,
+      true,
     );
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      return showError(`[${res.status}] ${data.detail || "Failed to load I-130 data."}`);
+      const data = await res.json().catch(() => null);
+      return showError(describeApiError(res.status, data));
     }
-    const payload = (await res.json()) as I130Payload;
+    const payload = (await res.json()) as MyuscisPayload;
     const fieldValues = payload.field_values;
     if (!fieldValues || typeof fieldValues !== "object") {
-      return showError("No field values in response.");
+      return showError(`No field values in the ${formType} response.`);
     }
     await chrome.storage.local.set({
       [STORAGE_KEYS.fieldValues]: fieldValues,
       [STORAGE_KEYS.uploadPages]: payload.documents?.upload_pages ?? [],
       [STORAGE_KEYS.caseId]: selectedCaseId,
+      [STORAGE_KEYS.formType]: formType,
       [STORAGE_KEYS.loadedAt]: Date.now(),
     });
     const n = Object.keys(fieldValues).length;
     const u = payload.documents?.upload_pages?.length ?? 0;
-    setStatus(`Loaded ${n} fields + ${u} upload pages`);
+    setStatus(`Loaded ${n} ${formType} fields + ${u} upload pages`);
     loadBtn.textContent = "Loaded!";
     setTimeout(() => (loadBtn.textContent = "Load case"), 1500);
   } catch {
-    showError("Connection error loading I-130 data.");
+    showError(`Connection error loading ${formType} data.`);
   } finally {
     loadBtn.disabled = false;
     if (loadBtn.textContent === "Loading…") loadBtn.textContent = "Load case";
@@ -234,11 +277,38 @@ apiEnvSelect.addEventListener("change", async () => {
   await chrome.storage.local.set({ [STORAGE_KEYS.apiBaseUrl]: apiEnvSelect.value });
   if (auth.currentUser) loadCases();
 });
+formTypeSelect.addEventListener("change", () => {
+  // The stored payload belongs to the previously chosen form; loading is what
+  // makes the new choice real, so nudge rather than silently disagree.
+  hideError();
+  setStatus(`Load the case to fill ${formTypeSelect.value}.`);
+});
 
 // ── Init ────────────────────────────────────────────────────────────────
+
+/** Populate the form picker from the registry — the forms we can actually drive. */
+function renderFormTypes(selected: string): void {
+  formTypeSelect.innerHTML = "";
+  for (const config of FORM_CONFIGS) {
+    const opt = document.createElement("option");
+    opt.value = config.formType;
+    opt.textContent = config.formType;
+    formTypeSelect.appendChild(opt);
+  }
+  formTypeSelect.value = FORM_CONFIGS.some((c) => c.formType === selected)
+    ? selected
+    : FORM_CONFIGS[0].formType;
+}
+
 async function init(): Promise<void> {
-  const stored = await chrome.storage.local.get([STORAGE_KEYS.apiBaseUrl, STORAGE_KEYS.fieldValues, STORAGE_KEYS.loadedAt]);
+  const stored = await chrome.storage.local.get([
+    STORAGE_KEYS.apiBaseUrl,
+    STORAGE_KEYS.fieldValues,
+    STORAGE_KEYS.formType,
+    STORAGE_KEYS.loadedAt,
+  ]);
   apiEnvSelect.value = (stored[STORAGE_KEYS.apiBaseUrl] as string) || DEFAULT_API_URL;
+  renderFormTypes((stored[STORAGE_KEYS.formType] as string) || FORM_CONFIGS[0].formType);
 
   onAuthStateChanged(auth, (user) => {
     if (user) {
@@ -253,9 +323,16 @@ async function init(): Promise<void> {
   const loadedAt = stored[STORAGE_KEYS.loadedAt] as number | undefined;
   const fv = stored[STORAGE_KEYS.fieldValues] as Record<string, string> | undefined;
   if (loadedAt && Date.now() - loadedAt > 30 * 60 * 1000) {
-    await chrome.storage.local.remove([STORAGE_KEYS.fieldValues, STORAGE_KEYS.uploadPages, STORAGE_KEYS.caseId, STORAGE_KEYS.loadedAt]);
+    await chrome.storage.local.remove([
+      STORAGE_KEYS.fieldValues,
+      STORAGE_KEYS.uploadPages,
+      STORAGE_KEYS.caseId,
+      STORAGE_KEYS.formType,
+      STORAGE_KEYS.loadedAt,
+    ]);
   } else if (fv && Object.keys(fv).length > 0) {
-    setStatus(`${Object.keys(fv).length} fields ready`);
+    const ft = (stored[STORAGE_KEYS.formType] as string) || "";
+    setStatus(`${Object.keys(fv).length} ${ft} fields ready`.replace("  ", " "));
   }
 }
 

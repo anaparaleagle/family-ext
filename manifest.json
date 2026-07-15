@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "ParaLeagle Family I-130 Autofill",
-  "version": "0.1.0",
-  "description": "Autofill the online Form I-130 (Petition for Alien Relative) on myUSCIS from ParaLeagle family-visa data",
+  "name": "ParaLeagle Family myUSCIS Autofill",
+  "version": "0.2.0",
+  "description": "Autofill the guided online Forms I-130 and I-539 on myUSCIS from ParaLeagle family-visa data",
   "permissions": ["activeTab", "storage"],
   "host_permissions": [
     "https://my.uscis.gov/*",

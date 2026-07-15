@@ -26,7 +26,7 @@ const buildOptions = {
 
 const entries = [
   { in: "src/popup/popup.ts", out: "dist/popup.js" },
-  { in: "src/i130/content.ts", out: "dist/content.js" },
+  { in: "src/runner/content.ts", out: "dist/content.js" },
   { in: "src/engine/formik-bridge.ts", out: "dist/formik-bridge.js" },
   { in: "src/engine/download-proxy.ts", out: "dist/download-proxy.js" },
 ];
