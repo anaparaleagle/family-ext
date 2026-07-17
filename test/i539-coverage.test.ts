@@ -119,10 +119,11 @@ describe("I-539 descriptor <-> live field dump", () => {
 });
 
 describe("I-539 descriptor shape", () => {
-  it("marks the three evidence pages as upload-only", () => {
+  it("marks the four evidence pages as upload-only", () => {
     const uploads = I539_PAGES.filter((p) => p.kind === "upload");
     expect(uploads.map((p) => p.slug)).toEqual([
       "/evidence/form-i-94",
+      "/evidence/form-I-20",
       "/evidence/written-statement",
       "/evidence/additional-evidence",
     ]);

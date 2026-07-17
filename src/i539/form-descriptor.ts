@@ -501,6 +501,15 @@ export const I539_PAGES: FormPage[] = [
     fields: [],
   },
   {
+    // REQUIRED for F/M students — myUSCIS inserts an I-20 upload page right after
+    // the I-94. Surfaced on the 2026-07-17 live run (F-1 COS); the original
+    // capture missed it. Backend wires it to the form_i20 doc_type.
+    slug: "/evidence/form-I-20",
+    title: "Form I-20",
+    kind: "upload",
+    fields: [],
+  },
+  {
     // REQUIRED.
     slug: "/evidence/written-statement",
     title: "Written statement",
