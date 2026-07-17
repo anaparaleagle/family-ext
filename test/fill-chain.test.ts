@@ -7,6 +7,7 @@ import {
   findSaveButton,
 } from "../src/runner/fill-chain";
 import { I130_PAGES } from "../src/i130/form-descriptor";
+import { cond, t, FormPage } from "../src/runner/types";
 import { findByName } from "../src/engine/value-setter";
 import { setBody, textInput, radioGroup, addButton } from "./fixtures/dom";
 
@@ -211,5 +212,69 @@ describe("fillPage (DOM)", () => {
     });
     expect(res.filled).toBe(2);
     expect((findByName("applicant.yourAddressHistory.1.address.city") as HTMLInputElement).value).toBe("Dallas");
+  });
+});
+
+describe("fillPage — conditional fields skip quietly when not shown", () => {
+  beforeEach(() => setBody(""));
+
+  // A contact-style page: one always-shown field plus a conditional block that
+  // only renders when "mailing != physical" (the live symptom the fix targets —
+  // physicalAddresses.* logged "element not on page" and counted as FAIL).
+  const contactPage: FormPage = {
+    slug: "/synthetic/contact",
+    title: "Contact",
+    kind: "form",
+    fields: [
+      t("applicant.mailingAddress.city"),
+      cond(t("applicant.physicalAddress.city")),
+      cond(t("applicant.physicalAddress.zipCode")),
+    ],
+  };
+
+  it("skips absent conditional fields instead of failing them", async () => {
+    // Only the always-shown field is on the page; the physical-address block is
+    // hidden (mailing == physical).
+    setBody(textInput("applicant.mailingAddress.city"));
+    const res = await fillPage(contactPage, {
+      "applicant.mailingAddress.city": "Austin",
+      "applicant.physicalAddress.city": "Austin",
+      "applicant.physicalAddress.zipCode": "78701",
+    });
+    expect(res.filled).toBe(1);
+    expect(res.failed).toBe(0); // the two hidden conditionals are NOT failures
+    expect(res.skipped).toBe(2);
+    expect(res.total).toBe(1); // only the shown field is counted
+  });
+
+  it("fills a conditional field once it IS revealed", async () => {
+    setBody(
+      textInput("applicant.mailingAddress.city") + textInput("applicant.physicalAddress.city"),
+    );
+    const res = await fillPage(contactPage, {
+      "applicant.mailingAddress.city": "Austin",
+      "applicant.physicalAddress.city": "Dallas",
+      "applicant.physicalAddress.zipCode": "78701", // still hidden -> skipped
+    });
+    expect(res.filled).toBe(2);
+    expect(res.skipped).toBe(1); // only zipCode remained hidden
+    expect(res.failed).toBe(0);
+  });
+
+  it("still counts a NON-conditional absent field as a failure (behavior unchanged)", async () => {
+    setBody(textInput("applicant.mailingAddress.city"));
+    const plainPage: FormPage = {
+      slug: "/synthetic/plain",
+      title: "Plain",
+      kind: "form",
+      fields: [t("applicant.mailingAddress.city"), t("applicant.mailingAddress.state")],
+    };
+    const res = await fillPage(plainPage, {
+      "applicant.mailingAddress.city": "Austin",
+      "applicant.mailingAddress.state": "TX", // element not on page -> a real FAIL
+    });
+    expect(res.filled).toBe(1);
+    expect(res.failed).toBe(1);
+    expect(res.skipped).toBe(0);
   });
 });

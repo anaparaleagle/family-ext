@@ -509,7 +509,10 @@ async function onFillSection(): Promise<void> {
   }
   if (page.kind === "review") return setStatus("Review page — nothing to fill.");
   const res = await fillPage(page, payload.fieldValues);
-  setStatus(`${page.title}: ${res.filled}/${res.total} filled`);
+  setStatus(
+    `${page.title}: ${res.filled}/${res.total} filled` +
+      (res.skipped ? ` (${res.skipped} not shown)` : ""),
+  );
 }
 
 async function onFillAll(): Promise<void> {

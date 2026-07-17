@@ -22,6 +22,12 @@ export interface PlannedField {
   value: string;
   /** Repeater row index (0 for non-repeaters), used to know when to click Add. */
   rowIndex: number;
+  /**
+   * The descriptor marked this field `cond(...)` — it only renders when an
+   * upstream answer reveals it. When such a field is ABSENT from the page we skip
+   * it quietly (a legitimate non-reveal) instead of counting it a fill failure.
+   */
+  conditional?: boolean;
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -81,7 +87,12 @@ export function planPageFill(
     // Empty string fills nothing except a checkbox (where "" => leave unchecked,
     // which is the default — so we skip it too; checkboxes only act when truthy).
     if (value === "") return;
-    out.push({ spec: { name, kind: field.kind, optionValue: field.options ? value : undefined }, value, rowIndex });
+    out.push({
+      spec: { name, kind: field.kind, optionValue: field.options ? value : undefined },
+      value,
+      rowIndex,
+      conditional: field.conditional,
+    });
   };
 
   if (page.repeater) {
@@ -110,9 +121,14 @@ export function planPageFill(
 
 export interface PageFillResult {
   slug: string;
+  /** Fields actually attempted on the page (excludes conditional fields the page
+   * never revealed — those are counted in `skipped`, not here). */
   total: number;
   filled: number;
   failed: number;
+  /** Conditional (`cond(...)`) fields that weren't on the page — a legitimate
+   * non-reveal, not a failure. */
+  skipped: number;
   results: SetResult[];
 }
 
@@ -140,10 +156,23 @@ export async function fillPage(
   }
 
   let lastWasRadio = false;
+  let skipped = 0;
   for (const p of plan) {
     if (lastWasRadio && p.spec.kind !== "radio") {
       // A radio may have revealed conditional fields; let React settle.
       await sleep(800);
+    }
+    // A conditional field that never rendered (its reveal answer wasn't set, or
+    // this branch hides the block — e.g. physicalAddresses.* when "mailing =
+    // physical") is a legitimate absence, not a failure: skip it quietly. Probe
+    // AFTER the radio-settle above so a field a same-page radio just revealed is
+    // seen as present. findByName falls back to a name-only match, so a present
+    // radio group (even with aliased option values) is never mistaken for absent.
+    if (p.conditional && findByName(p.spec.name, p.spec.optionValue) === null) {
+      skipped++;
+      dbg(`fill: skip ${p.spec.name} — conditional field not shown on this page`);
+      lastWasRadio = false;
+      continue;
     }
     const res = await setValue(p.spec, p.value);
     results.push(res);
@@ -163,6 +192,7 @@ export async function fillPage(
     total: results.length,
     filled,
     failed: results.length - filled,
+    skipped,
     results,
   };
 }
@@ -514,7 +544,10 @@ export async function fillAll(
           await waitForPageReady(page, fieldValues);
           const res = await fillPage(page, fieldValues);
           summaries.push(res);
-          dbg(`fillAll: ${page.slug} — ${res.filled}/${res.total} filled`);
+          dbg(
+            `fillAll: ${page.slug} — ${res.filled}/${res.total} filled` +
+              (res.skipped ? ` (${res.skipped} conditional not shown)` : ""),
+          );
         }
       }
     }
