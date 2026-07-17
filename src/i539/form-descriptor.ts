@@ -32,8 +32,12 @@
 //    visit. See the entry at the bottom of I539_PAGES for the safety rationale.
 //
 // KNOWN GAPS (honest — do not paper over):
-//  1. The `formikFactoryUIMeta.*` toggles are in I539_SKIP (below), not in any
-//     page's `fields` — see that list for the consequence.
+//  1. The six GATING `formikFactoryUIMeta.*` toggles ("...none" /
+//     "noTravelDocumentNumber" / "noEmail") are now DRIVEN as check(...) fields,
+//     backed by the I-539 backend map (SOF-755) — a Fill-all no longer stalls on
+//     a blank A-Number / SSN / USCIS# / passport / travel-doc / email. The
+//     REMAINING `formikFactoryUIMeta.*` toggles (preparer/interpreter helper
+//     questions, sameAsDaytimePhone) stay in I539_SKIP — the user answers them.
 //
 // Field kinds follow the I-130 precedent + the live lesson from 2026-06-26:
 //  - MUI Autocompletes render as <input type="text"> in a dump but must be
@@ -46,7 +50,7 @@
 //    selectedFormType use word codes).
 // ===========================================================================
 
-import { FormPage, area, cond, phone, radio, search, t } from "../runner/types";
+import { FormPage, area, check, cond, phone, radio, search, t } from "../runner/types";
 
 /**
  * Dump field names the descriptor deliberately does NOT drive. The
@@ -58,18 +62,18 @@ import { FormPage, area, cond, phone, radio, search, t } from "../runner/types";
  * Two groups, both intentional:
  *
  * 1. `formikFactoryUIMeta.*` — UI-only toggles the APPLICANT/user answers, not
- *    FACT data (the I-130 leaves the same class of toggle unmapped). These are
- *    the preparer/interpreter helper questions plus the "I do not have or know
- *    my X" checkboxes.
- *    CONSEQUENCE, stated plainly: several of these GATE a required field. If the
- *    applicant genuinely has no A-Number, the online form needs
- *    `...alienNumber.none` CHECKED before Next will enable; we will not check it,
- *    so a Fill-all run stops there until a human ticks the box. That is the
- *    correct trade for now — the backend map does not exist yet, so there is no
- *    resolved value that could decide it. To enable it later, move the toggle
- *    out of this list into its page's `fields` as `check(...)`; the engine's
- *    checkbox setter already handles truthy values. planPageFill only fills
- *    names that appear in a page's `fields`, so skip == permanently unfilled.
+ *    FACT data (the I-130 leaves the same class of toggle unmapped). What remains
+ *    here are the preparer/interpreter helper questions and sameAsDaytimePhone.
+ *    HISTORY (SOF-755): the six GATING "I do not have my X" checkboxes
+ *    (`...alienNumber.none`, `socialSecurityNumber.none`, `uscisNumber.none`,
+ *    `recentEntry.passport.none`, `recentEntry.noTravelDocumentNumber`,
+ *    `contactInformation.noEmail`) used to sit here, and a Fill-all STALLED on
+ *    them: if the applicant genuinely has no A-Number, the online form needs
+ *    `...alienNumber.none` CHECKED before Next enables. They are now moved into
+ *    their pages' `fields` as `check(...)` and the backend map checks each one
+ *    when its backing fact is blank — so the stall is closed. planPageFill only
+ *    fills names that appear in a page's `fields`, so anything still in this list
+ *    is permanently left to the user (which is exactly right for these).
  *
  * 2. `gettingStarted.preparer.*` / `gettingStarted.interpreter.*` — the firm's
  *    own preparer/interpreter identity, not applicant FACTs. Their PAGES are in
@@ -88,12 +92,12 @@ export const I539_SKIP: string[] = [
   "formikFactoryUIMeta.gettingStarted.interpreter.contact.noMobilePhone",
   "formikFactoryUIMeta.gettingStarted.interpreter.contact.noEmailAddress",
   "formikFactoryUIMeta.applicant.yourContactInformation.contactInformation.sameAsDaytimePhone",
-  "formikFactoryUIMeta.applicant.yourContactInformation.contactInformation.noEmail",
-  "formikFactoryUIMeta.applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.passport.none",
-  "formikFactoryUIMeta.applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.noTravelDocumentNumber",
-  "formikFactoryUIMeta.applicant.otherInformation.alienNumber.none",
-  "formikFactoryUIMeta.applicant.otherInformation.socialSecurityNumber.none",
-  "formikFactoryUIMeta.applicant.otherInformation.uscisNumber.none",
+  // NOTE: the six gating ".none" / "noTravelDocumentNumber" / "noEmail" toggles
+  // that USED to sit here are now DRIVEN as check(...) fields on their pages (see
+  // "Your contact information", "Your immigration information", "Other
+  // information"). The backend map (form_myuscis_definitions.json I-539) checks
+  // each one when its backing fact is blank, so a Fill-all no longer stalls on a
+  // blank A-Number / SSN / USCIS# / passport / travel-doc / email. (SOF-755.)
 
   // 2. Preparer / interpreter identity — the firm's own details, not FACTs.
   "gettingStarted.preparer.name.firstName",
@@ -225,6 +229,9 @@ export const I539_PAGES: FormPage[] = [
       phone("applicant.yourContactInformation.contactInformation.daytimePhone"),
       phone("applicant.yourContactInformation.contactInformation.mobilePhone"),
       t("applicant.yourContactInformation.contactInformation.emailAddress"),
+      // Gating "I do not have an email address" — backend checks it when the
+      // email fact is blank so Next enables without a human ticking it (SOF-755).
+      check("formikFactoryUIMeta.applicant.yourContactInformation.contactInformation.noEmail"),
       t("applicant.yourContactInformation.mailingAddress.inCareOfName"),
       t("applicant.yourContactInformation.mailingAddress.addressLineOne"),
       t("applicant.yourContactInformation.mailingAddress.addressLineTwo"),
@@ -269,7 +276,11 @@ export const I539_PAGES: FormPage[] = [
       t("applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.dateOfLastArrival"),
       t("applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.i94Number"),
       t("applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.passport.number"),
+      // Gating "I do not have a passport / travel document" — backend checks each
+      // when its number is blank (family cases enter on a passport) (SOF-755).
+      check("formikFactoryUIMeta.applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.passport.none"),
       t("applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.travelDocumentNumber"),
+      check("formikFactoryUIMeta.applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.noTravelDocumentNumber"),
       search("applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.countryOfIssuance"),
       t("applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.expirationDate"),
     ],
@@ -299,8 +310,14 @@ export const I539_PAGES: FormPage[] = [
     kind: "form",
     fields: [
       t("applicant.otherInformation.alienNumber.number"),
+      // Gating "I do not have this number" checkboxes — the backend checks each
+      // when its number fact is blank, so a Fill-all clears the page's Next gate
+      // without a human ticking the box (SOF-755).
+      check("formikFactoryUIMeta.applicant.otherInformation.alienNumber.none"),
       t("applicant.otherInformation.socialSecurityNumber.number"),
+      check("formikFactoryUIMeta.applicant.otherInformation.socialSecurityNumber.none"),
       t("applicant.otherInformation.uscisNumber.number"),
+      check("formikFactoryUIMeta.applicant.otherInformation.uscisNumber.none"),
       t("applicant.otherInformation.schoolName"),
       t("applicant.otherInformation.sevisNumber"),
     ],

@@ -41,6 +41,27 @@ describe("descriptor <-> backend value map", () => {
     expect(missing, `descriptor missing repeater names: ${missing.join(", ")}`).toEqual([]);
   });
 
+  it("drives the six gating '.none' toggles it used to skip (SOF-755)", () => {
+    // The I-130 had the same latent stall as the I-539: a blank A-Number / SSN /
+    // USCIS# on either the applicant.* (petitioner) or beneficiary.* side left the
+    // "...none" gate unchecked and Next disabled. These moved out of the backend
+    // `skip` into the value map (checked when the fact is blank), so they must now
+    // be BOTH backend-mapped and descriptor-driven.
+    const gating = [
+      "formikFactoryUIMeta.applicant.additionalInformation.alienNumber.none",
+      "formikFactoryUIMeta.applicant.additionalInformation.uscisNumber.none",
+      "formikFactoryUIMeta.applicant.additionalInformation.socialSecurityNumber.none",
+      "formikFactoryUIMeta.beneficiary.additionalInformation.alienNumber.none",
+      "formikFactoryUIMeta.beneficiary.additionalInformation.uscisNumber.none",
+      "formikFactoryUIMeta.beneficiary.additionalInformation.socialSecurityNumber.none",
+    ];
+    const mappedSet = new Set(mapped);
+    for (const name of gating) {
+      expect(mappedSet.has(name), `${name} must be backend-mapped`).toBe(true);
+      expect(descriptor.has(name), `${name} must be descriptor-driven`).toBe(true);
+    }
+  });
+
   it("reports descriptor coverage of the backend payload (informational)", () => {
     const backendAll = new Set([...mapped, ...repeaterRow0]);
     const driven = [...backendAll].filter((n) => descriptor.has(n));

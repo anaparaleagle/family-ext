@@ -149,8 +149,15 @@ export const I130_PAGES: FormPage[] = [
       radio("applicant.additionalInformation.immigrationStatus", ["4", "11"]),
       radio("applicant.additionalInformation.gainedLPROrCitizenzhipThroughAdoption", ["true", "false"]),
       t("applicant.additionalInformation.alienNumber.number"),
+      // Gating "I do not have this number" checkboxes — the backend checks each
+      // when its number fact is blank (petitioner facts on the online applicant.*
+      // side), so a Fill-all clears the page's Next gate without a human ticking
+      // the box. Same latent-stall fix as the I-539 (SOF-755).
+      check("formikFactoryUIMeta.applicant.additionalInformation.alienNumber.none"),
       t("applicant.additionalInformation.uscisNumber.number"),
+      check("formikFactoryUIMeta.applicant.additionalInformation.uscisNumber.none"),
       t("applicant.additionalInformation.socialSecurityNumber.number"),
+      check("formikFactoryUIMeta.applicant.additionalInformation.socialSecurityNumber.none"),
       t("applicant.additionalInformation.dateOfBirth"),
       search("applicant.additionalInformation.cityCountryNonUS.country"),
       t("applicant.additionalInformation.cityCountryNonUS.city"),
@@ -322,8 +329,14 @@ export const I130_PAGES: FormPage[] = [
     kind: "form",
     fields: [
       t("beneficiary.additionalInformation.alienNumber.number"),
+      // Gating "I do not have this number" checkboxes — backend checks each when
+      // its number fact is blank (applicant facts on the online beneficiary.*
+      // side), so a blank A-Number / SSN / USCIS# no longer stalls Next (SOF-755).
+      check("formikFactoryUIMeta.beneficiary.additionalInformation.alienNumber.none"),
       t("beneficiary.additionalInformation.uscisNumber.number"),
+      check("formikFactoryUIMeta.beneficiary.additionalInformation.uscisNumber.none"),
       t("beneficiary.additionalInformation.socialSecurityNumber.number"),
+      check("formikFactoryUIMeta.beneficiary.additionalInformation.socialSecurityNumber.none"),
       t("beneficiary.additionalInformation.dateOfBirth"),
       search("beneficiary.additionalInformation.cityCountryNonUS.country"),
       t("beneficiary.additionalInformation.cityCountryNonUS.city"),

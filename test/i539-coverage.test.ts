@@ -83,6 +83,25 @@ describe("I-539 descriptor <-> live field dump", () => {
     expect(phantom, `skip entries not present in any capture: ${phantom.join(", ")}`).toEqual([]);
   });
 
+  it("drives the six gating '.none' toggles instead of skipping them (SOF-755)", () => {
+    // These GATE a required field's Next button when its backing fact is blank
+    // (no A-Number / SSN / USCIS# / passport / travel-doc / email). The backend
+    // map checks each when blank, so they must be DRIVEN, not left in I539_SKIP —
+    // otherwise a Fill-all stalls on the page until a human ticks the box.
+    const gating = [
+      "formikFactoryUIMeta.applicant.otherInformation.alienNumber.none",
+      "formikFactoryUIMeta.applicant.otherInformation.socialSecurityNumber.none",
+      "formikFactoryUIMeta.applicant.otherInformation.uscisNumber.none",
+      "formikFactoryUIMeta.applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.passport.none",
+      "formikFactoryUIMeta.applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.noTravelDocumentNumber",
+      "formikFactoryUIMeta.applicant.yourContactInformation.contactInformation.noEmail",
+    ];
+    for (const name of gating) {
+      expect(driven.has(name), `${name} must be driven`).toBe(true);
+      expect(skipped.has(name), `${name} must NOT be in I539_SKIP`).toBe(false);
+    }
+  });
+
   it("drives every non-UI-meta applicant field the capture shows", () => {
     // The skip list is meant to hold ONLY UI-meta toggles + preparer/interpreter
     // identity. Anything else being skipped would be a silent coverage hole.
