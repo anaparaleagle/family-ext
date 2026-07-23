@@ -8,7 +8,11 @@ import { STORAGE_KEYS, MyuscisPayload } from "../runner/payload";
 import { FORM_CONFIGS } from "../runner/registry";
 
 const DEFAULT_API_URL = "http://localhost:8001/api/v1";
-const ALLOWED_API_ORIGINS = ["https://api.family.paraleagle.ai", "http://localhost:8001"];
+const ALLOWED_API_ORIGINS = [
+  "https://family-api.paraleagle.io",
+  "https://api.family.paraleagle.ai",
+  "http://localhost:8001",
+];
 
 /** Shown whenever the backend rejects our Firebase token. */
 const SESSION_EXPIRED = "Session expired — reopen the popup and Load case.";
