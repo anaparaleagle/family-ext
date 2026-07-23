@@ -58,9 +58,11 @@ import { FormPage, area, cond, phone, radio, search, t } from "../runner/types";
  * Two groups, both intentional:
  *
  * 1. `formikFactoryUIMeta.*` — UI-only toggles the APPLICANT/user answers, not
- *    FACT data (the I-130 leaves the same class of toggle unmapped). These are
- *    the preparer/interpreter helper questions plus the "I do not have or know
- *    my X" checkboxes.
+ *    FACT data (the I-130 leaves the same class of toggle unmapped). What is left
+ *    here are the "I do not have or know my X" checkboxes and the preparer/
+ *    interpreter "no business / no mobile / no email" meta. (SOF-892 moved the
+ *    preparer REVEAL toggles OUT of this list — see group 2 — because the backend
+ *    now drives them from firm data.)
  *    CONSEQUENCE, stated plainly: several of these GATE a required field. If the
  *    applicant genuinely has no A-Number, the online form needs
  *    `...alienNumber.none` CHECKED before Next will enable; we will not check it,
@@ -71,16 +73,21 @@ import { FormPage, area, cond, phone, radio, search, t } from "../runner/types";
  *    checkbox setter already handles truthy values. planPageFill only fills
  *    names that appear in a page's `fields`, so skip == permanently unfilled.
  *
- * 2. `gettingStarted.preparer.*` / `gettingStarted.interpreter.*` — the firm's
- *    own preparer/interpreter identity, not applicant FACTs. Their PAGES are in
- *    the descriptor (with empty `fields`) so the walk recognizes and steps past
- *    them instead of logging them as unknown.
+ * 2. `gettingStarted.preparer.*` — the firm's own preparer identity. SOF-892:
+ *    these are now DRIVEN from the firm's G-28 attorney block (backend map
+ *    firm.* -> preparer given/family name, business, daytime phone, email — the
+ *    same source the paper I-539 Part 7 fills), plus the three reveal toggles on
+ *    the preparer-and-interpreter page (a preparer IS assisting, no interpreter)
+ *    so the preparer section opens and its required name + business are no longer
+ *    left blank. The preparer's MOBILE phone stays in the skip list (no firm
+ *    mobile source). `gettingStarted.interpreter.*` also stays skipped — a
+ *    firm-prepared case uses no interpreter — with its PAGE kept in the
+ *    descriptor (empty `fields`) so the walk steps past it cleanly.
  */
 export const I539_SKIP: string[] = [
-  // 1. UI-meta toggles — the user answers these.
-  "formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.hasHelper",
-  "formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.helper.hasPreparer",
-  "formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.helper.hasInterpreter",
+  // 1. UI-meta toggles — the user answers these. (The three preparer reveal
+  //    toggles hasHelper / helper.hasPreparer / helper.hasInterpreter moved OUT
+  //    to the preparer-and-interpreter page's `fields` — SOF-892 drives them.)
   "formikFactoryUIMeta.gettingStarted.preparer.noBusiness",
   "formikFactoryUIMeta.gettingStarted.preparer.contact.noMobilePhone",
   "formikFactoryUIMeta.gettingStarted.preparer.contact.noEmailAddress",
@@ -95,13 +102,12 @@ export const I539_SKIP: string[] = [
   "formikFactoryUIMeta.applicant.otherInformation.socialSecurityNumber.none",
   "formikFactoryUIMeta.applicant.otherInformation.uscisNumber.none",
 
-  // 2. Preparer / interpreter identity — the firm's own details, not FACTs.
-  "gettingStarted.preparer.name.firstName",
-  "gettingStarted.preparer.name.lastName",
-  "gettingStarted.preparer.business",
-  "gettingStarted.preparer.contact.daytimePhone",
+  // 2. Interpreter identity + the preparer's MOBILE phone — left to the user.
+  //    SOF-892: the preparer given/family name, business, daytime phone and
+  //    email moved OUT to /getting-started/preparer's `fields` (driven from
+  //    firm.*). The preparer mobile stays here (no firm mobile source; the paper
+  //    P7 uses fax in that slot, out of scope).
   "gettingStarted.preparer.contact.mobilePhone",
-  "gettingStarted.preparer.contact.emailAddress",
   "gettingStarted.interpreter.name.firstName",
   "gettingStarted.interpreter.name.lastName",
   "gettingStarted.interpreter.business",
@@ -176,21 +182,45 @@ export const I539_PAGES: FormPage[] = [
     ],
   },
   {
-    // f1-cos/04 + 04b. Every field here is a formikFactoryUIMeta helper toggle
-    // (in I539_SKIP) — the page is listed so the walk steps past it cleanly.
+    // f1-cos/04 + 04b. The reveal toggles (SOF-892): "someone is assisting"
+    // (hasHelper) + "a preparer is assisting" (helper.hasPreparer) open the
+    // preparer section; "an interpreter is assisting" (helper.hasInterpreter) is
+    // answered No. Driven from firm data so the downstream preparer page reveals.
     slug: "/getting-started/preparer-and-interpreter-information",
     title: "Preparer and interpreter information",
     kind: "form",
-    fields: [],
+    fields: [
+      radio("formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.hasHelper", [
+        "true",
+        "false",
+      ]),
+      radio("formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.helper.hasPreparer", [
+        "true",
+        "false",
+      ]),
+      radio(
+        "formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.helper.hasInterpreter",
+        ["true", "false"],
+      ),
+    ],
   },
   {
-    // f1-cos/05. Only reachable when hasHelper + hasPreparer are Yes. All fields
-    // are the firm's own preparer identity — in I539_SKIP.
+    // f1-cos/05. Reached because the reveal toggles above are driven to Yes.
+    // SOF-892: the firm's G-28 attorney IS the preparer, so these fill from the
+    // backend's firm.* block (the same source the paper I-539 Part 7 uses). The
+    // "no business / no mobile / no email" meta + the mobile phone stay in
+    // I539_SKIP (no firm mobile source; the firm always has a business).
     slug: "/getting-started/preparer",
     title: "Preparer information",
     kind: "form",
     conditional: true,
-    fields: [],
+    fields: [
+      t("gettingStarted.preparer.name.firstName"),
+      t("gettingStarted.preparer.name.lastName"),
+      t("gettingStarted.preparer.business"),
+      phone("gettingStarted.preparer.contact.daytimePhone"),
+      t("gettingStarted.preparer.contact.emailAddress"),
+    ],
   },
   {
     // f1-cos/06. Only reachable when hasHelper + hasInterpreter are Yes.
