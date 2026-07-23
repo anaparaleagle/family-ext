@@ -1,7 +1,7 @@
 // ===========================================================================
 // HARVESTED from paraleagle-ext src/lib/firebase.ts (origin/main).
-// Shared Firebase project paraleagle-f3a7f — the same project the family
-// backend authenticates against, so one login token works here too.
+// Firebase project paraleagle-family — the same project the family backend
+// authenticates against, so one login token works here too.
 // ===========================================================================
 
 import { initializeApp } from "firebase/app";

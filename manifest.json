@@ -7,7 +7,6 @@
   "host_permissions": [
     "https://my.uscis.gov/*",
     "https://family-api.paraleagle.io/*",
-    "https://api.family.paraleagle.ai/*",
     "http://localhost:8001/*"
   ],
   "content_security_policy": {

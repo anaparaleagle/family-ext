@@ -10,7 +10,6 @@
 
 const ALLOWED_ORIGINS = [
   "https://family-api.paraleagle.io",
-  "https://api.family.paraleagle.ai",
   "http://localhost:8001",
 ];
 
