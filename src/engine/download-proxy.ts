@@ -9,7 +9,7 @@
 // add only the family API host(s) we actually fetch from.
 
 const ALLOWED_ORIGINS = [
-  "https://api.family.paraleagle.ai",
+  "https://family-api.paraleagle.io",
   "http://localhost:8001",
 ];
 

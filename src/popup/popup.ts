@@ -1,4 +1,4 @@
-// Popup: Firebase login (shared project paraleagle-f3a7f), case picker from the
+// Popup: Firebase login (project paraleagle-family), case picker from the
 // family backend, and "Load case" -> GET /forms/myuscis-preview/ -> stored
 // payload. Single-path: there is no manual-paste / dual-shape duality here.
 
@@ -6,9 +6,7 @@ import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebas
 import { auth } from "../engine/firebase";
 import { STORAGE_KEYS, MyuscisPayload } from "../runner/payload";
 import { FORM_CONFIGS } from "../runner/registry";
-
-const DEFAULT_API_URL = "http://localhost:8001/api/v1";
-const ALLOWED_API_ORIGINS = ["https://api.family.paraleagle.ai", "http://localhost:8001"];
+import { ALLOWED_API_ORIGINS, migrateApiBaseUrl } from "./api-config";
 
 /** Shown whenever the backend rejects our Firebase token. */
 const SESSION_EXPIRED = "Session expired — reopen the popup and Load case.";
@@ -45,7 +43,9 @@ function setStatus(msg: string): void {
 
 async function getApiUrl(): Promise<string> {
   const stored = await chrome.storage.local.get(STORAGE_KEYS.apiBaseUrl);
-  return (stored[STORAGE_KEYS.apiBaseUrl] as string) || DEFAULT_API_URL;
+  // Heal a stale persisted value (the retired prod host) so requests always
+  // resolve to the live backend, even if storage still holds the dead one.
+  return migrateApiBaseUrl(stored[STORAGE_KEYS.apiBaseUrl] as string | undefined);
 }
 
 /**
@@ -307,7 +307,16 @@ async function init(): Promise<void> {
     STORAGE_KEYS.formType,
     STORAGE_KEYS.loadedAt,
   ]);
-  apiEnvSelect.value = (stored[STORAGE_KEYS.apiBaseUrl] as string) || DEFAULT_API_URL;
+  // Migrate a stale persisted host (the retired prod URL) up front: persist the
+  // healed value and select it in the dropdown, so a tester who previously chose
+  // Production sees "Production" rather than a blank <select> pointing at a dead
+  // host.
+  const storedApi = stored[STORAGE_KEYS.apiBaseUrl] as string | undefined;
+  const migratedApi = migrateApiBaseUrl(storedApi);
+  if (migratedApi !== storedApi) {
+    await chrome.storage.local.set({ [STORAGE_KEYS.apiBaseUrl]: migratedApi });
+  }
+  apiEnvSelect.value = migratedApi;
   renderFormTypes((stored[STORAGE_KEYS.formType] as string) || FORM_CONFIGS[0].formType);
 
   onAuthStateChanged(auth, (user) => {
