@@ -127,6 +127,27 @@ describe("doc-flow: document resolution", () => {
     expect(sendMessage.mock.calls[0][0].url).toBe("http://localhost:8001/media/marriage.pdf");
   });
 
+  it("warns the user to upload in ParaLeagle when no document matches", async () => {
+    // SOF-892: a required evidence page with no matching document was a
+    // near-silent no-op ("No file resolved for …"). The warning must instead be
+    // user-facing and actionable — name the missing doc and point at ParaLeagle.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, json: async () => ({ results: [] }) }) as Response),
+    );
+    const descriptor: UploadPageDescriptor = {
+      page_path: "/evidence/form-i-94",
+      kind: "document",
+      doc_type: "i94",
+    };
+    const res = await fillUploadPage(descriptor, CTX);
+    expect(res.attached).toBe(0);
+    expect(res.warnings.length).toBeGreaterThan(0);
+    const warning = res.warnings.join(" ");
+    expect(warning).toMatch(/i94/i); // names the missing document
+    expect(warning).toMatch(/ParaLeagle/i); // tells the user how to fix it
+  });
+
   it("filters documents by party when the descriptor scopes one", async () => {
     vi.stubGlobal(
       "fetch",
