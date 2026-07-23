@@ -213,12 +213,56 @@ describe("I-539 planPageFill (pure)", () => {
     expect(names).toEqual(["applicant.yourName.name.firstName"]);
   });
 
-  it("plans nothing for a page whose fields are all skipped", () => {
-    // Preparer/interpreter pages carry no descriptor fields — a legitimate 0/0.
-    expect(planPageFill(page("/getting-started/preparer"), { anything: "x" })).toEqual([]);
+  it("plans the preparer reveal toggles from the firm-driven payload (SOF-892)", () => {
+    // The firm's G-28 attorney IS the preparer, so the backend drives the
+    // two-question reveal: a preparer IS assisting (opens the preparer section),
+    // no interpreter. Each toggle plans as a radio carrying its emitted value.
+    const plan = planPageFill(page("/getting-started/preparer-and-interpreter-information"), {
+      "formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.hasHelper": "true",
+      "formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.helper.hasPreparer": "true",
+      "formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.helper.hasInterpreter": "false",
+    });
+    expect(plan.map((p) => p.spec.name)).toEqual([
+      "formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.hasHelper",
+      "formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.helper.hasPreparer",
+      "formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.helper.hasInterpreter",
+    ]);
+    expect(plan.every((p) => p.spec.kind === "radio")).toBe(true);
+    const optionOf = Object.fromEntries(plan.map((p) => [p.spec.name, p.spec.optionValue]));
     expect(
-      planPageFill(page("/getting-started/preparer-and-interpreter-information"), {}),
-    ).toEqual([]);
+      optionOf["formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.hasHelper"],
+    ).toBe("true");
+    expect(
+      optionOf["formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.helper.hasPreparer"],
+    ).toBe("true");
+    expect(
+      optionOf["formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.helper.hasInterpreter"],
+    ).toBe("false");
+  });
+
+  it("plans the preparer identity fields from the firm.* payload (SOF-892)", () => {
+    // /getting-started/preparer is reached because the reveal toggles are driven
+    // Yes. Its fields fill from the firm's G-28 attorney block (the same source
+    // the paper I-539 Part 7 uses), in descriptor order.
+    const plan = planPageFill(page("/getting-started/preparer"), {
+      "gettingStarted.preparer.name.firstName": "Adaikala Mary",
+      "gettingStarted.preparer.name.lastName": "Kennedy",
+      "gettingStarted.preparer.business": "Law Offices of Mary Kennedy, LLC",
+      "gettingStarted.preparer.contact.daytimePhone": "8472201560",
+      "gettingStarted.preparer.contact.emailAddress": "legal@mkimmigrationlaw.com",
+      // Present in the payload but NOT a descriptor field -> must never be planned
+      // (no firm mobile source; the paper P7 uses fax in that slot, out of scope).
+      "gettingStarted.preparer.contact.mobilePhone": "8472200000",
+    });
+    const names = plan.map((p) => p.spec.name);
+    expect(names).toEqual([
+      "gettingStarted.preparer.name.firstName",
+      "gettingStarted.preparer.name.lastName",
+      "gettingStarted.preparer.business",
+      "gettingStarted.preparer.contact.daytimePhone",
+      "gettingStarted.preparer.contact.emailAddress",
+    ]);
+    expect(names).not.toContain("gettingStarted.preparer.contact.mobilePhone");
   });
 
   it("plans the moral-character page as five true/false radios", () => {
