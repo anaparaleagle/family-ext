@@ -184,8 +184,23 @@ async function resolveFilesFor(
 }
 
 /**
+ * A human label for the document an upload page expects — its doc_type for a
+ * stored document, or the form_type for a generated form (e.g. "I-130A").
+ */
+function missingDocLabel(descriptor: UploadPageDescriptor): string {
+  if (descriptor.kind === "generated_form") return descriptor.form_type || "form";
+  return descriptor.doc_type || "document";
+}
+
+/**
  * For the current upload page, resolve its descriptor's files and attach them.
  * `descriptor` is the matching entry from the stored upload_pages list.
+ *
+ * When nothing resolves for a required upload page we surface a clear,
+ * actionable warning (naming the missing document and pointing at ParaLeagle)
+ * instead of a near-silent "No file resolved" — the "No …" prefix is what the
+ * debug panel highlights (see engine/logger.applyLineStyle), so it reads as a
+ * warning, not a quiet skip (SOF-892).
  */
 export async function fillUploadPage(
   descriptor: UploadPageDescriptor,
@@ -194,7 +209,13 @@ export async function fillUploadPage(
   const docs = descriptor.kind === "document" ? await fetchDocuments(ctx) : [];
   const files = await resolveFilesFor(descriptor, docs, ctx);
   if (files.length === 0) {
-    return { attached: 0, warnings: [`No file resolved for ${descriptor.page_path}.`] };
+    const label = missingDocLabel(descriptor);
+    return {
+      attached: 0,
+      warnings: [
+        `No ${label} on file for ${descriptor.page_path} — upload it in ParaLeagle first, then re-run.`,
+      ],
+    };
   }
   return attachFiles(files);
 }
