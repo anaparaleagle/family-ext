@@ -6,7 +6,7 @@
   "permissions": ["activeTab", "storage"],
   "host_permissions": [
     "https://my.uscis.gov/*",
-    "https://api.family.paraleagle.ai/*",
+    "https://family-api.paraleagle.io/*",
     "http://localhost:8001/*"
   ],
   "content_security_policy": {
