@@ -250,8 +250,10 @@ describe("I-539 planPageFill (pure)", () => {
       "gettingStarted.preparer.business": "Law Offices of Mary Kennedy, LLC",
       "gettingStarted.preparer.contact.daytimePhone": "8472201560",
       "gettingStarted.preparer.contact.emailAddress": "legal@mkimmigrationlaw.com",
-      // Present in the payload but NOT a descriptor field -> must never be planned
-      // (no firm mobile source; the paper P7 uses fax in that slot, out of scope).
+      // SOF-1004: the mobile IS planned now. This assertion was inverted — it used
+      // to require mobile NOT be planned, because when SOF-892 shipped there was no
+      // firm mobile to send. The backend now sends firm.mobile_phone, so refusing to
+      // plan it is what leaves the required USCIS field blank.
       "gettingStarted.preparer.contact.mobilePhone": "8472200000",
     });
     const names = plan.map((p) => p.spec.name);
@@ -260,9 +262,36 @@ describe("I-539 planPageFill (pure)", () => {
       "gettingStarted.preparer.name.lastName",
       "gettingStarted.preparer.business",
       "gettingStarted.preparer.contact.daytimePhone",
+      "gettingStarted.preparer.contact.mobilePhone",
       "gettingStarted.preparer.contact.emailAddress",
     ]);
+    // The tick is NOT planned here: the payload carries a real mobile, so the
+    // backend resolves noMobilePhone to "" and there is nothing to tick. Exactly
+    // one of the two ever has a value.
+    expect(names).not.toContain(
+      "formikFactoryUIMeta.gettingStarted.preparer.contact.noMobilePhone",
+    );
+  });
+
+  it("plans the no-mobile tick instead of the number when the firm has no mobile (SOF-1004)", () => {
+    // The other half of the pair. USCIS holds the page on a blank required mobile,
+    // so a firm with no mobile on file must tick "my preparer does not have a
+    // mobile telephone number" — the backend decides which by resolving both off
+    // the same fact, and the descriptor has to be able to drive either one.
+    const plan = planPageFill(page("/getting-started/preparer"), {
+      "gettingStarted.preparer.name.firstName": "Adaikala Mary",
+      "gettingStarted.preparer.name.lastName": "Kennedy",
+      "formikFactoryUIMeta.gettingStarted.preparer.contact.noMobilePhone": "true",
+    });
+    const names = plan.map((p) => p.spec.name);
+    expect(names).toContain(
+      "formikFactoryUIMeta.gettingStarted.preparer.contact.noMobilePhone",
+    );
     expect(names).not.toContain("gettingStarted.preparer.contact.mobilePhone");
+    const tick = plan.find((p) =>
+      p.spec.name.endsWith("preparer.contact.noMobilePhone"),
+    );
+    expect(tick?.spec.kind).toBe("checkbox");
   });
 
   it("plans the moral-character page as five true/false radios", () => {
