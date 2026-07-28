@@ -171,4 +171,29 @@ describe("I-539 descriptor shape", () => {
     const slugs = I539_PAGES.map((p) => p.slug);
     expect(new Set(slugs).size).toBe(slugs.length);
   });
+
+  // SOF-1004: the preparer MOBILE was left in I539_SKIP by SOF-892 because the
+  // backend had no firm mobile to send. It does now (firm.mobile_phone, mapped in
+  // the backend's I-539 map), so leaving it skipped means the backend emits the
+  // value and the descriptor throws it away — USCIS keeps showing a required error.
+  it("drives the preparer mobile phone from the firm profile", () => {
+    const preparer = I539_PAGES.find((p) => p.slug === "/getting-started/preparer")!;
+    const mobile = preparer.fields.find(
+      (f) => f.name === "gettingStarted.preparer.contact.mobilePhone",
+    );
+    // A phone field, so the engine types it into the masked input the same way it
+    // types the daytime phone (both arrive digits-only from the backend).
+    expect(mobile?.kind).toBe("phone");
+  });
+
+  // SOF-1004: USCIS wants the number OR the "no mobile" tick, never both and never
+  // neither — a blank required field holds the page. The backend decides which by
+  // resolving the checkbox off the same fact, so the descriptor must carry it.
+  it("drives the no-mobile-phone tick so a firm without a mobile can still pass the page", () => {
+    const preparer = I539_PAGES.find((p) => p.slug === "/getting-started/preparer")!;
+    const noMobile = preparer.fields.find(
+      (f) => f.name === "formikFactoryUIMeta.gettingStarted.preparer.contact.noMobilePhone",
+    );
+    expect(noMobile?.kind).toBe("checkbox");
+  });
 });

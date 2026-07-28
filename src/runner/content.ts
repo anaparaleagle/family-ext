@@ -84,7 +84,12 @@ async function handleUploadPage(page: FormPage, payload: LoadedPayload): Promise
     accessToken: payload.accessToken,
     caseId: payload.caseId,
   });
-  setStatus(`Upload ${page.slug}: ${result.attached} attached`);
+  // SOF-1005: name the already-attached files too, or a correct re-run reads as
+  // "0 attached" and looks broken.
+  const skipped = result.alreadyAttached
+    ? `, ${result.alreadyAttached} already attached`
+    : "";
+  setStatus(`Upload ${page.slug}: ${result.attached} attached${skipped}`);
   for (const w of result.warnings) dbg(`upload: ${w}`);
 }
 
