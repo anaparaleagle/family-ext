@@ -205,13 +205,14 @@ function missingDocLabel(descriptor: UploadPageDescriptor): string {
 export async function fillUploadPage(
   descriptor: UploadPageDescriptor,
   ctx: ResolveContext,
-): Promise<{ attached: number; warnings: string[] }> {
+): Promise<{ attached: number; alreadyAttached: number; warnings: string[] }> {
   const docs = descriptor.kind === "document" ? await fetchDocuments(ctx) : [];
   const files = await resolveFilesFor(descriptor, docs, ctx);
   if (files.length === 0) {
     const label = missingDocLabel(descriptor);
     return {
       attached: 0,
+      alreadyAttached: 0,
       warnings: [
         `No ${label} on file for ${descriptor.page_path} — upload it in ParaLeagle first, then re-run.`,
       ],

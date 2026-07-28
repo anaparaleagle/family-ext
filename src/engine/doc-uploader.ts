@@ -19,6 +19,10 @@ const MAX_FILES_PER_BATCH = 5;
 
 export interface AttachResult {
   attached: number;
+  /** Files already on the page, so deliberately not re-attached (SOF-1005).
+   * Counted separately from `attached` so a run that legitimately does nothing
+   * does not read as a silent no-op in the debug panel. */
+  alreadyAttached: number;
   warnings: string[];
 }
 
@@ -28,14 +32,14 @@ export interface AttachResult {
  */
 export async function attachFiles(files: File[]): Promise<AttachResult> {
   const warnings: string[] = [];
-  if (files.length === 0) return { attached: 0, warnings };
+  if (files.length === 0) return { attached: 0, alreadyAttached: 0, warnings };
 
   const fileInput =
     document.querySelector<HTMLInputElement>('input[type="file"]#desktop-drop') ||
     document.querySelector<HTMLInputElement>('input[type="file"]');
   if (!fileInput) {
     dbg("doc-uploader: no file input on this page");
-    return { attached: 0, warnings: ["No file input found on this page."] };
+    return { attached: 0, alreadyAttached: 0, warnings: ["No file input found on this page."] };
   }
 
   let attached = 0;
@@ -60,7 +64,7 @@ export async function attachFiles(files: File[]): Promise<AttachResult> {
       );
     }
   }
-  return { attached, warnings };
+  return { attached, alreadyAttached: 0, warnings };
 }
 
 /**
