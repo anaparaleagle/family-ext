@@ -1,0 +1,63 @@
+{
+  "url": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/13212561/getting-started/basis-of-eligibility",
+  "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+  "sidebar": [
+    "My Account",
+    "Resources",
+    "Sign Out"
+  ],
+  "fields": [
+    {
+      "name": "gettingStarted.basisOfEligibility.currentNonImmigrantStatus",
+      "id": "gettingStarted.basisOfEligibility.currentNonImmigrantStatus",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    },
+    {
+      "name": "gettingStarted.basisOfEligibility.isGrantedDurationOfStatus",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "true",
+      "checked": false,
+      "label": "Yes"
+    },
+    {
+      "name": "gettingStarted.basisOfEligibility.isGrantedDurationOfStatus",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "false",
+      "checked": false,
+      "label": "No"
+    },
+    {
+      "name": "gettingStarted.basisOfEligibility.currentNonImmigrantStatusExpirationDate",
+      "id": "gettingStarted.basisOfEligibility.currentNonImmigrantStatusExpirationDate",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    },
+    {
+      "name": "gettingStarted.basisOfEligibility.isOnlyApplicant",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "true",
+      "checked": false,
+      "label": "Yes"
+    },
+    {
+      "name": "gettingStarted.basisOfEligibility.isOnlyApplicant",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "false",
+      "checked": false,
+      "label": "No"
+    }
+  ]
+}

@@ -23,7 +23,7 @@
 // The attach itself (DataTransfer into the dropzone) is exercised live via
 // agent-browser; the URL-resolution shape is the verified backend contract.
 
-import { attachFiles } from "../engine/doc-uploader";
+import { attachFiles, attachedFileRowTexts, isFilenameAttached } from "../engine/doc-uploader";
 import { dbg } from "../engine/logger";
 import { UploadPageDescriptor } from "./payload";
 
@@ -134,12 +134,20 @@ async function downloadAsFile(url: string, accessToken: string, filename: string
   return new File([blob], filename, { type: response.contentType });
 }
 
-/** Resolve one upload-page descriptor to the File(s) it needs. */
+/** Resolve one upload-page descriptor to the File(s) it needs.
+ *
+ * SOF-1005: a file the page is ALREADY showing is skipped here, before it is
+ * downloaded. The filename is known from the listing, so the wasteful half (the
+ * proxy fetch of the bytes) is avoided rather than downloading and then dropping
+ * it at the DataTransfer. `alreadyAttached` is returned so the caller can report
+ * a do-nothing run as "already attached" instead of a bare "0 attached". */
 async function resolveFilesFor(
   descriptor: UploadPageDescriptor,
   docs: DocRow[],
   ctx: ResolveContext,
-): Promise<File[]> {
+): Promise<{ files: File[]; alreadyAttached: number }> {
+  const rowTexts = attachedFileRowTexts();
+
   if (descriptor.kind === "document") {
     const wanted = (descriptor.doc_type || "").toLowerCase();
     const wantParty = descriptor.party?.toUpperCase();
@@ -149,12 +157,18 @@ async function resolveFilesFor(
       return !!d.file_url;
     });
     const files: File[] = [];
+    let alreadyAttached = 0;
     for (const m of matches) {
       const name = m.filename || `${m.doc_type}.pdf`;
+      if (isFilenameAttached(name, rowTexts)) {
+        dbg(`doc-flow: "${name}" is already attached to ${descriptor.page_path} — skipping`);
+        alreadyAttached += 1;
+        continue;
+      }
       const file = await downloadAsFile(m.file_url as string, ctx.accessToken, name);
       if (file) files.push(file);
     }
-    return files;
+    return { files, alreadyAttached };
   }
 
   if (descriptor.kind === "generated_form") {
@@ -166,7 +180,14 @@ async function resolveFilesFor(
     const formType = descriptor.form_type;
     if (!formType) {
       dbg("doc-flow: generated_form descriptor missing form_type");
-      return [];
+      return { files: [], alreadyAttached: 0 };
+    }
+    const name = `${formType}.pdf`;
+    // Checked before the listing call: if it is already on the page there is
+    // nothing this visit can usefully do.
+    if (isFilenameAttached(name, rowTexts)) {
+      dbg(`doc-flow: "${name}" is already attached to ${descriptor.page_path} — skipping`);
+      return { files: [], alreadyAttached: 1 };
     }
     const row = await fetchGeneratedForm(ctx, formType);
     if (!row || !row.file_url) {
@@ -174,29 +195,65 @@ async function resolveFilesFor(
         `doc-flow: no generated ${formType} on file for this case — generate it in ` +
           `ParaLeagle before attaching.`,
       );
-      return [];
+      return { files: [], alreadyAttached: 0 };
     }
-    const file = await downloadAsFile(row.file_url, ctx.accessToken, `${formType}.pdf`);
-    return file ? [file] : [];
+    const file = await downloadAsFile(row.file_url, ctx.accessToken, name);
+    return { files: file ? [file] : [], alreadyAttached: 0 };
   }
 
-  return [];
+  return { files: [], alreadyAttached: 0 };
+}
+
+/**
+ * A human label for the document an upload page expects — its doc_type for a
+ * stored document, or the form_type for a generated form (e.g. "I-130A").
+ */
+function missingDocLabel(descriptor: UploadPageDescriptor): string {
+  if (descriptor.kind === "generated_form") return descriptor.form_type || "form";
+  return descriptor.doc_type || "document";
 }
 
 /**
  * For the current upload page, resolve its descriptor's files and attach them.
  * `descriptor` is the matching entry from the stored upload_pages list.
+ *
+ * When nothing resolves for a required upload page we surface a clear,
+ * actionable warning (naming the missing document and pointing at ParaLeagle)
+ * instead of a near-silent "No file resolved" — the "No …" prefix is what the
+ * debug panel highlights (see engine/logger.applyLineStyle), so it reads as a
+ * warning, not a quiet skip (SOF-892).
  */
 export async function fillUploadPage(
   descriptor: UploadPageDescriptor,
   ctx: ResolveContext,
-): Promise<{ attached: number; warnings: string[] }> {
+): Promise<{ attached: number; alreadyAttached: number; warnings: string[] }> {
   const docs = descriptor.kind === "document" ? await fetchDocuments(ctx) : [];
-  const files = await resolveFilesFor(descriptor, docs, ctx);
+  const { files, alreadyAttached } = await resolveFilesFor(descriptor, docs, ctx);
   if (files.length === 0) {
-    return { attached: 0, warnings: [`No file resolved for ${descriptor.page_path}.`] };
+    // Nothing to attach for two very different reasons. Everything already on the
+    // page is the SUCCESS case (a re-run, a back/forward, or the SPA re-firing the
+    // hook) and must not be dressed up as a missing document — that warning tells
+    // the user to go upload a file they already uploaded.
+    if (alreadyAttached > 0) {
+      dbg(
+        `doc-flow: ${descriptor.page_path} already has all ${alreadyAttached} ` +
+          `file(s) attached — nothing to do`,
+      );
+      return { attached: 0, alreadyAttached, warnings: [] };
+    }
+    const label = missingDocLabel(descriptor);
+    return {
+      attached: 0,
+      alreadyAttached: 0,
+      warnings: [
+        `No ${label} on file for ${descriptor.page_path} — upload it in ParaLeagle first, then re-run.`,
+      ],
+    };
   }
-  return attachFiles(files);
+  const result = await attachFiles(files);
+  // resolveFilesFor already dropped the attached ones, so attachFiles' own count
+  // is 0 on this path; summing keeps the total right for any other caller too.
+  return { ...result, alreadyAttached: result.alreadyAttached + alreadyAttached };
 }
 
 /** Match a stored upload-page descriptor to the current URL path. */

@@ -1,0 +1,102 @@
+{
+  "url": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/13212561/about-you/your-immigration-information",
+  "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+  "subheading": [
+    "What is your country of citizenship or nationality? *",
+    "Provide information about your most recent entry into the United States.",
+    "Provide information about your most recent entry into the United States.",
+    "What is the expiration date for the passport or travel document on your Form I-94?"
+  ],
+  "sidebar": [
+    "I-539, Application To Extend/Change Nonimmigrant Status",
+    "Getting Started",
+    "About You",
+    "Your name",
+    "Your contact information",
+    "When and where you were born",
+    "Your immigration information",
+    "Your immigration information page 2",
+    "Other information",
+    "Moral Character",
+    "Your Application",
+    "Evidence",
+    "Additional Information",
+    "Review and Submit"
+  ],
+  "fields": [
+    {
+      "name": "applicant.yourImmigrationInformation.yourImmigrationInformation1.countryOfCitizenshipOrNationality",
+      "id": "applicant.yourImmigrationInformation.yourImmigrationInformation1.countryOfCitizenshipOrNationality",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    },
+    {
+      "name": "applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.dateOfLastArrival",
+      "id": "applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.dateOfLastArrival",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "When did you last arrive into the United States?"
+    },
+    {
+      "name": "applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.i94Number",
+      "id": "applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.i94Number",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "What is your Form I-94 Arrival-Departure Record Number?"
+    },
+    {
+      "name": "formikFactoryUIMeta.applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.passport.none",
+      "id": "formikFactoryUIMeta.applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.passport.none",
+      "tag": "input",
+      "type": "checkbox",
+      "value": "false",
+      "checked": false,
+      "label": "I do not have a passport number listed on my Form I-94."
+    },
+    {
+      "name": "applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.passport.number",
+      "id": "applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.passport.number",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "What is the passport number listed on your Form I-94?"
+    },
+    {
+      "name": "formikFactoryUIMeta.applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.noTravelDocumentNumber",
+      "id": "formikFactoryUIMeta.applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.noTravelDocumentNumber",
+      "tag": "input",
+      "type": "checkbox",
+      "value": "false",
+      "checked": false,
+      "label": "I do not have a travel document number."
+    },
+    {
+      "name": "applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.travelDocumentNumber",
+      "id": "applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.travelDocumentNumber",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "What is your travel document number?"
+    },
+    {
+      "name": "applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.countryOfIssuance",
+      "id": "applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.countryOfIssuance",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    },
+    {
+      "name": "applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.expirationDate",
+      "id": "applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.expirationDate",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    }
+  ]
+}

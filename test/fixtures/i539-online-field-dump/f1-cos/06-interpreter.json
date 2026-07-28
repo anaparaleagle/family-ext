@@ -1,0 +1,110 @@
+{
+  "url": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/13212561/getting-started/interpreter",
+  "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+  "subheading": [
+    "What is your interpreter's full name?",
+    "What is your interpreter's business or organization name?",
+    "What is your interpreter's contact information?",
+    "What language is your interpreter using to interpret this application for you?"
+  ],
+  "sidebar": [
+    "I-539, Application To Extend/Change Nonimmigrant Status",
+    "Getting Started",
+    "Basis of eligibility",
+    "Reason for request",
+    "Preparer and interpreter information",
+    "Preparer information",
+    "Interpreter information",
+    "About You",
+    "Moral Character",
+    "Your Application",
+    "Evidence",
+    "Additional Information",
+    "Review and Submit"
+  ],
+  "fields": [
+    {
+      "name": "gettingStarted.interpreter.name.firstName",
+      "id": "gettingStarted.interpreter.name.firstName",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Given name (first name)"
+    },
+    {
+      "name": "gettingStarted.interpreter.name.lastName",
+      "id": "gettingStarted.interpreter.name.lastName",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Family name (last name)"
+    },
+    {
+      "name": "formikFactoryUIMeta.gettingStarted.interpreter.noBusiness",
+      "id": "formikFactoryUIMeta.gettingStarted.interpreter.noBusiness",
+      "tag": "input",
+      "type": "checkbox",
+      "value": "false",
+      "checked": false,
+      "label": "My interpreter is not part of a business or organization."
+    },
+    {
+      "name": "gettingStarted.interpreter.business",
+      "id": "gettingStarted.interpreter.business",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    },
+    {
+      "name": "gettingStarted.interpreter.contact.daytimePhone",
+      "id": "gettingStarted.interpreter.contact.daytimePhone",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Daytime telephone number"
+    },
+    {
+      "name": "formikFactoryUIMeta.gettingStarted.interpreter.contact.noMobilePhone",
+      "id": "formikFactoryUIMeta.gettingStarted.interpreter.contact.noMobilePhone",
+      "tag": "input",
+      "type": "checkbox",
+      "value": "false",
+      "checked": false,
+      "label": "My interpreter does not have a mobile telephone number."
+    },
+    {
+      "name": "gettingStarted.interpreter.contact.mobilePhone",
+      "id": "gettingStarted.interpreter.contact.mobilePhone",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Mobile telephone number"
+    },
+    {
+      "name": "formikFactoryUIMeta.gettingStarted.interpreter.contact.noEmailAddress",
+      "id": "formikFactoryUIMeta.gettingStarted.interpreter.contact.noEmailAddress",
+      "tag": "input",
+      "type": "checkbox",
+      "value": "false",
+      "checked": false,
+      "label": "My interpreter does not have an email address."
+    },
+    {
+      "name": "gettingStarted.interpreter.contact.emailAddress",
+      "id": "gettingStarted.interpreter.contact.emailAddress",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Email address"
+    },
+    {
+      "name": "gettingStarted.interpreter.language",
+      "id": "gettingStarted.interpreter.language",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    }
+  ]
+}

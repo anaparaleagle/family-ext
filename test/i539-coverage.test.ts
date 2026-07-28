@@ -1,5 +1,5 @@
 // Cross-check the I-539 structural descriptor against the LIVE FIELD DUMP
-// (paraleagle-dev/i539-online-field-dump/). This is the I-539 analogue of
+// (test/fixtures/i539-online-field-dump/). This is the I-539 analogue of
 // coverage.test.ts — except there is no backend value map for the I-539 yet, so
 // the dump is the only source of truth available, and this test guards that seam:
 //
@@ -16,7 +16,13 @@ import { resolve } from "path";
 import { I539_PAGES, I539_SKIP } from "../src/i539/form-descriptor";
 import { fieldNamesOf } from "../src/runner/types";
 
-const DUMP_DIR = resolve(__dirname, "../../i539-online-field-dump");
+// VENDORED into the repo (test/fixtures/) rather than read from a sibling of the
+// checkout. It used to resolve to ../../i539-online-field-dump — a directory that
+// lived only on one laptop and was tracked in no repo at all, so these tests could
+// never run in CI (or for anyone else). The dump is static captured data and is
+// exactly what this test asserts against, so it belongs beside the test. Re-capture
+// by replacing the files here.
+const DUMP_DIR = resolve(__dirname, "fixtures/i539-online-field-dump");
 /** The full happy-path capture: 24 primary screens (00..23) of an F-1 change-of-status. */
 const PRIMARY_BRANCH = "f1-cos";
 /** The reason/status delta captures — same pages, different status/reason answers. */
@@ -164,5 +170,30 @@ describe("I-539 descriptor shape", () => {
   it("has unique slugs", () => {
     const slugs = I539_PAGES.map((p) => p.slug);
     expect(new Set(slugs).size).toBe(slugs.length);
+  });
+
+  // SOF-1004: the preparer MOBILE was left in I539_SKIP by SOF-892 because the
+  // backend had no firm mobile to send. It does now (firm.mobile_phone, mapped in
+  // the backend's I-539 map), so leaving it skipped means the backend emits the
+  // value and the descriptor throws it away — USCIS keeps showing a required error.
+  it("drives the preparer mobile phone from the firm profile", () => {
+    const preparer = I539_PAGES.find((p) => p.slug === "/getting-started/preparer")!;
+    const mobile = preparer.fields.find(
+      (f) => f.name === "gettingStarted.preparer.contact.mobilePhone",
+    );
+    // A phone field, so the engine types it into the masked input the same way it
+    // types the daytime phone (both arrive digits-only from the backend).
+    expect(mobile?.kind).toBe("phone");
+  });
+
+  // SOF-1004: USCIS wants the number OR the "no mobile" tick, never both and never
+  // neither — a blank required field holds the page. The backend decides which by
+  // resolving the checkbox off the same fact, so the descriptor must carry it.
+  it("drives the no-mobile-phone tick so a firm without a mobile can still pass the page", () => {
+    const preparer = I539_PAGES.find((p) => p.slug === "/getting-started/preparer")!;
+    const noMobile = preparer.fields.find(
+      (f) => f.name === "formikFactoryUIMeta.gettingStarted.preparer.contact.noMobilePhone",
+    );
+    expect(noMobile?.kind).toBe("checkbox");
   });
 });

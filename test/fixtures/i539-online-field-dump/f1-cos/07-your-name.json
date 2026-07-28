@@ -1,0 +1,48 @@
+{
+  "url": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/13212561/about-you/your-name",
+  "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+  "subheading": [
+    "What is your current legal name?"
+  ],
+  "sidebar": [
+    "I-539, Application To Extend/Change Nonimmigrant Status",
+    "Getting Started",
+    "About You",
+    "Your name",
+    "Your contact information",
+    "When and where you were born",
+    "Your immigration information",
+    "Other information",
+    "Moral Character",
+    "Your Application",
+    "Evidence",
+    "Additional Information",
+    "Review and Submit"
+  ],
+  "fields": [
+    {
+      "name": "applicant.yourName.name.firstName",
+      "id": "applicant.yourName.name.firstName",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Given name (first name)"
+    },
+    {
+      "name": "applicant.yourName.name.middleName",
+      "id": "applicant.yourName.name.middleName",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Middle name (if applicable)"
+    },
+    {
+      "name": "applicant.yourName.name.lastName",
+      "id": "applicant.yourName.name.lastName",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Family name (last name) *"
+    }
+  ]
+}

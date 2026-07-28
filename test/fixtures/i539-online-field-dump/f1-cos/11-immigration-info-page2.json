@@ -1,0 +1,43 @@
+{
+  "url": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/13212561/about-you/your-immigration-information/your-immigration-information-page-2",
+  "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+  "subheading": [
+    "Is your current passport different from the one you used in your most recent entry into the United States?"
+  ],
+  "sidebar": [
+    "I-539, Application To Extend/Change Nonimmigrant Status",
+    "Getting Started",
+    "About You",
+    "Your name",
+    "Your contact information",
+    "When and where you were born",
+    "Your immigration information",
+    "Your immigration information page 2",
+    "Other information",
+    "Moral Character",
+    "Your Application",
+    "Evidence",
+    "Additional Information",
+    "Review and Submit"
+  ],
+  "fields": [
+    {
+      "name": "applicant.yourImmigrationInformation.yourImmigrationInformation2.isCurrentPassportDifferent",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "true",
+      "checked": false,
+      "label": "Yes"
+    },
+    {
+      "name": "applicant.yourImmigrationInformation.yourImmigrationInformation2.isCurrentPassportDifferent",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "false",
+      "checked": false,
+      "label": "No"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "url": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/13212561/evidence/additional-evidence",
+  "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+  "subheading": [
+    "Additional Evidence You Want To Provide",
+    "File requirements"
+  ],
+  "sidebar": [
+    "I-539, Application To Extend/Change Nonimmigrant Status",
+    "Getting Started",
+    "About You",
+    "Moral Character",
+    "Your Application",
+    "Evidence",
+    "Form I-94",
+    "Written statement",
+    "Additional evidence",
+    "Additional Information",
+    "Review and Submit"
+  ],
+  "fields": [
+    {
+      "name": null,
+      "id": "desktop-drop",
+      "tag": "input",
+      "type": "file",
+      "value": "",
+      "label": ""
+    }
+  ],
+  "pageType": "UPLOAD (optional)",
+  "uploadNote": "Dropzone id=desktop-drop; additional supporting evidence, typically optional."
+}

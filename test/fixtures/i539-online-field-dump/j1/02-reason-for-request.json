@@ -1,0 +1,69 @@
+{
+  "url": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/13212561/getting-started/reason-for-request?app_to_rep_id=d8249b5b-4ebe-4342-8fc1-5a56acf76dc9",
+  "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+  "subheading": [
+    "What are you applying for? *",
+    "I am requesting to change my status or employer/information medium to: *",
+    "When do you want the requested change to become effective? *",
+    "What date are you requesting your current or requested status be extended until?"
+  ],
+  "sidebar": [
+    "I-539, Application To Extend/Change Nonimmigrant Status",
+    "Getting Started",
+    "Basis of eligibility",
+    "Reason for request",
+    "Preparer and interpreter information",
+    "Preparer information",
+    "Interpreter information",
+    "About You",
+    "Moral Character",
+    "Your Application",
+    "Evidence",
+    "Additional Information",
+    "Review and Submit"
+  ],
+  "fields": [
+    {
+      "name": "gettingStarted.reasonForRequest.applicationType",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "extensionOfStay",
+      "checked": false,
+      "label": "An extension of stay in my current status"
+    },
+    {
+      "name": "gettingStarted.reasonForRequest.applicationType",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "changeOfStatus",
+      "checked": true,
+      "label": "A change of status"
+    },
+    {
+      "name": "gettingStarted.reasonForRequest.statusInfo.changeOfStatus",
+      "id": "gettingStarted.reasonForRequest.statusInfo.changeOfStatus",
+      "tag": "input",
+      "type": "text",
+      "value": "B2 - Temporary Visitor For Pleasure.",
+      "label": ""
+    },
+    {
+      "name": "gettingStarted.reasonForRequest.statusInfo.dateOfChange",
+      "id": "gettingStarted.reasonForRequest.statusInfo.dateOfChange",
+      "tag": "input",
+      "type": "text",
+      "value": "01/15/2027",
+      "label": ""
+    },
+    {
+      "name": "gettingStarted.reasonForRequest.requestedDateOfExtension",
+      "id": "gettingStarted.reasonForRequest.requestedDateOfExtension",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    }
+  ]
+}

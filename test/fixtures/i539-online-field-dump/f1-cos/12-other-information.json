@@ -1,0 +1,95 @@
+{
+  "url": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/13212561/about-you/other-information",
+  "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+  "subheading": [
+    "What is your A-Number?",
+    "What is your U.S. Social Security number?",
+    "What is your USCIS Online Account Number?",
+    "What is the name of the school you will attend as an Academic Student, Vocational Student, or Exchange Visitor? (if applicable)",
+    "What is your Student and Exchange Visitor Information System (SEVIS) Number? (if applicable)"
+  ],
+  "sidebar": [
+    "I-539, Application To Extend/Change Nonimmigrant Status",
+    "Getting Started",
+    "About You",
+    "Your name",
+    "Your contact information",
+    "When and where you were born",
+    "Your immigration information",
+    "Other information",
+    "Moral Character",
+    "Your Application",
+    "Evidence",
+    "Additional Information",
+    "Review and Submit"
+  ],
+  "fields": [
+    {
+      "name": "formikFactoryUIMeta.applicant.otherInformation.alienNumber.none",
+      "id": "formikFactoryUIMeta.applicant.otherInformation.alienNumber.none",
+      "tag": "input",
+      "type": "checkbox",
+      "value": "false",
+      "checked": false,
+      "label": "I do not have or know my A-Number."
+    },
+    {
+      "name": "applicant.otherInformation.alienNumber.number",
+      "id": "applicant.otherInformation.alienNumber.number",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    },
+    {
+      "name": "formikFactoryUIMeta.applicant.otherInformation.socialSecurityNumber.none",
+      "id": "formikFactoryUIMeta.applicant.otherInformation.socialSecurityNumber.none",
+      "tag": "input",
+      "type": "checkbox",
+      "value": "false",
+      "checked": false,
+      "label": "I do not have or know my U.S. Social Security number."
+    },
+    {
+      "name": "applicant.otherInformation.socialSecurityNumber.number",
+      "id": "applicant.otherInformation.socialSecurityNumber.number",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    },
+    {
+      "name": "formikFactoryUIMeta.applicant.otherInformation.uscisNumber.none",
+      "id": "formikFactoryUIMeta.applicant.otherInformation.uscisNumber.none",
+      "tag": "input",
+      "type": "checkbox",
+      "value": "false",
+      "checked": false,
+      "label": "I do not have or know my USCIS Online Account Number."
+    },
+    {
+      "name": "applicant.otherInformation.uscisNumber.number",
+      "id": "applicant.otherInformation.uscisNumber.number",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    },
+    {
+      "name": "applicant.otherInformation.schoolName",
+      "id": "applicant.otherInformation.schoolName",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    },
+    {
+      "name": "applicant.otherInformation.sevisNumber",
+      "id": "applicant.otherInformation.sevisNumber",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    }
+  ]
+}

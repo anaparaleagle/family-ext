@@ -1,0 +1,155 @@
+{
+  "url": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/13212561/your-application/information-about-request/information-about-request-page-2",
+  "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+  "subheading": [
+    "Are you, or any other person included on the application, an applicant for an immigrant visa? *",
+    "Has an immigrant petition EVER been filed for you? *",
+    "Have you EVER filed Form I-485, Application to Register Permanent Residence or Adjust Status? *",
+    "Have you EVER been employed in the United States since last admitted or granted an extension or change of status? *",
+    "Are you currently or have you EVER been a J-1 exchange visitor or a J-2 dependent of a J-1 exchange visitor? *"
+  ],
+  "sidebar": [
+    "I-539, Application To Extend/Change Nonimmigrant Status",
+    "Getting Started",
+    "About You",
+    "Moral Character",
+    "Your Application",
+    "Information about your request",
+    "Information about your request page 2",
+    "Evidence",
+    "Additional Information",
+    "Review and Submit"
+  ],
+  "fields": [
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage2.isApplicantForImmigrantVisa.question",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "true",
+      "checked": true,
+      "label": "Yes"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage2.isApplicantForImmigrantVisa.question",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "false",
+      "checked": false,
+      "label": "No"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage2.isApplicantForImmigrantVisa.additionalExplanation",
+      "id": "yourApplication.informationAboutRequest.informationAboutRequestPage2.isApplicantForImmigrantVisa.additionalExplanation",
+      "tag": "textarea",
+      "type": "textarea",
+      "value": "",
+      "label": "Provide an explanation. *"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage2.hasImmigrantPetitionBeenFiled.question",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "true",
+      "checked": true,
+      "label": "Yes"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage2.hasImmigrantPetitionBeenFiled.question",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "false",
+      "checked": false,
+      "label": "No"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage2.hasImmigrantPetitionBeenFiled.additionalExplanation",
+      "id": "yourApplication.informationAboutRequest.informationAboutRequestPage2.hasImmigrantPetitionBeenFiled.additionalExplanation",
+      "tag": "textarea",
+      "type": "textarea",
+      "value": "",
+      "label": "Provide an explanation. *"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage2.hasI485BeenFiled.question",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "true",
+      "checked": true,
+      "label": "Yes"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage2.hasI485BeenFiled.question",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "false",
+      "checked": false,
+      "label": "No"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage2.hasI485BeenFiled.additionalExplanation",
+      "id": "yourApplication.informationAboutRequest.informationAboutRequestPage2.hasI485BeenFiled.additionalExplanation",
+      "tag": "textarea",
+      "type": "textarea",
+      "value": "",
+      "label": "Provide an explanation. *"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage2.isEmployedInUs.isEmployedInUsQuestion",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "true",
+      "checked": true,
+      "label": "Yes"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage2.isEmployedInUs.isEmployedInUsQuestion",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "false",
+      "checked": false,
+      "label": "No"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage2.isEmployedInUs.employmentAdditionalExplanation",
+      "id": "yourApplication.informationAboutRequest.informationAboutRequestPage2.isEmployedInUs.employmentAdditionalExplanation",
+      "tag": "textarea",
+      "type": "textarea",
+      "value": "",
+      "label": "Describe any and all periods of employment. Include the name and address of the employer, weekly income, and w"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage2.isExchangeVisitorOrDependent.question",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "true",
+      "checked": true,
+      "label": "Yes"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage2.isExchangeVisitorOrDependent.question",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "false",
+      "checked": false,
+      "label": "No"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage2.isExchangeVisitorOrDependent.additionalExplanation",
+      "id": "yourApplication.informationAboutRequest.informationAboutRequestPage2.isExchangeVisitorOrDependent.additionalExplanation",
+      "tag": "textarea",
+      "type": "textarea",
+      "value": "",
+      "label": "Provide the dates you maintained status as a J-1 exchange visitor or J-2 dependent. *"
+    }
+  ]
+}

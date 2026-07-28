@@ -1,0 +1,67 @@
+{
+  "url": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/13212561/your-application/information-about-request",
+  "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+  "subheading": [
+    "Is this application based on an extension or change of status already granted to your spouse, child, or parent?",
+    "Is this application based on a separate petition or application to provide your spouse, child, or parent an extension or change in status? *"
+  ],
+  "sidebar": [
+    "I-539, Application To Extend/Change Nonimmigrant Status",
+    "Getting Started",
+    "About You",
+    "Moral Character",
+    "Your Application",
+    "Information about your request",
+    "Information about your request page 2",
+    "Evidence",
+    "Additional Information",
+    "Review and Submit"
+  ],
+  "fields": [
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage1.isBasedOnGrantedFamilyPetition",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "true",
+      "checked": false,
+      "label": "Yes"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage1.isBasedOnGrantedFamilyPetition",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "false",
+      "checked": false,
+      "label": "No"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage1.basedOnSeparateFamilyPetition",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "filedWithThisI539",
+      "checked": false,
+      "label": "Yes, filed with this Form I-539"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage1.basedOnSeparateFamilyPetition",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "no",
+      "checked": false,
+      "label": "No"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage1.basedOnSeparateFamilyPetition",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "filedPreviouslyAndPending",
+      "checked": false,
+      "label": "Yes, filed previously and pending with U.S. Citizenship and Immigration Services (USCIS)"
+    }
+  ]
+}
