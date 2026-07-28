@@ -22,7 +22,10 @@ function mountDropzone(): void {
   const input = document.getElementById("desktop-drop") as HTMLInputElement;
   input.addEventListener("change", () => {
     for (const file of Array.from(input.files ?? [])) {
-      if (attachedRowFor(file.name)) continue; // myUSCIS lists each file once
+      // NO de-dupe here on purpose: myUSCIS accepts the same filename twice and
+      // lists it twice. That IS the bug SOF-1005 fixes, so the mock must be able
+      // to show two rows — otherwise the "exactly one copy" test could never fail
+      // and would be asserting the mock's behaviour instead of the code's.
       const row = document.createElement("div");
       row.className = "uploaded-file";
       const name = document.createElement("span");
@@ -35,12 +38,6 @@ function mountDropzone(): void {
       document.body.appendChild(row);
     }
   });
-}
-
-function attachedRowFor(filename: string): Element | undefined {
-  return Array.from(document.querySelectorAll(".uploaded-file")).find((r) =>
-    (r.textContent || "").includes(filename),
-  );
 }
 
 beforeEach(() => {
