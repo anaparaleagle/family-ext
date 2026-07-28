@@ -1,0 +1,41 @@
+name: CI
+
+# Runs ONLY on pull requests whose base (target) branch is `staging` — the same
+# shape as the family backend/frontend CI. Make this a REQUIRED status check in
+# staging's branch protection (Settings -> Branches) so a PR into staging can't
+# merge while it's red -- needs repo admin.
+#
+# Until this existed there was no test runner on a family-ext PR at all, so the
+# red->green loop every ticket here is supposed to follow had nowhere to run.
+on:
+  pull_request:
+    branches: [staging]
+
+jobs:
+  test:
+    name: Vitest
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      # Deliberately `npm install`, not `npm ci` — matches the family frontend
+      # workflow. package-lock.json is generated on Windows and can lack the
+      # Linux-only optional deps, which makes strict `npm ci` fail on the Linux
+      # runner. `npm install` reconciles the lock across platforms.
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      # The extension is TypeScript compiled by esbuild, which does NOT
+      # type-check. Without this step a type error only ever surfaces in an
+      # editor, so run tsc explicitly.
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm run test
