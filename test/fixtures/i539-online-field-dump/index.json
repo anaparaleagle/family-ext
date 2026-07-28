@@ -1,0 +1,829 @@
+{
+  "form": "I-539, Application To Extend/Change Nonimmigrant Status (guided online, my.uscis.gov)",
+  "captured": "2026-07-15",
+  "captureAccount": "legal-rep (h1b-team@mkimmigrationlaw.com), Individual client \"test, test\"; screens 00-22b from throwaway draft 13212561 (deleted), screen 23 (review) from throwaway draft 13218429 (deleted)",
+  "draftUrlBase": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/<draftId>/<path>?app_to_rep_id=<uuid>",
+  "entryPath": "file-form: select Individual client (#client) -> I-539 (#fileForm) -> Start form -> confirm \"Yes, continue\" -> /start/overview -> Next -> /start/start-application -> Start -> /getting-started/basis-of-eligibility (draftId now in URL)",
+  "screens": [
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/00-start-overview.json",
+      "order": "00-",
+      "slug": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/start/overview",
+      "heading": "I-539, Application to Extend/Change Nonimmigrant Status",
+      "subheadings": [],
+      "pageType": "intro/empty",
+      "fieldCount": 0,
+      "fieldNames": []
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/01-completing-online.json",
+      "order": "01-",
+      "slug": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/start/start-application",
+      "heading": "Completing your form online",
+      "subheadings": [],
+      "pageType": "intro/empty",
+      "fieldCount": 0,
+      "fieldNames": []
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/02-basis-of-eligibility.json",
+      "order": "02-",
+      "slug": "getting-started/basis-of-eligibility",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [],
+      "pageType": "form",
+      "fieldCount": 6,
+      "fieldNames": [
+        "gettingStarted.basisOfEligibility.currentNonImmigrantStatus",
+        "gettingStarted.basisOfEligibility.isGrantedDurationOfStatus",
+        "gettingStarted.basisOfEligibility.currentNonImmigrantStatusExpirationDate",
+        "gettingStarted.basisOfEligibility.isOnlyApplicant"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/03-reason-for-request.json",
+      "order": "03-",
+      "slug": "getting-started/reason-for-request",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "What are you applying for? *",
+        "What date are you requesting your current or requested status be extended until?"
+      ],
+      "pageType": "form",
+      "fieldCount": 4,
+      "fieldNames": [
+        "gettingStarted.reasonForRequest.applicationType",
+        "gettingStarted.reasonForRequest.requestedDateOfExtension"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/03b-reason-changeofstatus-revealed.json",
+      "order": "03b",
+      "slug": "getting-started/reason-for-request",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "What are you applying for? *",
+        "I am requesting to change my status or employer/information medium to: *",
+        "When do you want the requested change to become effective? *",
+        "What date are you requesting your current or requested status be extended until?"
+      ],
+      "pageType": "form",
+      "fieldCount": 6,
+      "fieldNames": [
+        "gettingStarted.reasonForRequest.applicationType",
+        "gettingStarted.reasonForRequest.statusInfo.changeOfStatus",
+        "gettingStarted.reasonForRequest.statusInfo.dateOfChange",
+        "gettingStarted.reasonForRequest.requestedDateOfExtension"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/04-preparer-interpreter-info.json",
+      "order": "04-",
+      "slug": "getting-started/preparer-and-interpreter-information",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "Is someone assisting you with completing this application?",
+        "Is a preparer assisting you with completing this application?",
+        "Is an interpreter assisting you with completing this application?"
+      ],
+      "pageType": "form",
+      "fieldCount": 6,
+      "fieldNames": [
+        "formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.hasHelper",
+        "formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.helper.hasPreparer",
+        "formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.helper.hasInterpreter"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/04b-preparer-interpreter-revealed.json",
+      "order": "04b",
+      "slug": "getting-started/preparer-and-interpreter-information",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "Is someone assisting you with completing this application?",
+        "Is a preparer assisting you with completing this application?",
+        "Is an interpreter assisting you with completing this application?"
+      ],
+      "pageType": "form",
+      "fieldCount": 6,
+      "fieldNames": [
+        "formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.hasHelper",
+        "formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.helper.hasPreparer",
+        "formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.helper.hasInterpreter"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/05-preparer.json",
+      "order": "05-",
+      "slug": "getting-started/preparer",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "What is your preparer's full name?",
+        "What is your preparer's business or organization name?",
+        "What is your preparer's contact information?"
+      ],
+      "pageType": "form",
+      "fieldCount": 9,
+      "fieldNames": [
+        "gettingStarted.preparer.name.firstName",
+        "gettingStarted.preparer.name.lastName",
+        "formikFactoryUIMeta.gettingStarted.preparer.noBusiness",
+        "gettingStarted.preparer.business",
+        "gettingStarted.preparer.contact.daytimePhone",
+        "formikFactoryUIMeta.gettingStarted.preparer.contact.noMobilePhone",
+        "gettingStarted.preparer.contact.mobilePhone",
+        "formikFactoryUIMeta.gettingStarted.preparer.contact.noEmailAddress",
+        "gettingStarted.preparer.contact.emailAddress"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/06-interpreter.json",
+      "order": "06-",
+      "slug": "getting-started/interpreter",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "What is your interpreter's full name?",
+        "What is your interpreter's business or organization name?",
+        "What is your interpreter's contact information?",
+        "What language is your interpreter using to interpret this application for you?"
+      ],
+      "pageType": "form",
+      "fieldCount": 10,
+      "fieldNames": [
+        "gettingStarted.interpreter.name.firstName",
+        "gettingStarted.interpreter.name.lastName",
+        "formikFactoryUIMeta.gettingStarted.interpreter.noBusiness",
+        "gettingStarted.interpreter.business",
+        "gettingStarted.interpreter.contact.daytimePhone",
+        "formikFactoryUIMeta.gettingStarted.interpreter.contact.noMobilePhone",
+        "gettingStarted.interpreter.contact.mobilePhone",
+        "formikFactoryUIMeta.gettingStarted.interpreter.contact.noEmailAddress",
+        "gettingStarted.interpreter.contact.emailAddress",
+        "gettingStarted.interpreter.language"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/07-your-name.json",
+      "order": "07-",
+      "slug": "about-you/your-name",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "What is your current legal name?"
+      ],
+      "pageType": "form",
+      "fieldCount": 3,
+      "fieldNames": [
+        "applicant.yourName.name.firstName",
+        "applicant.yourName.name.middleName",
+        "applicant.yourName.name.lastName"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/08-contact-information.json",
+      "order": "08-",
+      "slug": "about-you/your-contact-information",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "How can we contact you?",
+        "What is your current U.S. mailing address? (Safe Address, if applicable)",
+        "Is your current U.S. mailing address the same as your U.S. physical address?",
+        "What is your physical address abroad?"
+      ],
+      "pageType": "form",
+      "fieldCount": 19,
+      "fieldNames": [
+        "applicant.yourContactInformation.contactInformation.daytimePhone",
+        "formikFactoryUIMeta.applicant.yourContactInformation.contactInformation.sameAsDaytimePhone",
+        "applicant.yourContactInformation.contactInformation.mobilePhone",
+        "formikFactoryUIMeta.applicant.yourContactInformation.contactInformation.noEmail",
+        "applicant.yourContactInformation.contactInformation.emailAddress",
+        "applicant.yourContactInformation.mailingAddress.inCareOfName",
+        "applicant.yourContactInformation.mailingAddress.addressLineOne",
+        "applicant.yourContactInformation.mailingAddress.addressLineTwo",
+        "applicant.yourContactInformation.mailingAddress.city",
+        "applicant.yourContactInformation.mailingAddress.state",
+        "applicant.yourContactInformation.mailingAddress.zipCode",
+        "applicant.yourContactInformation.isMailingEqualToPhysical",
+        "applicant.yourContactInformation.foreignPhysicalAddress.country",
+        "applicant.yourContactInformation.foreignPhysicalAddress.addressLineOne",
+        "applicant.yourContactInformation.foreignPhysicalAddress.addressLineTwo",
+        "applicant.yourContactInformation.foreignPhysicalAddress.city",
+        "applicant.yourContactInformation.foreignPhysicalAddress.province",
+        "applicant.yourContactInformation.foreignPhysicalAddress.postalCode"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/08b-contact-physical-different.json",
+      "order": "08b",
+      "slug": "about-you/your-contact-information",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "How can we contact you?",
+        "What is your current U.S. mailing address? (Safe Address, if applicable)",
+        "Is your current U.S. mailing address the same as your U.S. physical address?",
+        "What is your current U.S. physical address?",
+        "What is your physical address abroad?"
+      ],
+      "pageType": "form",
+      "fieldCount": 24,
+      "fieldNames": [
+        "applicant.yourContactInformation.contactInformation.daytimePhone",
+        "formikFactoryUIMeta.applicant.yourContactInformation.contactInformation.sameAsDaytimePhone",
+        "applicant.yourContactInformation.contactInformation.mobilePhone",
+        "formikFactoryUIMeta.applicant.yourContactInformation.contactInformation.noEmail",
+        "applicant.yourContactInformation.contactInformation.emailAddress",
+        "applicant.yourContactInformation.mailingAddress.inCareOfName",
+        "applicant.yourContactInformation.mailingAddress.addressLineOne",
+        "applicant.yourContactInformation.mailingAddress.addressLineTwo",
+        "applicant.yourContactInformation.mailingAddress.city",
+        "applicant.yourContactInformation.mailingAddress.state",
+        "applicant.yourContactInformation.mailingAddress.zipCode",
+        "applicant.yourContactInformation.isMailingEqualToPhysical",
+        "applicant.yourContactInformation.physicalAddresses.addressLineOne",
+        "applicant.yourContactInformation.physicalAddresses.addressLineTwo",
+        "applicant.yourContactInformation.physicalAddresses.city",
+        "applicant.yourContactInformation.physicalAddresses.state",
+        "applicant.yourContactInformation.physicalAddresses.zipCode",
+        "applicant.yourContactInformation.foreignPhysicalAddress.country",
+        "applicant.yourContactInformation.foreignPhysicalAddress.addressLineOne",
+        "applicant.yourContactInformation.foreignPhysicalAddress.addressLineTwo",
+        "applicant.yourContactInformation.foreignPhysicalAddress.city",
+        "applicant.yourContactInformation.foreignPhysicalAddress.province",
+        "applicant.yourContactInformation.foreignPhysicalAddress.postalCode"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/09-when-where-born.json",
+      "order": "09-",
+      "slug": "about-you/when-and-where-you-were-born",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "What is your date of birth? *",
+        "What is your country of birth? *"
+      ],
+      "pageType": "form",
+      "fieldCount": 2,
+      "fieldNames": [
+        "applicant.whenAndWhereYouWereBorn.dob",
+        "applicant.whenAndWhereYouWereBorn.birthAddress.country"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/09b-when-where-born-revealed.json",
+      "order": "09b",
+      "slug": "about-you/when-and-where-you-were-born",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "What is your date of birth? *",
+        "What is your country of birth? *"
+      ],
+      "pageType": "form",
+      "fieldCount": 2,
+      "fieldNames": [
+        "applicant.whenAndWhereYouWereBorn.dob",
+        "applicant.whenAndWhereYouWereBorn.birthAddress.country"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/10-immigration-information.json",
+      "order": "10-",
+      "slug": "about-you/your-immigration-information",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "What is your country of citizenship or nationality? *",
+        "Provide information about your most recent entry into the United States.",
+        "Provide information about your most recent entry into the United States.",
+        "What is the expiration date for the passport or travel document on your Form I-94?"
+      ],
+      "pageType": "form",
+      "fieldCount": 9,
+      "fieldNames": [
+        "applicant.yourImmigrationInformation.yourImmigrationInformation1.countryOfCitizenshipOrNationality",
+        "applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.dateOfLastArrival",
+        "applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.i94Number",
+        "formikFactoryUIMeta.applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.passport.none",
+        "applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.passport.number",
+        "formikFactoryUIMeta.applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.noTravelDocumentNumber",
+        "applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.travelDocumentNumber",
+        "applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.countryOfIssuance",
+        "applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.expirationDate"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/11-immigration-info-page2.json",
+      "order": "11-",
+      "slug": "about-you/your-immigration-information/your-immigration-information-page-2",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "Is your current passport different from the one you used in your most recent entry into the United States?"
+      ],
+      "pageType": "form",
+      "fieldCount": 2,
+      "fieldNames": [
+        "applicant.yourImmigrationInformation.yourImmigrationInformation2.isCurrentPassportDifferent"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/11b-immigration-page2-passport-different.json",
+      "order": "11b",
+      "slug": "about-you/your-immigration-information/your-immigration-information-page-2",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "Is your current passport different from the one you used in your most recent entry into the United States?",
+        "What is your current passport number?",
+        "What country issued your passport?",
+        "What date does your current passport expire?"
+      ],
+      "pageType": "form",
+      "fieldCount": 5,
+      "fieldNames": [
+        "applicant.yourImmigrationInformation.yourImmigrationInformation2.isCurrentPassportDifferent",
+        "applicant.yourImmigrationInformation.yourImmigrationInformation2.passport.number.number",
+        "applicant.yourImmigrationInformation.yourImmigrationInformation2.passport.countryOfIssuance",
+        "applicant.yourImmigrationInformation.yourImmigrationInformation2.passport.expirationDate"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/12-other-information.json",
+      "order": "12-",
+      "slug": "about-you/other-information",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "What is your A-Number?",
+        "What is your U.S. Social Security number?",
+        "What is your USCIS Online Account Number?",
+        "What is the name of the school you will attend as an Academic Student, Vocational Student, or Exchange Visitor? (if applicable)",
+        "What is your Student and Exchange Visitor Information System (SEVIS) Number? (if applicable)"
+      ],
+      "pageType": "form",
+      "fieldCount": 8,
+      "fieldNames": [
+        "formikFactoryUIMeta.applicant.otherInformation.alienNumber.none",
+        "applicant.otherInformation.alienNumber.number",
+        "formikFactoryUIMeta.applicant.otherInformation.socialSecurityNumber.none",
+        "applicant.otherInformation.socialSecurityNumber.number",
+        "formikFactoryUIMeta.applicant.otherInformation.uscisNumber.none",
+        "applicant.otherInformation.uscisNumber.number",
+        "applicant.otherInformation.schoolName",
+        "applicant.otherInformation.sevisNumber"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/13-moral-party-affiliations.json",
+      "order": "13-",
+      "slug": "moral-character/party-and-group-affiliations",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "Have you EVER ordered, incited, called for, committed, assisted, helped with, or otherwise participated in acts involving torture or genocide? *",
+        "Have you EVER ordered, incited, called for, committed, assisted, helped with, or otherwise participated in killing any person? *",
+        "Have you EVER ordered, incited, called for, committed, assisted, helped with, or otherwise participated in intentionally and severely injuring any person? *",
+        "Have you EVER ordered, incited, called for, committed, assisted, helped with, or otherwise participated in engaging in any kind of sexual contact or relations with any person who did not consent or was unable to consent, or was being forced or threatened? *",
+        "Have you EVER ordered, incited, called for, committed, assisted, helped with, or otherwise participated in limiting or denying any person's ability to exercise religious beliefs? *"
+      ],
+      "pageType": "form",
+      "fieldCount": 10,
+      "fieldNames": [
+        "moralCharacter.partyAndGroupAffiliations.partyAndGroupAffiliationsPage1.hasParticipatedInTortureOrGenocide.question",
+        "moralCharacter.partyAndGroupAffiliations.partyAndGroupAffiliationsPage1.hasParticipatedInKillingAnyPerson.question",
+        "moralCharacter.partyAndGroupAffiliations.partyAndGroupAffiliationsPage1.hasParticipatedInInjuringAnyPerson.question",
+        "moralCharacter.partyAndGroupAffiliations.partyAndGroupAffiliationsPage1.hasParticipatedInForcedSexualContact.question",
+        "moralCharacter.partyAndGroupAffiliations.partyAndGroupAffiliationsPage1.hasParticipatedInDenyingReligiousBeliefs.question"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/14-moral-party-affiliations-page2.json",
+      "order": "14-",
+      "slug": "moral-character/party-and-group-affiliations/party-and-group-affiliations-page-2",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "Have you EVER served in, been a member of, assisted, or participated in any military unit, paramilitary unit, police unit, self-defense unit, vigilante unit, rebel group, guerrilla group, militia, insurgent organization, or any other armed group? *",
+        "Have you EVER worked, volunteered, or otherwise served in any prison, jail, prison camp, detention facility, labor camp, or any other situation that involved detaining persons? *",
+        "Have you EVER been a member of, assisted, or participated in any group, unit, or organization of any kind in which you or other persons used or threatened to use any type of weapon against any person or threatened to do so? *",
+        "Have you EVER sold, provided, or transported weapons, or assisted any person in selling, providing, or transporting weapons, which, you knew or believed would be used against another person? *",
+        "Have you EVER received any weapons training, paramilitary training, or other military-type training? *"
+      ],
+      "pageType": "form",
+      "fieldCount": 10,
+      "fieldNames": [
+        "moralCharacter.partyAndGroupAffiliations.partyAndGroupAffiliationsPage2.hasServedInMilitary.question",
+        "moralCharacter.partyAndGroupAffiliations.partyAndGroupAffiliationsPage2.hasServedInPrison.question",
+        "moralCharacter.partyAndGroupAffiliations.partyAndGroupAffiliationsPage2.hasServedInOrganizationWithWeapons.question",
+        "moralCharacter.partyAndGroupAffiliations.partyAndGroupAffiliationsPage2.hasTransportedWeapons.question",
+        "moralCharacter.partyAndGroupAffiliations.partyAndGroupAffiliationsPage2.hasWeaponsTraining.question"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/15-moral-immigration-proceedings.json",
+      "order": "15-",
+      "slug": "moral-character/immigration-proceedings",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "Have you EVER violated the terms of the nonimmigrant status you now hold? *",
+        "Are you now in removal proceedings? *"
+      ],
+      "pageType": "form",
+      "fieldCount": 4,
+      "fieldNames": [
+        "moralCharacter.immigrationProceedings.hasViolatedNonImmigrantStatus.question",
+        "moralCharacter.immigrationProceedings.isInRemovalProceedings.question"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/16-moral-crimes-offenses.json",
+      "order": "16-",
+      "slug": "moral-character/crimes-and-offenses",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "Have you EVER been arrested or convicted of any criminal offense since last entering the United States? *"
+      ],
+      "pageType": "form",
+      "fieldCount": 2,
+      "fieldNames": [
+        "moralCharacter.crimesAndOffenses.hasBeenArrestedOrConvicted.question"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/17-your-application-info-request.json",
+      "order": "17-",
+      "slug": "your-application/information-about-request",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "Is this application based on an extension or change of status already granted to your spouse, child, or parent?",
+        "Is this application based on a separate petition or application to provide your spouse, child, or parent an extension or change in status? *"
+      ],
+      "pageType": "form",
+      "fieldCount": 5,
+      "fieldNames": [
+        "yourApplication.informationAboutRequest.informationAboutRequestPage1.isBasedOnGrantedFamilyPetition",
+        "yourApplication.informationAboutRequest.informationAboutRequestPage1.basedOnSeparateFamilyPetition"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/17b-info-request-family-petition-revealed.json",
+      "order": "17b",
+      "slug": "your-application/information-about-request",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "Is this application based on an extension or change of status already granted to your spouse, child, or parent?",
+        "Is this application based on a separate petition or application to provide your spouse, child, or parent an extension or change in status? *",
+        "Which form? *",
+        "Provide the USCIS receipt number *",
+        "What is the name of the beneficiary or applicant for the pending application?",
+        "When was the form filed? *"
+      ],
+      "pageType": "form",
+      "fieldCount": 11,
+      "fieldNames": [
+        "yourApplication.informationAboutRequest.informationAboutRequestPage1.isBasedOnGrantedFamilyPetition",
+        "yourApplication.informationAboutRequest.informationAboutRequestPage1.basedOnSeparateFamilyPetition",
+        "yourApplication.informationAboutRequest.informationAboutRequestPage1.selectedFormType",
+        "yourApplication.informationAboutRequest.informationAboutRequestPage1.separatePetitionReceiptNumber.receiptNumber",
+        "yourApplication.informationAboutRequest.informationAboutRequestPage1.fullName.firstName",
+        "yourApplication.informationAboutRequest.informationAboutRequestPage1.fullName.lastName",
+        "yourApplication.informationAboutRequest.informationAboutRequestPage1.dateFiled"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/18-your-application-info-request-page2.json",
+      "order": "18-",
+      "slug": "your-application/information-about-request/information-about-request-page-2",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "Are you, or any other person included on the application, an applicant for an immigrant visa? *",
+        "Has an immigrant petition EVER been filed for you? *",
+        "Have you EVER filed Form I-485, Application to Register Permanent Residence or Adjust Status? *",
+        "Have you EVER been employed in the United States since last admitted or granted an extension or change of status? *",
+        "Are you currently or have you EVER been a J-1 exchange visitor or a J-2 dependent of a J-1 exchange visitor? *"
+      ],
+      "pageType": "form",
+      "fieldCount": 10,
+      "fieldNames": [
+        "yourApplication.informationAboutRequest.informationAboutRequestPage2.isApplicantForImmigrantVisa.question",
+        "yourApplication.informationAboutRequest.informationAboutRequestPage2.hasImmigrantPetitionBeenFiled.question",
+        "yourApplication.informationAboutRequest.informationAboutRequestPage2.hasI485BeenFiled.question",
+        "yourApplication.informationAboutRequest.informationAboutRequestPage2.isEmployedInUs.isEmployedInUsQuestion",
+        "yourApplication.informationAboutRequest.informationAboutRequestPage2.isExchangeVisitorOrDependent.question"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/18b-info-request-page2-all-yes-revealed.json",
+      "order": "18b",
+      "slug": "your-application/information-about-request/information-about-request-page-2",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "Are you, or any other person included on the application, an applicant for an immigrant visa? *",
+        "Has an immigrant petition EVER been filed for you? *",
+        "Have you EVER filed Form I-485, Application to Register Permanent Residence or Adjust Status? *",
+        "Have you EVER been employed in the United States since last admitted or granted an extension or change of status? *",
+        "Are you currently or have you EVER been a J-1 exchange visitor or a J-2 dependent of a J-1 exchange visitor? *"
+      ],
+      "pageType": "form",
+      "fieldCount": 15,
+      "fieldNames": [
+        "yourApplication.informationAboutRequest.informationAboutRequestPage2.isApplicantForImmigrantVisa.question",
+        "yourApplication.informationAboutRequest.informationAboutRequestPage2.isApplicantForImmigrantVisa.additionalExplanation",
+        "yourApplication.informationAboutRequest.informationAboutRequestPage2.hasImmigrantPetitionBeenFiled.question",
+        "yourApplication.informationAboutRequest.informationAboutRequestPage2.hasImmigrantPetitionBeenFiled.additionalExplanation",
+        "yourApplication.informationAboutRequest.informationAboutRequestPage2.hasI485BeenFiled.question",
+        "yourApplication.informationAboutRequest.informationAboutRequestPage2.hasI485BeenFiled.additionalExplanation",
+        "yourApplication.informationAboutRequest.informationAboutRequestPage2.isEmployedInUs.isEmployedInUsQuestion",
+        "yourApplication.informationAboutRequest.informationAboutRequestPage2.isEmployedInUs.employmentAdditionalExplanation",
+        "yourApplication.informationAboutRequest.informationAboutRequestPage2.isExchangeVisitorOrDependent.question",
+        "yourApplication.informationAboutRequest.informationAboutRequestPage2.isExchangeVisitorOrDependent.additionalExplanation"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/19-evidence-form-i94.json",
+      "order": "19-",
+      "slug": "evidence/form-i-94",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "Form I-94, Nonimmigrant Arrival/Departure Record*",
+        "File requirements"
+      ],
+      "pageType": "UPLOAD",
+      "fieldCount": 1,
+      "fieldNames": []
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/20-evidence-written-statement.json",
+      "order": "20-",
+      "slug": "evidence/written-statement",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "Your Written Statement",
+        "File requirements"
+      ],
+      "pageType": "UPLOAD",
+      "fieldCount": 1,
+      "fieldNames": []
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/21-evidence-additional.json",
+      "order": "21-",
+      "slug": "evidence/additional-evidence",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "Additional Evidence You Want To Provide",
+        "File requirements"
+      ],
+      "pageType": "UPLOAD (optional)",
+      "fieldCount": 1,
+      "fieldNames": []
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/22-additional-information.json",
+      "order": "22-",
+      "slug": "additional-information/additional-information",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "You may provide additional information for your application"
+      ],
+      "pageType": "intro/empty",
+      "fieldCount": 0,
+      "fieldNames": []
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/22b-additional-information-repeater-open.json",
+      "order": "22b",
+      "slug": "additional-information/additional-information",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "You may provide additional information for your application"
+      ],
+      "pageType": "REPEATER",
+      "fieldCount": 4,
+      "fieldNames": [
+        "additionalInformationArray.0.section",
+        "additionalInformationArray.0.page",
+        "additionalInformationArray.0.question",
+        "additionalInformationArray.0.response"
+      ]
+    },
+    {
+      "branch": "f1-cos",
+      "file": "f1-cos/23-review-and-submit.json",
+      "order": "23-",
+      "slug": "review-and-submit/review-your-application",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "Check your application before you submit",
+        "Your fee",
+        "Alerts and warnings"
+      ],
+      "pageType": "REVIEW",
+      "fieldCount": 0,
+      "fieldNames": [],
+      "note": "Terminal page of the walk; captured 2026-07-15 on draft 13218429. No inputs. Its advance control is a plain 'Next' (id=button-button, data-testid=next-button) identical to every other page's, so the Submit/Pay text guard cannot catch it -- the descriptor's kind:'review' entry is what stops the walk. Screenshot: f1-cos/23-review-and-submit.png."
+    },
+    {
+      "branch": "f1-eos",
+      "file": "f1-eos/02-reason-extension-of-stay.json",
+      "order": "02-",
+      "slug": "getting-started/reason-for-request",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "What are you applying for? *",
+        "What date are you requesting your current or requested status be extended until? *"
+      ],
+      "pageType": "form",
+      "fieldCount": 4,
+      "fieldNames": [
+        "gettingStarted.reasonForRequest.applicationType",
+        "gettingStarted.reasonForRequest.requestedDateOfExtension"
+      ]
+    },
+    {
+      "branch": "f1-eos",
+      "file": "f1-eos/02b-reason-reinstatement.json",
+      "order": "02b",
+      "slug": "getting-started/reason-for-request",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "What are you applying for? *",
+        "What date are you requesting your current or requested status be extended until?"
+      ],
+      "pageType": "form",
+      "fieldCount": 4,
+      "fieldNames": [
+        "gettingStarted.reasonForRequest.applicationType",
+        "gettingStarted.reasonForRequest.requestedDateOfExtension"
+      ]
+    },
+    {
+      "branch": "b1b2",
+      "file": "b1b2/01-basis-of-eligibility.json",
+      "order": "01-",
+      "slug": "getting-started/basis-of-eligibility",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "What is your current nonimmigrant status? *",
+        "Were you granted Duration of Status (D/S)?",
+        "When does your current nonimmigrant status expire?",
+        "Are you the only applicant applying with this Form? *"
+      ],
+      "pageType": "form",
+      "fieldCount": 6,
+      "fieldNames": [
+        "gettingStarted.basisOfEligibility.currentNonImmigrantStatus",
+        "gettingStarted.basisOfEligibility.isGrantedDurationOfStatus",
+        "gettingStarted.basisOfEligibility.currentNonImmigrantStatusExpirationDate",
+        "gettingStarted.basisOfEligibility.isOnlyApplicant"
+      ]
+    },
+    {
+      "branch": "b1b2",
+      "file": "b1b2/02-reason-for-request.json",
+      "order": "02-",
+      "slug": "getting-started/reason-for-request",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "What are you applying for? *",
+        "I am requesting to change my status or employer/information medium to: *",
+        "When do you want the requested change to become effective? *",
+        "What date are you requesting your current or requested status be extended until?"
+      ],
+      "pageType": "form",
+      "fieldCount": 5,
+      "fieldNames": [
+        "gettingStarted.reasonForRequest.applicationType",
+        "gettingStarted.reasonForRequest.statusInfo.changeOfStatus",
+        "gettingStarted.reasonForRequest.statusInfo.dateOfChange",
+        "gettingStarted.reasonForRequest.requestedDateOfExtension"
+      ]
+    },
+    {
+      "branch": "b1b2",
+      "file": "b1b2/03-other-information.json",
+      "order": "03-",
+      "slug": "about-you/other-information",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "What is your A-Number?",
+        "What is your U.S. Social Security number?",
+        "What is your USCIS Online Account Number?",
+        "What is the name of the school you will attend as an Academic Student, Vocational Student, or Exchange Visitor? (if applicable)",
+        "What is your Student and Exchange Visitor Information System (SEVIS) Number? (if applicable)"
+      ],
+      "pageType": "form",
+      "fieldCount": 8,
+      "fieldNames": [
+        "formikFactoryUIMeta.applicant.otherInformation.alienNumber.none",
+        "applicant.otherInformation.alienNumber.number",
+        "formikFactoryUIMeta.applicant.otherInformation.socialSecurityNumber.none",
+        "applicant.otherInformation.socialSecurityNumber.number",
+        "formikFactoryUIMeta.applicant.otherInformation.uscisNumber.none",
+        "applicant.otherInformation.uscisNumber.number",
+        "applicant.otherInformation.schoolName",
+        "applicant.otherInformation.sevisNumber"
+      ]
+    },
+    {
+      "branch": "j1",
+      "file": "j1/02-reason-for-request.json",
+      "order": "02-",
+      "slug": "getting-started/reason-for-request",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "What are you applying for? *",
+        "I am requesting to change my status or employer/information medium to: *",
+        "When do you want the requested change to become effective? *",
+        "What date are you requesting your current or requested status be extended until?"
+      ],
+      "pageType": "form",
+      "fieldCount": 5,
+      "fieldNames": [
+        "gettingStarted.reasonForRequest.applicationType",
+        "gettingStarted.reasonForRequest.statusInfo.changeOfStatus",
+        "gettingStarted.reasonForRequest.statusInfo.dateOfChange",
+        "gettingStarted.reasonForRequest.requestedDateOfExtension"
+      ]
+    },
+    {
+      "branch": "h4",
+      "file": "h4/02-reason-for-request.json",
+      "order": "02-",
+      "slug": "getting-started/reason-for-request",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "What are you applying for? *",
+        "I am requesting to change my status or employer/information medium to: *",
+        "When do you want the requested change to become effective? *",
+        "What date are you requesting your current or requested status be extended until?"
+      ],
+      "pageType": "form",
+      "fieldCount": 5,
+      "fieldNames": [
+        "gettingStarted.reasonForRequest.applicationType",
+        "gettingStarted.reasonForRequest.statusInfo.changeOfStatus",
+        "gettingStarted.reasonForRequest.statusInfo.dateOfChange",
+        "gettingStarted.reasonForRequest.requestedDateOfExtension"
+      ]
+    },
+    {
+      "branch": "l2",
+      "file": "l2/02-reason-for-request.json",
+      "order": "02-",
+      "slug": "getting-started/reason-for-request",
+      "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+      "subheadings": [
+        "What are you applying for? *",
+        "I am requesting to change my status or employer/information medium to: *",
+        "When do you want the requested change to become effective? *",
+        "What date are you requesting your current or requested status be extended until?"
+      ],
+      "pageType": "form",
+      "fieldCount": 5,
+      "fieldNames": [
+        "gettingStarted.reasonForRequest.applicationType",
+        "gettingStarted.reasonForRequest.statusInfo.changeOfStatus",
+        "gettingStarted.reasonForRequest.statusInfo.dateOfChange",
+        "gettingStarted.reasonForRequest.requestedDateOfExtension"
+      ]
+    },
+    {
+      "branch": "misc",
+      "file": "misc/changeOfStatus-target-options.json",
+      "type": "reference-options",
+      "field": "gettingStarted.reasonForRequest.statusInfo.changeOfStatus"
+    },
+    {
+      "branch": "misc",
+      "file": "misc/currentNonImmigrantStatus-options.json",
+      "type": "reference-options",
+      "field": "gettingStarted.basisOfEligibility.currentNonImmigrantStatus",
+      "optionCount": 68
+    }
+  ]
+}

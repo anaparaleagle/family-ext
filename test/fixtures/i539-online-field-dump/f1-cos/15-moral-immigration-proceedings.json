@@ -1,0 +1,59 @@
+{
+  "url": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/13212561/moral-character/immigration-proceedings",
+  "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+  "subheading": [
+    "Have you EVER violated the terms of the nonimmigrant status you now hold? *",
+    "Are you now in removal proceedings? *"
+  ],
+  "sidebar": [
+    "I-539, Application To Extend/Change Nonimmigrant Status",
+    "Getting Started",
+    "About You",
+    "Moral Character",
+    "Party and group affiliations",
+    "Immigration proceedings",
+    "Crimes and offenses",
+    "Your Application",
+    "Evidence",
+    "Additional Information",
+    "Review and Submit"
+  ],
+  "fields": [
+    {
+      "name": "moralCharacter.immigrationProceedings.hasViolatedNonImmigrantStatus.question",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "true",
+      "checked": false,
+      "label": "Yes"
+    },
+    {
+      "name": "moralCharacter.immigrationProceedings.hasViolatedNonImmigrantStatus.question",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "false",
+      "checked": false,
+      "label": "No"
+    },
+    {
+      "name": "moralCharacter.immigrationProceedings.isInRemovalProceedings.question",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "true",
+      "checked": false,
+      "label": "Yes"
+    },
+    {
+      "name": "moralCharacter.immigrationProceedings.isInRemovalProceedings.question",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "false",
+      "checked": false,
+      "label": "No"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "url": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/13212561/about-you/when-and-where-you-were-born",
+  "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+  "subheading": [
+    "What is your date of birth? *",
+    "What is your country of birth? *"
+  ],
+  "sidebar": [
+    "I-539, Application To Extend/Change Nonimmigrant Status",
+    "Getting Started",
+    "About You",
+    "Your name",
+    "Your contact information",
+    "When and where you were born",
+    "Your immigration information",
+    "Other information",
+    "Moral Character",
+    "Your Application",
+    "Evidence",
+    "Additional Information",
+    "Review and Submit"
+  ],
+  "fields": [
+    {
+      "name": "applicant.whenAndWhereYouWereBorn.dob",
+      "id": "applicant.whenAndWhereYouWereBorn.dob",
+      "tag": "input",
+      "type": "text",
+      "value": "01/01/1995",
+      "label": ""
+    },
+    {
+      "name": "applicant.whenAndWhereYouWereBorn.birthAddress.country",
+      "id": "applicant.whenAndWhereYouWereBorn.birthAddress.country",
+      "tag": "input",
+      "type": "text",
+      "value": "India",
+      "label": ""
+    }
+  ]
+}

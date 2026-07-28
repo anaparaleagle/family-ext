@@ -1,0 +1,33 @@
+{
+  "url": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/13212561/evidence/form-i-94",
+  "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+  "subheading": [
+    "Form I-94, Nonimmigrant Arrival/Departure Record*",
+    "File requirements"
+  ],
+  "sidebar": [
+    "I-539, Application To Extend/Change Nonimmigrant Status",
+    "Getting Started",
+    "About You",
+    "Moral Character",
+    "Your Application",
+    "Evidence",
+    "Form I-94",
+    "Written statement",
+    "Additional evidence",
+    "Additional Information",
+    "Review and Submit"
+  ],
+  "fields": [
+    {
+      "name": null,
+      "id": "desktop-drop",
+      "tag": "input",
+      "type": "file",
+      "value": "",
+      "label": ""
+    }
+  ],
+  "pageType": "UPLOAD",
+  "uploadNote": "Required. Dropzone input id=desktop-drop; accept=image/jpg,image/jpeg,application/pdf,image/tif,image/tiff; max 12MB/file. Label: Form I-94, Nonimmigrant Arrival/Departure Record (required). Upload registers a row {File name, Document=Form I-94, Delete}."
+}

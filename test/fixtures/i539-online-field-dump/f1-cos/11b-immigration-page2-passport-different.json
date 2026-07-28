@@ -1,0 +1,70 @@
+{
+  "url": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/13212561/about-you/your-immigration-information/your-immigration-information-page-2",
+  "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+  "subheading": [
+    "Is your current passport different from the one you used in your most recent entry into the United States?",
+    "What is your current passport number?",
+    "What country issued your passport?",
+    "What date does your current passport expire?"
+  ],
+  "sidebar": [
+    "I-539, Application To Extend/Change Nonimmigrant Status",
+    "Getting Started",
+    "About You",
+    "Your name",
+    "Your contact information",
+    "When and where you were born",
+    "Your immigration information",
+    "Your immigration information page 2",
+    "Other information",
+    "Moral Character",
+    "Your Application",
+    "Evidence",
+    "Additional Information",
+    "Review and Submit"
+  ],
+  "fields": [
+    {
+      "name": "applicant.yourImmigrationInformation.yourImmigrationInformation2.isCurrentPassportDifferent",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "true",
+      "checked": true,
+      "label": "Yes"
+    },
+    {
+      "name": "applicant.yourImmigrationInformation.yourImmigrationInformation2.isCurrentPassportDifferent",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "false",
+      "checked": false,
+      "label": "No"
+    },
+    {
+      "name": "applicant.yourImmigrationInformation.yourImmigrationInformation2.passport.number.number",
+      "id": "applicant.yourImmigrationInformation.yourImmigrationInformation2.passport.number.number",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    },
+    {
+      "name": "applicant.yourImmigrationInformation.yourImmigrationInformation2.passport.countryOfIssuance",
+      "id": "applicant.yourImmigrationInformation.yourImmigrationInformation2.passport.countryOfIssuance",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    },
+    {
+      "name": "applicant.yourImmigrationInformation.yourImmigrationInformation2.passport.expirationDate",
+      "id": "applicant.yourImmigrationInformation.yourImmigrationInformation2.passport.expirationDate",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    }
+  ]
+}

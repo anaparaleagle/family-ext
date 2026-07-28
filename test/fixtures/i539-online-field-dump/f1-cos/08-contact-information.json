@@ -1,0 +1,183 @@
+{
+  "url": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/13212561/about-you/your-contact-information",
+  "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+  "subheading": [
+    "How can we contact you?",
+    "What is your current U.S. mailing address? (Safe Address, if applicable)",
+    "Is your current U.S. mailing address the same as your U.S. physical address?",
+    "What is your physical address abroad?"
+  ],
+  "sidebar": [
+    "I-539, Application To Extend/Change Nonimmigrant Status",
+    "Getting Started",
+    "About You",
+    "Your name",
+    "Your contact information",
+    "When and where you were born",
+    "Your immigration information",
+    "Other information",
+    "Moral Character",
+    "Your Application",
+    "Evidence",
+    "Additional Information",
+    "Review and Submit"
+  ],
+  "fields": [
+    {
+      "name": "applicant.yourContactInformation.contactInformation.daytimePhone",
+      "id": "applicant.yourContactInformation.contactInformation.daytimePhone",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Daytime telephone number"
+    },
+    {
+      "name": "formikFactoryUIMeta.applicant.yourContactInformation.contactInformation.sameAsDaytimePhone",
+      "id": "formikFactoryUIMeta.applicant.yourContactInformation.contactInformation.sameAsDaytimePhone",
+      "tag": "input",
+      "type": "checkbox",
+      "value": "false",
+      "checked": false,
+      "label": "This is the same as my daytime telephone number."
+    },
+    {
+      "name": "applicant.yourContactInformation.contactInformation.mobilePhone",
+      "id": "applicant.yourContactInformation.contactInformation.mobilePhone",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Mobile telephone number"
+    },
+    {
+      "name": "formikFactoryUIMeta.applicant.yourContactInformation.contactInformation.noEmail",
+      "id": "formikFactoryUIMeta.applicant.yourContactInformation.contactInformation.noEmail",
+      "tag": "input",
+      "type": "checkbox",
+      "value": "false",
+      "checked": false,
+      "label": "I do not have an email address."
+    },
+    {
+      "name": "applicant.yourContactInformation.contactInformation.emailAddress",
+      "id": "applicant.yourContactInformation.contactInformation.emailAddress",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Email address"
+    },
+    {
+      "name": "applicant.yourContactInformation.mailingAddress.inCareOfName",
+      "id": "applicant.yourContactInformation.mailingAddress.inCareOfName",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "In care of name (if any)"
+    },
+    {
+      "name": "applicant.yourContactInformation.mailingAddress.addressLineOne",
+      "id": "applicant.yourContactInformation.mailingAddress.addressLineOne",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Address line 1 *"
+    },
+    {
+      "name": "applicant.yourContactInformation.mailingAddress.addressLineTwo",
+      "id": "applicant.yourContactInformation.mailingAddress.addressLineTwo",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Address line 2"
+    },
+    {
+      "name": "applicant.yourContactInformation.mailingAddress.city",
+      "id": "applicant.yourContactInformation.mailingAddress.city",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "City or town *"
+    },
+    {
+      "name": "applicant.yourContactInformation.mailingAddress.state",
+      "id": "applicant.yourContactInformation.mailingAddress.state",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    },
+    {
+      "name": "applicant.yourContactInformation.mailingAddress.zipCode",
+      "id": "applicant.yourContactInformation.mailingAddress.zipCode",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "ZIP code *"
+    },
+    {
+      "name": "applicant.yourContactInformation.isMailingEqualToPhysical",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "true",
+      "checked": false,
+      "label": "Yes"
+    },
+    {
+      "name": "applicant.yourContactInformation.isMailingEqualToPhysical",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "false",
+      "checked": false,
+      "label": "No"
+    },
+    {
+      "name": "applicant.yourContactInformation.foreignPhysicalAddress.country",
+      "id": "applicant.yourContactInformation.foreignPhysicalAddress.country",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    },
+    {
+      "name": "applicant.yourContactInformation.foreignPhysicalAddress.addressLineOne",
+      "id": "applicant.yourContactInformation.foreignPhysicalAddress.addressLineOne",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Address line 1"
+    },
+    {
+      "name": "applicant.yourContactInformation.foreignPhysicalAddress.addressLineTwo",
+      "id": "applicant.yourContactInformation.foreignPhysicalAddress.addressLineTwo",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Address line 2"
+    },
+    {
+      "name": "applicant.yourContactInformation.foreignPhysicalAddress.city",
+      "id": "applicant.yourContactInformation.foreignPhysicalAddress.city",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "City or town"
+    },
+    {
+      "name": "applicant.yourContactInformation.foreignPhysicalAddress.province",
+      "id": "applicant.yourContactInformation.foreignPhysicalAddress.province",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Province"
+    },
+    {
+      "name": "applicant.yourContactInformation.foreignPhysicalAddress.postalCode",
+      "id": "applicant.yourContactInformation.foreignPhysicalAddress.postalCode",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Postal code"
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "url": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/13212561/getting-started/preparer",
+  "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+  "subheading": [
+    "What is your preparer's full name?",
+    "What is your preparer's business or organization name?",
+    "What is your preparer's contact information?"
+  ],
+  "sidebar": [
+    "I-539, Application To Extend/Change Nonimmigrant Status",
+    "Getting Started",
+    "Basis of eligibility",
+    "Reason for request",
+    "Preparer and interpreter information",
+    "Preparer information",
+    "Interpreter information",
+    "About You",
+    "Moral Character",
+    "Your Application",
+    "Evidence",
+    "Additional Information",
+    "Review and Submit"
+  ],
+  "fields": [
+    {
+      "name": "gettingStarted.preparer.name.firstName",
+      "id": "gettingStarted.preparer.name.firstName",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Given name (first name) *"
+    },
+    {
+      "name": "gettingStarted.preparer.name.lastName",
+      "id": "gettingStarted.preparer.name.lastName",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Family name (last name) *"
+    },
+    {
+      "name": "formikFactoryUIMeta.gettingStarted.preparer.noBusiness",
+      "id": "formikFactoryUIMeta.gettingStarted.preparer.noBusiness",
+      "tag": "input",
+      "type": "checkbox",
+      "value": "false",
+      "checked": false,
+      "label": "My preparer is not part of a business or organization."
+    },
+    {
+      "name": "gettingStarted.preparer.business",
+      "id": "gettingStarted.preparer.business",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    },
+    {
+      "name": "gettingStarted.preparer.contact.daytimePhone",
+      "id": "gettingStarted.preparer.contact.daytimePhone",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Daytime telephone number"
+    },
+    {
+      "name": "formikFactoryUIMeta.gettingStarted.preparer.contact.noMobilePhone",
+      "id": "formikFactoryUIMeta.gettingStarted.preparer.contact.noMobilePhone",
+      "tag": "input",
+      "type": "checkbox",
+      "value": "false",
+      "checked": false,
+      "label": "My preparer does not have a mobile telephone number."
+    },
+    {
+      "name": "gettingStarted.preparer.contact.mobilePhone",
+      "id": "gettingStarted.preparer.contact.mobilePhone",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Mobile telephone number"
+    },
+    {
+      "name": "formikFactoryUIMeta.gettingStarted.preparer.contact.noEmailAddress",
+      "id": "formikFactoryUIMeta.gettingStarted.preparer.contact.noEmailAddress",
+      "tag": "input",
+      "type": "checkbox",
+      "value": "false",
+      "checked": false,
+      "label": "My preparer does not have an email address."
+    },
+    {
+      "name": "gettingStarted.preparer.contact.emailAddress",
+      "id": "gettingStarted.preparer.contact.emailAddress",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Email address"
+    }
+  ]
+}
