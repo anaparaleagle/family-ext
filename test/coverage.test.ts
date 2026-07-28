@@ -4,7 +4,7 @@
 // fill, and the descriptor must not invent names the backend never sends.
 
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { descriptorFieldNames } from "../src/i130/form-descriptor";
 
@@ -54,7 +54,16 @@ describe("descriptor <-> backend value map", () => {
   });
 });
 
-describe("descriptor <-> live field dump", () => {
+// The I-130 live capture (i130-online-field-dump.json) is MISSING — it is not in
+// this repo, not in the backend repo, and not on the machine the I-130 map was
+// built from. So this guard cannot run anywhere today; it is skipped rather than
+// left as a permanent red that trains everyone to ignore CI. The I-539 analogue in
+// i539-coverage.test.ts IS vendored (test/fixtures/) and does run.
+// To restore this: re-capture the online I-130 and vendor the dump beside the
+// I-539 one, then drop the existsSync guard.
+const HAVE_I130_DUMP = existsSync(FIELD_DUMP);
+
+describe.skipIf(!HAVE_I130_DUMP)("descriptor <-> live field dump", () => {
   it("accounts for every fillable dump field (mapped, skipped, or upload)", () => {
     const dump = JSON.parse(readFileSync(FIELD_DUMP, "utf-8"));
     const json = JSON.parse(readFileSync(BACKEND_MAP, "utf-8"));

@@ -1,0 +1,79 @@
+{
+  "url": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/13212561/getting-started/basis-of-eligibility?app_to_rep_id=d8249b5b-4ebe-4342-8fc1-5a56acf76dc9",
+  "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+  "subheading": [
+    "What is your current nonimmigrant status? *",
+    "Were you granted Duration of Status (D/S)?",
+    "When does your current nonimmigrant status expire?",
+    "Are you the only applicant applying with this Form? *"
+  ],
+  "sidebar": [
+    "I-539, Application To Extend/Change Nonimmigrant Status",
+    "Getting Started",
+    "Basis of eligibility",
+    "Reason for request",
+    "Preparer and interpreter information",
+    "Preparer information",
+    "Interpreter information",
+    "About You",
+    "Moral Character",
+    "Your Application",
+    "Evidence",
+    "Additional Information",
+    "Review and Submit"
+  ],
+  "fields": [
+    {
+      "name": "gettingStarted.basisOfEligibility.currentNonImmigrantStatus",
+      "id": "gettingStarted.basisOfEligibility.currentNonImmigrantStatus",
+      "tag": "input",
+      "type": "text",
+      "value": "B2 - Temporary Visitor For Pleasure.",
+      "label": ""
+    },
+    {
+      "name": "gettingStarted.basisOfEligibility.isGrantedDurationOfStatus",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "true",
+      "checked": false,
+      "label": "Yes"
+    },
+    {
+      "name": "gettingStarted.basisOfEligibility.isGrantedDurationOfStatus",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "false",
+      "checked": true,
+      "label": "No"
+    },
+    {
+      "name": "gettingStarted.basisOfEligibility.currentNonImmigrantStatusExpirationDate",
+      "id": "gettingStarted.basisOfEligibility.currentNonImmigrantStatusExpirationDate",
+      "tag": "input",
+      "type": "text",
+      "value": "12/31/2026",
+      "label": ""
+    },
+    {
+      "name": "gettingStarted.basisOfEligibility.isOnlyApplicant",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "true",
+      "checked": true,
+      "label": "Yes"
+    },
+    {
+      "name": "gettingStarted.basisOfEligibility.isOnlyApplicant",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "false",
+      "checked": false,
+      "label": "No"
+    }
+  ]
+}

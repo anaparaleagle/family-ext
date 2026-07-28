@@ -16,26 +16,59 @@ jobs:
     name: Vitest
     runs-on: ubuntu-latest
 
+    env:
+      # Lifted into env so it can be tested in a step `if:` — the `secrets`
+      # context is not reliably readable from a condition, an env var is.
+      FAMILY_BACKEND_TOKEN: ${{ secrets.FAMILY_BACKEND_TOKEN }}
+
     steps:
+      # Checked out into a subdirectory so the backend repo can sit BESIDE it, at
+      # the sibling path test/coverage.test.ts already resolves
+      # (../../paraleagle-family-backend/...). That mirrors the local dev layout,
+      # so the same path works on a laptop and on the runner.
       - uses: actions/checkout@v4
+        with:
+          path: family-ext
+
+      # test/coverage.test.ts cross-checks the extension's I-130 descriptor against
+      # the BACKEND's form_myuscis_definitions.json — that drift guard is the whole
+      # point of the file, and it needs the backend repo present. When the token is
+      # absent this step is skipped and the guard self-skips rather than failing CI,
+      # so a missing secret degrades coverage instead of blocking every PR.
+      #
+      # SETUP NEEDED (repo admin): add a repository secret FAMILY_BACKEND_TOKEN — a
+      # PAT with read access to paraleagle/paraleagle-family-backend. It is a private
+      # repo under a different owner, so the default GITHUB_TOKEN cannot read it.
+      - name: Check out the family backend (for the descriptor drift guard)
+        if: ${{ env.FAMILY_BACKEND_TOKEN != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: paraleagle/paraleagle-family-backend
+          ref: staging
+          token: ${{ env.FAMILY_BACKEND_TOKEN }}
+          path: paraleagle-family-backend
 
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: npm
+          cache-dependency-path: family-ext/package-lock.json
 
       # Deliberately `npm install`, not `npm ci` — matches the family frontend
       # workflow. package-lock.json is generated on Windows and can lack the
       # Linux-only optional deps, which makes strict `npm ci` fail on the Linux
       # runner. `npm install` reconciles the lock across platforms.
       - name: Install dependencies
+        working-directory: family-ext
         run: npm install --no-audit --no-fund
 
       # The extension is TypeScript compiled by esbuild, which does NOT
       # type-check. Without this step a type error only ever surfaces in an
       # editor, so run tsc explicitly.
       - name: Type-check
+        working-directory: family-ext
         run: npm run typecheck
 
       - name: Run tests
+        working-directory: family-ext
         run: npm run test
