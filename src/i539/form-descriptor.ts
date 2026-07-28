@@ -46,7 +46,7 @@
 //    selectedFormType use word codes).
 // ===========================================================================
 
-import { FormPage, area, cond, phone, radio, search, t } from "../runner/types";
+import { FormPage, area, check, cond, phone, radio, search, t } from "../runner/types";
 
 /**
  * Dump field names the descriptor deliberately does NOT drive. The
@@ -79,8 +79,9 @@ import { FormPage, area, cond, phone, radio, search, t } from "../runner/types";
  *    same source the paper I-539 Part 7 fills), plus the three reveal toggles on
  *    the preparer-and-interpreter page (a preparer IS assisting, no interpreter)
  *    so the preparer section opens and its required name + business are no longer
- *    left blank. The preparer's MOBILE phone stays in the skip list (no firm
- *    mobile source). `gettingStarted.interpreter.*` also stays skipped — a
+ *    left blank. SOF-1004 then added the preparer MOBILE + its "no mobile" tick
+ *    once the backend gained firm.mobile_phone to send.
+ *    `gettingStarted.interpreter.*` also stays skipped — a
  *    firm-prepared case uses no interpreter — with its PAGE kept in the
  *    descriptor (empty `fields`) so the walk steps past it cleanly.
  */
@@ -89,7 +90,6 @@ export const I539_SKIP: string[] = [
   //    toggles hasHelper / helper.hasPreparer / helper.hasInterpreter moved OUT
   //    to the preparer-and-interpreter page's `fields` — SOF-892 drives them.)
   "formikFactoryUIMeta.gettingStarted.preparer.noBusiness",
-  "formikFactoryUIMeta.gettingStarted.preparer.contact.noMobilePhone",
   "formikFactoryUIMeta.gettingStarted.preparer.contact.noEmailAddress",
   "formikFactoryUIMeta.gettingStarted.interpreter.noBusiness",
   "formikFactoryUIMeta.gettingStarted.interpreter.contact.noMobilePhone",
@@ -102,12 +102,11 @@ export const I539_SKIP: string[] = [
   "formikFactoryUIMeta.applicant.otherInformation.socialSecurityNumber.none",
   "formikFactoryUIMeta.applicant.otherInformation.uscisNumber.none",
 
-  // 2. Interpreter identity + the preparer's MOBILE phone — left to the user.
-  //    SOF-892: the preparer given/family name, business, daytime phone and
-  //    email moved OUT to /getting-started/preparer's `fields` (driven from
-  //    firm.*). The preparer mobile stays here (no firm mobile source; the paper
-  //    P7 uses fax in that slot, out of scope).
-  "gettingStarted.preparer.contact.mobilePhone",
+  // 2. Interpreter identity — left to the user.
+  //    SOF-892 moved the preparer given/family name, business, daytime phone and
+  //    email OUT to /getting-started/preparer's `fields` (driven from firm.*), and
+  //    SOF-1004 moved the MOBILE + its "no mobile" tick out too, once the backend
+  //    started sending firm.mobile_phone.
   "gettingStarted.interpreter.name.firstName",
   "gettingStarted.interpreter.name.lastName",
   "gettingStarted.interpreter.business",
@@ -219,6 +218,12 @@ export const I539_PAGES: FormPage[] = [
       t("gettingStarted.preparer.name.lastName"),
       t("gettingStarted.preparer.business"),
       phone("gettingStarted.preparer.contact.daytimePhone"),
+      // SOF-1004: the backend now sends firm.mobile_phone (digits-only, same as
+      // the daytime phone). USCIS requires the number OR the "no mobile" tick, so
+      // the backend resolves the tick off the SAME fact — blank gives "true", a
+      // number gives "". Both must be driven or the required field holds the page.
+      phone("gettingStarted.preparer.contact.mobilePhone"),
+      check("formikFactoryUIMeta.gettingStarted.preparer.contact.noMobilePhone"),
       t("gettingStarted.preparer.contact.emailAddress"),
     ],
   },
