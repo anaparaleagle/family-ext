@@ -1,0 +1,279 @@
+{
+  "field": "gettingStarted.basisOfEligibility.currentNonImmigrantStatus",
+  "widget": "MUI Autocomplete (text input; options render only when open)",
+  "count": 68,
+  "options": [
+    {
+      "code": "1B1",
+      "desc": "H1 B Spec Occ, Singapore/Chile"
+    },
+    {
+      "code": "1B2",
+      "desc": "Spec Occ Related To Dod"
+    },
+    {
+      "code": "1B3",
+      "desc": "Spec Occ, Fashion Models"
+    },
+    {
+      "code": "1B4",
+      "desc": "H 1 B4 Unique Pgm Artist/Ent"
+    },
+    {
+      "code": "1B5",
+      "desc": "H 1 B5 Alien Athlete"
+    },
+    {
+      "code": "1BS",
+      "desc": "Support Person Of H 1"
+    },
+    {
+      "code": "B1",
+      "desc": "Temporary Visitor For Business (Including Peace Corps)."
+    },
+    {
+      "code": "B1A",
+      "desc": "Ni Persnl/Dom Srvant Of Ni Emp"
+    },
+    {
+      "code": "B1B",
+      "desc": "Ni Domestic Servant Of Usc"
+    },
+    {
+      "code": "B1C",
+      "desc": "Ni Employed By Foreign Airline"
+    },
+    {
+      "code": "B1D",
+      "desc": "Ni Missionaries"
+    },
+    {
+      "code": "B2",
+      "desc": "Temporary Visitor For Pleasure."
+    },
+    {
+      "code": "CW1",
+      "desc": "Commonwealth Of Northern Mariana Islands Transitional Worker"
+    },
+    {
+      "code": "CW2",
+      "desc": "Spouses And Children Of Transitional Workers In Cnmi"
+    },
+    {
+      "code": "E1",
+      "desc": "Treaty Trader, Spouse And Children."
+    },
+    {
+      "code": "E1S",
+      "desc": "Spouse Of A Treaty Trader"
+    },
+    {
+      "code": "E1Y",
+      "desc": "Child Of A Treaty Trader"
+    },
+    {
+      "code": "E2",
+      "desc": "Treaty Investor, Spouse And Children."
+    },
+    {
+      "code": "E2C",
+      "desc": "Commonwealth Of Northern Mariana Islands Investor, Spouse Or Child"
+    },
+    {
+      "code": "E2S",
+      "desc": "Spouse Of Treaty Investor"
+    },
+    {
+      "code": "E2Y",
+      "desc": "Child Of Treaty Investor"
+    },
+    {
+      "code": "E3",
+      "desc": "Australian Treaty Alien Coming To The United States Solely To Perform Services In A Specialty Occupation"
+    },
+    {
+      "code": "E3D",
+      "desc": "Spouse And Children Of E3"
+    },
+    {
+      "code": "E3S",
+      "desc": "Spouse Of E3"
+    },
+    {
+      "code": "E3Y",
+      "desc": "Child Of E3"
+    },
+    {
+      "code": "F1",
+      "desc": "Student, Academic Or Language Program."
+    },
+    {
+      "code": "F2",
+      "desc": "Spouse Or Child Of F 1."
+    },
+    {
+      "code": "H1C",
+      "desc": "Registered Nurse Who Will Work In Facilities That Serve Health Professional Shortage Areas Under Provisions Of The Nursing Relief For Disadvantage Areas Act Of 1999"
+    },
+    {
+      "code": "H2A",
+      "desc": "Worker To Perform Agricultural Services Or Labor Of A Temporary Or Seasonal Nature When Services Are Unavailable In The U.S. And Will Not Adversely Affect Wages And Working Conditions Of U.S. Workers."
+    },
+    {
+      "code": "H2B",
+      "desc": "Nonagricultural Worker Performing Services Of A Temporary Nature Or Labor Unavailable In The United States."
+    },
+    {
+      "code": "H3",
+      "desc": "Temporary Trainee To Receive Instruction In Any Field Except Medical Education."
+    },
+    {
+      "code": "H4",
+      "desc": "The Spouse And Children Of An H Nonimmigrant. See 8 Cfr 214.2(h)(9)(Iv)."
+    },
+    {
+      "code": "I",
+      "desc": "Representative Of Foreign Information Media, Spouse And Children."
+    },
+    {
+      "code": "J1",
+      "desc": "Exchange Visitor."
+    },
+    {
+      "code": "J2",
+      "desc": "Spouse Or Child Of J 1."
+    },
+    {
+      "code": "K3",
+      "desc": "Spouse Of A U.S. Citizen Who Is A Beneficary Of A Petition For Status As The Immediate Relative Of A U.S. Citizen (I 130)."
+    },
+    {
+      "code": "K4",
+      "desc": "Child Accompanying Or Following To Join A K 3 Alien."
+    },
+    {
+      "code": "L1",
+      "desc": "Intracompany Transferee (Executive, Managerial, And Specialized Personnel Entering To Render Services To A Branch, Parent, Subsidiary, Or Affiliate Of The Company Of Previous Employment Outside The United States)."
+    },
+    {
+      "code": "L1A",
+      "desc": "Manager Or Executive"
+    },
+    {
+      "code": "L1B",
+      "desc": "Specialized Knowledge Alien"
+    },
+    {
+      "code": "L2",
+      "desc": "Spouse Or Child Of L 1."
+    },
+    {
+      "code": "L2S",
+      "desc": "Spouse Of L1"
+    },
+    {
+      "code": "L2Y",
+      "desc": "Child Of L1"
+    },
+    {
+      "code": "M1",
+      "desc": "Student Pursuing A Full Course Of Study At An Established Vocational Or Other Recognized Nonacademic Institution (Other Than In A Language Training Program)."
+    },
+    {
+      "code": "M2",
+      "desc": "Spouse Or Child Of M1."
+    },
+    {
+      "code": "N8",
+      "desc": "Parent Of An Alien Classified Sk3 Or Sn3."
+    },
+    {
+      "code": "N9",
+      "desc": "Child Of N 8 Or Of An Alien Classified Sk1, Sk2, Sk4, Sn1, Sn2, Or Sn4."
+    },
+    {
+      "code": "O1",
+      "desc": "Temporary Worker With Extraordinary Ability/Achievement In The Sciences, Arts, Education, Business, Or Athletics."
+    },
+    {
+      "code": "O1A",
+      "desc": "Extraordinary Alien Non Arts"
+    },
+    {
+      "code": "O1B",
+      "desc": "Extraordinary Alien In Arts"
+    },
+    {
+      "code": "O2",
+      "desc": "Temporary Worker Accompanying Or Assisting O 1."
+    },
+    {
+      "code": "O3",
+      "desc": "Spouse Or Child Of O 1 Or O 2."
+    },
+    {
+      "code": "P1",
+      "desc": "Temporary Worker, Internationally Recognized Athlete Or Entertainer For A Specific Competition Or Performance."
+    },
+    {
+      "code": "P1A",
+      "desc": "Alien With Athletic Event"
+    },
+    {
+      "code": "P1B",
+      "desc": "Alien With Entertainment Group"
+    },
+    {
+      "code": "P1S",
+      "desc": "Support Person Of P 1"
+    },
+    {
+      "code": "P2",
+      "desc": "Temporary Worker, Artist Or Entertainer Under A Reciprocal Exchange Program With A Similar Organization Of A Foreign State."
+    },
+    {
+      "code": "P2S",
+      "desc": "Support Person Of P 2"
+    },
+    {
+      "code": "P3",
+      "desc": "Temporary Worker, Artist Or Entertainer Under A Program That Is \"Culturally Unique\"."
+    },
+    {
+      "code": "P3S",
+      "desc": "Support Person Of P 3"
+    },
+    {
+      "code": "P4",
+      "desc": "Spouse Or Child Of P 1, P 2, Or P 3."
+    },
+    {
+      "code": "Q1",
+      "desc": "Temporary Worker In An International Cultural Exchange Program."
+    },
+    {
+      "code": "R1",
+      "desc": "Temporary Worker To Perform Work In Religious Occupations."
+    },
+    {
+      "code": "R2",
+      "desc": "Spouse And Children Of R1."
+    },
+    {
+      "code": "TD",
+      "desc": "Spouse Or Child Of Tn."
+    },
+    {
+      "code": "TN1",
+      "desc": "Nafta Principal (Canada)"
+    },
+    {
+      "code": "TN2",
+      "desc": "Nafta Principal (Mexico)"
+    },
+    {
+      "code": "UU",
+      "desc": "Unknown Or Not Reported"
+    }
+  ]
+}

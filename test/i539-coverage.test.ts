@@ -1,5 +1,5 @@
 // Cross-check the I-539 structural descriptor against the LIVE FIELD DUMP
-// (paraleagle-dev/i539-online-field-dump/). This is the I-539 analogue of
+// (test/fixtures/i539-online-field-dump/). This is the I-539 analogue of
 // coverage.test.ts — except there is no backend value map for the I-539 yet, so
 // the dump is the only source of truth available, and this test guards that seam:
 //
@@ -16,7 +16,13 @@ import { resolve } from "path";
 import { I539_PAGES, I539_SKIP } from "../src/i539/form-descriptor";
 import { fieldNamesOf } from "../src/runner/types";
 
-const DUMP_DIR = resolve(__dirname, "../../i539-online-field-dump");
+// VENDORED into the repo (test/fixtures/) rather than read from a sibling of the
+// checkout. It used to resolve to ../../i539-online-field-dump — a directory that
+// lived only on one laptop and was tracked in no repo at all, so these tests could
+// never run in CI (or for anyone else). The dump is static captured data and is
+// exactly what this test asserts against, so it belongs beside the test. Re-capture
+// by replacing the files here.
+const DUMP_DIR = resolve(__dirname, "fixtures/i539-online-field-dump");
 /** The full happy-path capture: 24 primary screens (00..23) of an F-1 change-of-status. */
 const PRIMARY_BRANCH = "f1-cos";
 /** The reason/status delta captures — same pages, different status/reason answers. */

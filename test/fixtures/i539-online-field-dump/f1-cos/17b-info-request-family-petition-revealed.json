@@ -1,0 +1,121 @@
+{
+  "url": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/13212561/your-application/information-about-request",
+  "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+  "subheading": [
+    "Is this application based on an extension or change of status already granted to your spouse, child, or parent?",
+    "Is this application based on a separate petition or application to provide your spouse, child, or parent an extension or change in status? *",
+    "Which form? *",
+    "Provide the USCIS receipt number *",
+    "What is the name of the beneficiary or applicant for the pending application?",
+    "When was the form filed? *"
+  ],
+  "sidebar": [
+    "I-539, Application To Extend/Change Nonimmigrant Status",
+    "Getting Started",
+    "About You",
+    "Moral Character",
+    "Your Application",
+    "Information about your request",
+    "Information about your request page 2",
+    "Evidence",
+    "Additional Information",
+    "Review and Submit"
+  ],
+  "fields": [
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage1.isBasedOnGrantedFamilyPetition",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "true",
+      "checked": true,
+      "label": "Yes"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage1.isBasedOnGrantedFamilyPetition",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "false",
+      "checked": false,
+      "label": "No"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage1.basedOnSeparateFamilyPetition",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "filedWithThisI539",
+      "checked": false,
+      "label": "Yes, filed with this Form I-539"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage1.basedOnSeparateFamilyPetition",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "no",
+      "checked": false,
+      "label": "No"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage1.basedOnSeparateFamilyPetition",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "filedPreviouslyAndPending",
+      "checked": true,
+      "label": "Yes, filed previously and pending with U.S. Citizenship and Immigration Services (USCIS)"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage1.selectedFormType",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "formI129",
+      "checked": false,
+      "label": "Form I-129, Petition for a Nonimmigrant Worker"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage1.selectedFormType",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "formI539",
+      "checked": false,
+      "label": "Form I-539, Application to Extend/Change Nonimmigrant Status"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage1.separatePetitionReceiptNumber.receiptNumber",
+      "id": "yourApplication.informationAboutRequest.informationAboutRequestPage1.separatePetitionReceiptNumber.receiptNumber",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage1.fullName.firstName",
+      "id": "yourApplication.informationAboutRequest.informationAboutRequestPage1.fullName.firstName",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Given name (first name) *"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage1.fullName.lastName",
+      "id": "yourApplication.informationAboutRequest.informationAboutRequestPage1.fullName.lastName",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": "Family name (last name) *"
+    },
+    {
+      "name": "yourApplication.informationAboutRequest.informationAboutRequestPage1.dateFiled",
+      "id": "yourApplication.informationAboutRequest.informationAboutRequestPage1.dateFiled",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    }
+  ]
+}

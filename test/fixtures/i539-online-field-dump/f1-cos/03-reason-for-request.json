@@ -1,0 +1,59 @@
+{
+  "url": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/13212561/getting-started/reason-for-request",
+  "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+  "subheading": [
+    "What are you applying for? *",
+    "What date are you requesting your current or requested status be extended until?"
+  ],
+  "sidebar": [
+    "I-539, Application To Extend/Change Nonimmigrant Status",
+    "Getting Started",
+    "Basis of eligibility",
+    "Reason for request",
+    "Preparer and interpreter information",
+    "Preparer information",
+    "About You",
+    "Moral Character",
+    "Your Application",
+    "Evidence",
+    "Additional Information",
+    "Review and Submit"
+  ],
+  "fields": [
+    {
+      "name": "gettingStarted.reasonForRequest.applicationType",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "extensionOfStay",
+      "checked": false,
+      "label": "An extension of stay in my current status"
+    },
+    {
+      "name": "gettingStarted.reasonForRequest.applicationType",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "reinstatementToStudentStatus",
+      "checked": false,
+      "label": "Reinstatement to student status"
+    },
+    {
+      "name": "gettingStarted.reasonForRequest.applicationType",
+      "id": null,
+      "tag": "input",
+      "type": "radio",
+      "value": "changeOfStatus",
+      "checked": false,
+      "label": "A change of status"
+    },
+    {
+      "name": "gettingStarted.reasonForRequest.requestedDateOfExtension",
+      "id": "gettingStarted.reasonForRequest.requestedDateOfExtension",
+      "tag": "input",
+      "type": "text",
+      "value": "",
+      "label": ""
+    }
+  ]
+}

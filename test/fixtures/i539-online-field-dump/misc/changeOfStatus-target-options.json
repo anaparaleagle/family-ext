@@ -1,0 +1,6 @@
+{
+  "field": "gettingStarted.reasonForRequest.statusInfo.changeOfStatus",
+  "widget": "MUI Autocomplete (type-to-filter; options render only after typing)",
+  "note": "Same 68-code nonimmigrant-status list as currentNonImmigrantStatus-options.json",
+  "sameListAs": "currentNonImmigrantStatus-options.json"
+}

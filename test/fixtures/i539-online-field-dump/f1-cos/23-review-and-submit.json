@@ -1,0 +1,63 @@
+{
+  "url": "https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/13218429/review-and-submit/review-your-application",
+  "heading": "I-539, Application To Extend/Change Nonimmigrant Status",
+  "subheading": [
+    "Check your application before you submit",
+    "Your fee",
+    "Alerts and warnings"
+  ],
+  "sidebar": [
+    "I-539, Application To Extend/Change Nonimmigrant Status",
+    "Getting Started",
+    "About You",
+    "Moral Character",
+    "Your Application",
+    "Evidence",
+    "Additional Information",
+    "Review and Submit",
+    "Review your application"
+  ],
+  "fields": [],
+  "pageType": "REVIEW",
+  "advanceControls": [
+    { "text": "Back", "id": "back-button", "testid": "back-button", "disabled": false },
+    { "text": "Next", "id": "button-button", "testid": "next-button", "disabled": true }
+  ],
+  "editButtonCount": 14,
+  "alertSections": [
+    "There are errors in Getting Started: Basis of eligibility",
+    "There are errors in Getting Started: Reason for request",
+    "There are errors in Getting Started: Preparer information",
+    "There are errors in About You: Your name",
+    "There are errors in About You: Your contact information",
+    "There are errors in About You: When and where you were born",
+    "There are errors in About You: Your immigration information",
+    "There are errors in Moral Character: Party and group affiliations",
+    "There are errors in Moral Character: Party and group affiliations page 2",
+    "There are errors in Moral Character: Immigration proceedings",
+    "There are errors in Moral Character: Crimes and offenses",
+    "There are errors in Your Application: Information about your request",
+    "There are errors in Your Application: Information about your request page 2",
+    "There are errors in Evidence: Form I-94"
+  ],
+  "fee": "Your form filing fee is: $420",
+  "reviewNote": "THE TERMINAL PAGE OF THE WALK. Captured live 2026-07-15 on throwaway draft 13218429 (client Individual 'test, test'), which was EMPTY apart from the auto-created draft — hence the 14 red alerts and the disabled Next. Reached by CLICKING the sidebar 'Review your application' link on a brand-new draft: it does NOT bounce to the form start, so unlike the I-130's conditional/evidence pages this page has no anti-deep-linking prerequisite (a direct URL load also holds). Renders NO inputs (fields: []) — nothing to type, nothing to map to a fact_key.",
+  "advanceControlNote": "SAFETY-CRITICAL. The control that advances PAST review is a plain 'Next' — id=button-button, data-testid=next-button — i.e. BYTE-IDENTICAL to the Next on every other page of the form. It carries no 'Submit'/'Pay'/'Sign' text, so fill-chain's NEVER_CLICK_TEXT guard CANNOT catch it, and findNextButton() matches it on its FIRST selector (button[data-testid='next-button']). It is disabled here only because the empty draft has red alerts; USCIS enables it once the application has no alerts — precisely the state a successful autofill run produces. The descriptor entry (kind: 'review') is therefore the ONLY thing that stops the walk here; the text guard is a backstop for the pages DOWNSTREAM of this one, not for this one.",
+  "downstreamRoutes": {
+    "note": "NOT VISITED — read out of the myUSCIS client route table (packs/js/index-*.js), which is shared across all myUSCIS forms, so not every route below is an I-539 route. Recorded to document what clicking Next here would lead into. The sidebar lists ONE page under 'Review and Submit' ('Review your application'), so review itself is a SINGLE screen; the sign/pay steps are separate routes not shown in the sidebar.",
+    "routes": [
+      "/review-and-submit/review-your-application",
+      "/review-and-submit/your-statement",
+      "/review-and-submit/your-statement/applicant-statement",
+      "/review-and-submit/your-signature",
+      "/review-and-submit/your-signature/your-signature",
+      "/review-and-submit/representative-signature",
+      "/review-and-submit/declarations-and-signature",
+      "/review-and-submit/pay-and-submit",
+      "/review-and-submit/submit-confirmation",
+      "/review-and-submit/need-signature",
+      "/review-and-submit/payment-unsuccessful",
+      "/review-and-submit/card-declined"
+    ]
+  }
+}
