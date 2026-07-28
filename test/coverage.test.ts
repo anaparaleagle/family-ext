@@ -14,6 +14,15 @@ const BACKEND_MAP = resolve(
 );
 const FIELD_DUMP = resolve(__dirname, "../../i130-online-field-dump.json");
 
+// The backend map lives in a SIBLING REPO, so it is only present when that repo is
+// checked out beside this one — the local dev layout, and in CI only when the
+// FAMILY_BACKEND_TOKEN secret is set (see .github/workflows/ci.yml). Without it this
+// guard self-skips instead of failing the run: a missing secret should degrade
+// coverage, not block every PR. Note `loadBackendNames()` is called in the describe
+// BODY, so an absent file throws at COLLECTION and takes the whole file down —
+// hence the skipIf on the describe rather than on the individual tests.
+const HAVE_BACKEND_MAP = existsSync(BACKEND_MAP);
+
 function loadBackendNames(): { mapped: string[]; repeaterRow0: string[] } {
   const json = JSON.parse(readFileSync(BACKEND_MAP, "utf-8"));
   const def = json["IR-1"].definitions["I-130"];
@@ -27,7 +36,7 @@ function loadBackendNames(): { mapped: string[]; repeaterRow0: string[] } {
   return { mapped, repeaterRow0 };
 }
 
-describe("descriptor <-> backend value map", () => {
+describe.skipIf(!HAVE_BACKEND_MAP)("descriptor <-> backend value map", () => {
   const descriptor = new Set(descriptorFieldNames());
   const { mapped, repeaterRow0 } = loadBackendNames();
 
@@ -61,9 +70,10 @@ describe("descriptor <-> backend value map", () => {
 // i539-coverage.test.ts IS vendored (test/fixtures/) and does run.
 // To restore this: re-capture the online I-130 and vendor the dump beside the
 // I-539 one, then drop the existsSync guard.
+// Needs the backend map too (it reads both), so it requires both to be present.
 const HAVE_I130_DUMP = existsSync(FIELD_DUMP);
 
-describe.skipIf(!HAVE_I130_DUMP)("descriptor <-> live field dump", () => {
+describe.skipIf(!HAVE_I130_DUMP || !HAVE_BACKEND_MAP)("descriptor <-> live field dump", () => {
   it("accounts for every fillable dump field (mapped, skipped, or upload)", () => {
     const dump = JSON.parse(readFileSync(FIELD_DUMP, "utf-8"));
     const json = JSON.parse(readFileSync(BACKEND_MAP, "utf-8"));
