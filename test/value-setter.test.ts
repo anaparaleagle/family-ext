@@ -248,26 +248,62 @@ describe("value-setter: diagnosing an autocomplete miss", () => {
     expect(labelKey("Spouse Or Child Of F 1.")).not.toBe(labelKey("Spouse Or Child Of M 1."));
   });
 
-  it("logs the live labels and names the punctuation difference", async () => {
-    // The live page says "F-1" with a hyphen; our captured table says "F 1".
+  it("RECOVERS from a punctuation-only difference instead of failing", async () => {
+    // BEHAVIOUR CHANGED 2026-07-29, deliberately. This used to assert the miss
+    // failed with a diagnostic naming the difference. The live run proved the
+    // difference class is recoverable, so now we recover: labelKey collapses
+    // case/punctuation/spacing, so "Spouse Or Child Of F 1." selects the live
+    // "Spouse or Child of F-1.". Failing and explaining was the right behaviour
+    // only while we could not tell which repair was correct.
     autocomplete("gettingStarted.reasonForRequest.statusInfo.changeOfStatus", [
       "Spouse or Child of F-1.",
       "Temporary Visitor For Pleasure.",
     ]);
+    let clicked = "";
+    document.querySelectorAll('[role="option"]').forEach((o) =>
+      o.addEventListener("click", () => (clicked = o.textContent || "")),
+    );
     const res = await setValue(
       { name: "gettingStarted.reasonForRequest.statusInfo.changeOfStatus", kind: "search" },
       "Spouse Or Child Of F 1.",
     );
-    expect(res.success).toBe(false);
+    expect(res.success).toBe(true);
+    expect(clicked).toBe("Spouse or Child of F-1.");
+  }, 20000);
 
-    const log = debugLog.join("\n");
-    // What we sent, quoted so hidden characters are visible.
-    expect(log).toContain('we typed: "Spouse Or Child Of F 1."');
-    // What the page really offered.
-    expect(log).toContain('"Spouse or Child of F-1."');
-    // And the verdict that decides which repair to make.
-    expect(log).toMatch(/VERDICT: the option IS there but the text differs/);
-    expect(log).toMatch(/OUR VALUE IS WRONG/);
+  it("selects a `CODE - Description` option from the Description alone", async () => {
+    // THE LIVE FAILURE, 2026-07-29: every I-539 status option is labelled
+    // "F1 - Student, ..." and we store only the Description, so typing it renders
+    // ZERO options (myUSCIS filters the whole label from its start).
+    autocomplete("gettingStarted.reasonForRequest.statusInfo.changeOfStatus", [
+      "F1 - Student, Academic Or Language Program.",
+      "F2 - Spouse Or Child Of F 1.",
+    ]);
+    let clicked = "";
+    document.querySelectorAll('[role="option"]').forEach((o) =>
+      o.addEventListener("click", () => (clicked = o.textContent || "")),
+    );
+    const res = await setValue(
+      { name: "gettingStarted.reasonForRequest.statusInfo.changeOfStatus", kind: "search" },
+      "Student, Academic Or Language Program.",
+    );
+    expect(res.success).toBe(true);
+    expect(clicked).toBe("F1 - Student, Academic Or Language Program.");
+  }, 20000);
+
+  it("selects an all-caps value against its correctly-cased option", async () => {
+    // The other half of the same live failure: our fact held "INDIA" (OCR), the
+    // live option is "India", and myUSCIS's filter is CASE-SENSITIVE — so the
+    // value filtered its own option off the screen.
+    autocomplete("passport.countryOfIssuance", ["India", "Indonesia"]);
+    let clicked = "";
+    document.querySelectorAll('[role="option"]').forEach((o) =>
+      o.addEventListener("click", () => (clicked = o.textContent || "")),
+    );
+    const res = await setValue({ name: "passport.countryOfIssuance", kind: "search" }, "INDIA");
+    expect(res.success).toBe(true);
+    // NOT Indonesia — an exact key match must beat a mere prefix.
+    expect(clicked).toBe("India");
   }, 20000);
 
   it("says so plainly when the value is nowhere in the list", async () => {

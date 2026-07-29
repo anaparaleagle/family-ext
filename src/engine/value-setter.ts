@@ -366,46 +366,101 @@ async function diagnoseAutocompleteMiss(el: HTMLInputElement, value: string): Pr
   dbg(`  restored the input to ${JSON.stringify(value)} — diagnostic changed nothing`);
 }
 
-async function setSearch(el: HTMLInputElement, value: string): Promise<boolean> {
-  await typeInto(el, value);
-  await sleep(1500);
+/** Strip a leading option CODE, e.g. "F1 - Student, ..." -> "Student, ...". The
+ * I-539 status pickers label every option `CODE - Description`; our stored value is
+ * the Description alone. */
+function withoutCodePrefix(label: string): string {
+  return label.replace(/^[A-Za-z0-9]{1,5}\s*-\s*/, "");
+}
 
-  const want = value.toLowerCase();
+/**
+ * Try to select `wanted` from whatever the listbox is currently showing.
+ * Ordered widest-confidence first; every pass compares against the FULL wanted
+ * value even when we typed only a fragment to get the list to render.
+ */
+async function selectRenderedOption(wanted: string): Promise<boolean> {
+  const want = wanted.trim().toLowerCase();
+  const wantKey = labelKey(wanted);
   for (const sel of OPTION_SELECTORS) {
     const options = Array.from(document.querySelectorAll<HTMLElement>(sel));
     if (options.length === 0) continue;
-    // Pass 1: exact text.
-    for (const opt of options) {
-      if ((opt.textContent ?? "").trim().toLowerCase() === want) {
-        opt.click();
-        await sleep(150);
-        return true;
-      }
+    const text = (o: HTMLElement): string => (o.textContent ?? "").trim();
+
+    // 1. Exact label.
+    for (const o of options) if (text(o).toLowerCase() === want) return click(o);
+
+    // 2. Same letters and digits, different case/punctuation. This is the live
+    //    "INDIA" vs "India" case (2026-07-29): myUSCIS's filter is CASE-SENSITIVE,
+    //    so an all-caps fact never renders its own option.
+    for (const o of options) if (labelKey(text(o)) === wantKey) return click(o);
+
+    // 3. The label is `CODE - <wanted>`. The live status pickers are all shaped
+    //    this way and we store only the Description, so this is the normal path
+    //    for them — compared on labelKey so a whitespace difference in the
+    //    captured description cannot break it.
+    for (const o of options) {
+      if (labelKey(withoutCodePrefix(text(o))) === wantKey) return click(o);
     }
-    // Pass 2: prefix with a word boundary (stops "India" -> "Indian Ocean").
-    for (const opt of options) {
-      const txt = (opt.textContent ?? "").trim().toLowerCase();
+
+    // 4. Prefix with a word boundary (stops "India" -> "Indian Ocean").
+    for (const o of options) {
+      const txt = text(o).toLowerCase();
       if (!txt.startsWith(want)) continue;
       const next = txt[want.length];
-      if (next === undefined || !/[a-z0-9]/.test(next)) {
-        opt.click();
-        await sleep(150);
-        return true;
-      }
+      if (next === undefined || !/[a-z0-9]/.test(next)) return click(o);
     }
-    // Pass 3: whole-word match — the value must appear as a complete token in
-    // the option label, NOT as a mid-word substring. This stops a short value
-    // like "USA" from matching "Jer(usa)lem", which the old plain `.includes`
-    // did (confirmed live on the I-130 country autocomplete, 2026-06-26).
+
+    // 5. Whole-word match. The value must be a COMPLETE token in the label, never
+    //    a mid-word substring — this is what stops "USA" matching "Jer(usa)lem"
+    //    (confirmed live on the I-130 country autocomplete, 2026-06-26). Do not
+    //    loosen it.
     const wordRe = new RegExp(`(?:^|[^a-z0-9])${escapeRegExp(want)}(?:[^a-z0-9]|$)`, "i");
-    for (const opt of options) {
-      if (wordRe.test((opt.textContent ?? "").trim())) {
-        opt.click();
-        await sleep(150);
-        return true;
-      }
+    for (const o of options) if (wordRe.test(text(o))) return click(o);
+  }
+  return false;
+}
+
+async function click(opt: HTMLElement): Promise<boolean> {
+  opt.click();
+  await sleep(150);
+  return true;
+}
+
+/**
+ * Progressively shorter things to TYPE when the full value renders no options.
+ *
+ * myUSCIS filters on the whole label from its START, case-sensitively. So a value
+ * that is only PART of the label — the Description of a `CODE - Description`
+ * option — filters the list to nothing, and an all-caps value filters its own
+ * option away. Typing less gets the list on screen; matching (above) then works on
+ * the full value. Live proof 2026-07-29: "Student, Academic Or Language Program."
+ * rendered 0 options while the real label was
+ * "F1 - Student, Academic Or Language Program.".
+ */
+function typingProbes(value: string): string[] {
+  const firstWord = (value.match(/[A-Za-z0-9]+/) ?? [""])[0];
+  const probes = [value.slice(0, 12), firstWord, value.slice(0, 3)]
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0 && p !== value);
+  return [...new Set(probes)];
+}
+
+async function setSearch(el: HTMLInputElement, value: string): Promise<boolean> {
+  await typeInto(el, value);
+  await sleep(1500);
+  if (await selectRenderedOption(value)) return true;
+
+  // RECOVERY, not a retry: the previous attempt failed because of what we TYPED,
+  // not because the option is absent. Type less and match again.
+  for (const probe of typingProbes(value)) {
+    await typeInto(el, probe);
+    await sleep(1200);
+    if (await selectRenderedOption(value)) {
+      dbg(`value-setter: matched "${value}" after typing just ${JSON.stringify(probe)}`);
+      return true;
     }
   }
+
   dbg(`value-setter: no autocomplete option matched "${value}" for "${el.getAttribute("name")}"`);
   await diagnoseAutocompleteMiss(el, value);
   return false;
