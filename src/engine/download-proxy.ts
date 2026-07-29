@@ -134,7 +134,33 @@ function handleApiGet(
 }
 
 /**
- * GET a file's bytes and hand them back as a transferable byte array.
+ * Base64-encode bytes for the message channel.
+ *
+ * Chunked deliberately: `String.fromCharCode(...bytes)` spreads every byte into
+ * an argument list and throws "too many arguments" on anything past a few
+ * hundred KB, which would turn a large-but-legal document into a crash instead
+ * of an upload.
+ */
+function toBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const CHUNK = 0x8000; // 32k args per call — comfortably inside the arg limit
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)));
+  }
+  return btoa(binary);
+}
+
+/**
+ * GET a file's bytes and hand them back as BASE64.
+ *
+ * WHY NOT A NUMBER ARRAY (which is what this used to do): chrome.runtime
+ * .sendMessage stores each array element as a full number, roughly 8 bytes per
+ * byte of file, so a ~10MB PDF arrived as ~80MB and Chrome refused it with
+ * "Message exceeded maximum allowed size of 64MiB". Confirmed live on 2026-07-29
+ * (FAM-0100): the small I-94 attached, the I-20 did not. USCIS accepts up to
+ * 12MB per file, so that ceiling sat well inside normal documents.
+ * Base64 costs ~1.37 bytes per byte, putting a 12MB file near 16MB.
  *
  * The bearer token is attached ONLY for API origins. A presigned S3 URL is
  * self-authenticating and must NOT carry our Firebase token — signing it into a
@@ -172,7 +198,8 @@ function handleDownloadFile(
     .then(({ blob, contentType }) =>
       blob.arrayBuffer().then((buffer) => ({
         success: true as const,
-        data: Array.from(new Uint8Array(buffer)),
+        dataBase64: toBase64(buffer),
+        byteLength: buffer.byteLength,
         contentType,
       })),
     )

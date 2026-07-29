@@ -211,3 +211,59 @@ describe("download-proxy: DOWNLOAD_FILE", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+// ===========================================================================
+// HOW THE BYTES CROSS THE MESSAGE BOUNDARY
+//
+// Found on a live run 2026-07-29 (FAM-0100): the I-94 attached fine and the I-20
+// died with "Message exceeded maximum allowed size of 64MiB". The proxy was
+// handing bytes back as a plain number ARRAY, and chrome.runtime.sendMessage
+// stores each element as a full number — roughly 8 bytes per byte of file. So a
+// ~10MB PDF became ~80MB on the wire and Chrome refused it, while a small I-94
+// slipped under. USCIS itself allows 12MB per file, so this was squarely inside
+// the range of documents we are expected to handle.
+//
+// Base64 costs ~1.37 bytes per byte instead, which puts a 12MB file around 16MB.
+// These lock the wire format, because the failure mode is silent until the file
+// is big and then it looks like a network error.
+// ===========================================================================
+
+describe("download-proxy: byte transfer is compact enough for a real document", () => {
+  it("returns bytes as base64, never as a number array", async () => {
+    const res = await send({
+      type: "DOWNLOAD_FILE",
+      url: "https://bucket.s3.amazonaws.com/x.pdf?X-Amz-Signature=a",
+    });
+    expect(res.success).toBe(true);
+    // The compact form...
+    expect(typeof res.dataBase64).toBe("string");
+    expect(res.dataBase64).toBe(btoa("\x01\x02\x03"));
+    // ...and NOT the one that blew the limit.
+    expect(Array.isArray(res.data)).toBe(false);
+  });
+
+  it("survives a file far larger than the old number-array limit", async () => {
+    // 8 MB of bytes. As a number array this is ~64MB on the wire — the exact
+    // thing that failed live. As base64 it is ~11MB.
+    const big = new Uint8Array(8 * 1024 * 1024);
+    for (let i = 0; i < big.length; i += 997) big[i] = i % 251;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        headers: { get: () => "application/pdf" },
+        blob: async () => ({ size: big.length, arrayBuffer: async () => big.buffer }),
+      })),
+    );
+    const res = await send({
+      type: "DOWNLOAD_FILE",
+      url: "https://bucket.s3.amazonaws.com/big.pdf?X-Amz-Signature=a",
+    });
+    expect(res.success).toBe(true);
+    // Encoded without blowing the call stack (a naive fromCharCode(...bytes)
+    // throws "too many arguments" well before this size).
+    expect(res.dataBase64.length).toBeGreaterThan(10_000_000);
+    expect(res.dataBase64.length).toBeLessThan(12_000_000);
+  }, 30000);
+});

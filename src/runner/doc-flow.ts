@@ -143,12 +143,33 @@ async function fetchGeneratedForm(
  * document, and telling the user to "upload it in ParaLeagle" would send them
  * chasing a file that is already there.
  */
+/** Decode the proxy's base64 payload back into bytes. */
+function fromBase64(b64: string): Uint8Array<ArrayBuffer> {
+  const binary = atob(b64);
+  const out = new Uint8Array(new ArrayBuffer(binary.length));
+  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+  return out;
+}
+
 async function downloadAsFile(
   url: string,
   accessToken: string,
   filename: string,
 ): Promise<{ file: File | null; error?: string }> {
-  let response: { success?: boolean; error?: string; data?: number[]; contentType?: string } | undefined;
+  let response:
+    | {
+        success?: boolean;
+        error?: string;
+        /** Base64 — the only form the proxy sends now. See toBase64 for why. */
+        dataBase64?: string;
+        byteLength?: number;
+        /** Legacy number-array form. Kept ONLY so a stale content script paired
+         * with a reloaded worker (or vice versa) degrades instead of silently
+         * attaching an empty file. */
+        data?: number[];
+        contentType?: string;
+      }
+    | undefined;
   try {
     response = await chrome.runtime.sendMessage({ type: "DOWNLOAD_FILE", url, accessToken });
   } catch (err) {
@@ -166,7 +187,25 @@ async function downloadAsFile(
     dbg(`doc-flow: ${message}`);
     return { file: null, error: message };
   }
-  const blob = new Blob([new Uint8Array(response.data ?? [])], { type: response.contentType });
+  let bytes: Uint8Array<ArrayBuffer>;
+  if (response.dataBase64) {
+    bytes = fromBase64(response.dataBase64);
+  } else {
+    // Legacy number-array form — see the type above. Reached only when a
+    // reloaded content script is talking to a worker Chrome has not restarted.
+    const legacy = response.data ?? [];
+    bytes = new Uint8Array(new ArrayBuffer(legacy.length));
+    bytes.set(legacy);
+  }
+  if (bytes.length === 0) {
+    // An empty file attaches "successfully" and USCIS holds a 0-byte document.
+    // Better to name it than to let a silent zero pass as an upload.
+    const message = `Download of ${filename} returned 0 bytes — nothing attached.`;
+    dbg(`doc-flow: ${message}`);
+    return { file: null, error: message };
+  }
+  dbg(`doc-flow: downloaded ${filename} (${Math.round(bytes.length / 1024)} KB)`);
+  const blob = new Blob([bytes], { type: response.contentType });
   return { file: new File([blob], filename, { type: response.contentType }) };
 }
 
