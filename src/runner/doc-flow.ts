@@ -143,6 +143,19 @@ async function fetchGeneratedForm(
  * document, and telling the user to "upload it in ParaLeagle" would send them
  * chasing a file that is already there.
  */
+/**
+ * The largest single file the myUSCIS evidence dropzone accepts.
+ *
+ * Read off the live page, which rejects anything bigger with "This file is too
+ * big. You must upload a file that is 12MB or smaller." We check it OURSELVES
+ * rather than letting USCIS refuse, for three reasons seen on the 2026-07-29 run
+ * with a 34.6 MB I-20: the USCIS error is not attributable to a document from our
+ * side, a rejected row renders WITHOUT the Remove control the de-dupe keys off so
+ * every re-run attaches another copy, and pushing 34.6 MB through the message
+ * channel to be thrown away is pure waste.
+ */
+const USCIS_MAX_FILE_BYTES = 12 * 1024 * 1024;
+
 /** Decode the proxy's base64 payload back into bytes. */
 function fromBase64(b64: string): Uint8Array<ArrayBuffer> {
   const binary = atob(b64);
@@ -201,6 +214,16 @@ async function downloadAsFile(
     // An empty file attaches "successfully" and USCIS holds a 0-byte document.
     // Better to name it than to let a silent zero pass as an upload.
     const message = `Download of ${filename} returned 0 bytes — nothing attached.`;
+    dbg(`doc-flow: ${message}`);
+    return { file: null, error: message };
+  }
+  const mb = (n: number): string => (n / 1024 / 1024).toFixed(1);
+  if (bytes.length > USCIS_MAX_FILE_BYTES) {
+    // NOT "no document on file" — the document exists, it is simply unusable, and
+    // the remedy is a smaller scan rather than an upload.
+    const message =
+      `${filename} is ${mb(bytes.length)} MB — USCIS accepts 12 MB per file. ` +
+      `Replace it with a smaller scan in ParaLeagle, then re-run.`;
     dbg(`doc-flow: ${message}`);
     return { file: null, error: message };
   }

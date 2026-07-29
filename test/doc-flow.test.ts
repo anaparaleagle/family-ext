@@ -527,3 +527,70 @@ describe("doc-flow: an evidence slot fed by several doc types", () => {
     expect(listReads.length).toBe(1);
   });
 });
+
+// ===========================================================================
+// A FILE USCIS WILL NOT ACCEPT
+//
+// Live, 2026-07-29 (FAM-0100): the I-20 on that case is 34.6 MB. We downloaded
+// all of it, base64'd it, pushed it into the dropzone, and USCIS answered
+// "This file is too big. You must upload a file that is 12MB or smaller."
+//
+// Worse, it happened TWICE. A rejected row renders without the Remove control the
+// de-dupe keys off, so `attachedFileRowTexts` cannot see it and every re-run
+// attaches another copy. Attaching something we know USCIS refuses buys nothing
+// and costs a confusing error, a duplicate row and 34.6 MB of transfer.
+// ===========================================================================
+
+describe("doc-flow: a document larger than USCIS accepts", () => {
+  /**
+   * A download whose DECODED size is over the 12 MB dropzone limit.
+   *
+   * Note the 4/3: base64 is bigger than the bytes it carries, so 13 MB of base64
+   * decodes to only ~9.7 MB and would be perfectly acceptable. 17 MB of base64
+   * decodes to ~12.75 MB, which is the thing being tested.
+   */
+  function oversizedProxy(): void {
+    const big = "A".repeat(17 * 1024 * 1024);
+    installProxy({
+      apiResponder: () =>
+        apiOk([
+          {
+            id: "d1",
+            doc_type: "form_i20",
+            file_url: "http://localhost:8001/media/form_i20.pdf",
+            filename: "form_i20.pdf",
+          },
+        ]),
+      downloadResponder: () => ({
+        success: true,
+        dataBase64: big,
+        contentType: "application/pdf",
+      }),
+    });
+  }
+
+  it("refuses to attach it, rather than letting USCIS reject it", async () => {
+    oversizedProxy();
+    const res = await fillUploadPage(
+      { page_path: "/evidence/form-I-20", kind: "document", doc_type: "form_i20" },
+      CTX,
+    );
+    expect(res.attached).toBe(0);
+    // Nothing reached the dropzone, so no rejected row to duplicate next run.
+    expect(document.querySelectorAll(".uploaded-file").length).toBe(0);
+  }, 30000);
+
+  it("says which file, how big it is, and what USCIS allows", async () => {
+    oversizedProxy();
+    const res = await fillUploadPage(
+      { page_path: "/evidence/form-I-20", kind: "document", doc_type: "form_i20" },
+      CTX,
+    );
+    const warning = res.warnings.join(" ");
+    expect(warning).toContain("form_i20.pdf");
+    expect(warning).toMatch(/12 ?MB/);
+    // And it must NOT read as "no document on file" — the document is there, it is
+    // just unusable, and those two need opposite remedies.
+    expect(warning).not.toMatch(/upload it in ParaLeagle first/i);
+  }, 30000);
+});
