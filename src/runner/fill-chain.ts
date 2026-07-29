@@ -413,7 +413,7 @@ const UPLOAD_NEXT_TIMEOUT_MS = 60000;
  * scan genuinely takes longer than 8s to process server-side. Clicking Next early
  * is what raised USCIS's "your files have not finished uploading" modal on the
  * 2026-07-29 run. */
-const UPLOAD_SETTLE_TIMEOUT_MS = 45000;
+const UPLOAD_SETTLE_TIMEOUT_MS = 20000;
 /** Selectors that signal an active upload/progress indicator in the page body. */
 const UPLOAD_PROGRESS_SELECTOR =
   '[role="progressbar"], progress, [class*="progress" i], [class*="spinner" i], [class*="uploading" i]';
@@ -618,9 +618,15 @@ async function waitForUploadToSettle(timeoutMs = UPLOAD_SETTLE_TIMEOUT_MS): Prom
   let lastTick = 0;
   while (Date.now() - start < timeoutMs) {
     const pending = uploadsInFlight();
+    // Gate ONLY on the exact signal: myUSCIS's own per-row "Cancel", which it
+    // swaps for "Remove" when an upload completes. The spinner-class guess is
+    // reported for context but must NEVER hold the walk up — any element on the
+    // page whose class merely CONTAINS "progress" (a step indicator, a completion
+    // bar) would make this burn its whole window in silence on every upload page,
+    // which is indistinguishable from a hang.
     const spinning = hasVisibleUploadProgress();
-    if (pending === 0 && !spinning) {
-      if (announced) dbg("fillAll: uploads finished");
+    if (pending === 0) {
+      if (announced) dbg(`fillAll: uploads finished${spinning ? " (a progress element is still on the page, ignoring it)" : ""}`);
       return;
     }
     // Announce whichever signal we are waiting on, and tick every 5s. The first
