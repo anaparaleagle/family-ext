@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { setValue, findByName } from "../src/engine/value-setter";
+import { setValue, findByName, labelKey } from "../src/engine/value-setter";
+import { debugLog, resetDebugLog } from "../src/engine/logger";
 import { setBody, textInput, radioGroup, checkbox, select } from "./fixtures/dom";
 
 describe("value-setter: text", () => {
@@ -213,4 +214,89 @@ describe("value-setter: phone", () => {
     ) as HTMLInputElement;
     expect(el.value).toBe("5125550143");
   });
+});
+
+// ===========================================================================
+// THE AUTOCOMPLETE MISS DIAGNOSTIC
+//
+// A miss on the change-to status picker leaves the single most important answer
+// on an I-539 unset, and the two possible causes need OPPOSITE fixes: our value
+// is wrong (fix the captured table + the backend transform) or the matcher/typing
+// over-filters (fix the extension). Guessing costs a whole live run.
+//
+// So a miss must put the evidence in the log: what we typed, what the page
+// actually offered, and — when the difference is only punctuation or spacing —
+// both strings side by side. These lock that, because a diagnostic nobody has
+// tested is worth nothing at the moment it is needed.
+// ===========================================================================
+
+describe("value-setter: diagnosing an autocomplete miss", () => {
+  beforeEach(() => {
+    setBody("");
+    resetDebugLog();
+  });
+
+  function autocomplete(name: string, options: string[]): void {
+    const opts = options.map((o, i) => `<li role="option" data-i="${i}">${o}</li>`).join("");
+    setBody(`<input type="text" name="${name}" id="${name}" /><ul role="listbox">${opts}</ul>`);
+  }
+
+  it("collapses punctuation and spacing for comparison only", () => {
+    expect(labelKey("Spouse Or Child Of F 1.")).toBe(labelKey("Spouse or Child of F-1."));
+    expect(labelKey("Spouse Or Child Of F 1.")).toBe(labelKey("spouse  or child  of  f1"));
+    // Different letters must NOT collapse together.
+    expect(labelKey("Spouse Or Child Of F 1.")).not.toBe(labelKey("Spouse Or Child Of M 1."));
+  });
+
+  it("logs the live labels and names the punctuation difference", async () => {
+    // The live page says "F-1" with a hyphen; our captured table says "F 1".
+    autocomplete("gettingStarted.reasonForRequest.statusInfo.changeOfStatus", [
+      "Spouse or Child of F-1.",
+      "Temporary Visitor For Pleasure.",
+    ]);
+    const res = await setValue(
+      { name: "gettingStarted.reasonForRequest.statusInfo.changeOfStatus", kind: "search" },
+      "Spouse Or Child Of F 1.",
+    );
+    expect(res.success).toBe(false);
+
+    const log = debugLog.join("\n");
+    // What we sent, quoted so hidden characters are visible.
+    expect(log).toContain('we typed: "Spouse Or Child Of F 1."');
+    // What the page really offered.
+    expect(log).toContain('"Spouse or Child of F-1."');
+    // And the verdict that decides which repair to make.
+    expect(log).toMatch(/VERDICT: the option IS there but the text differs/);
+    expect(log).toMatch(/OUR VALUE IS WRONG/);
+  }, 20000);
+
+  it("says so plainly when the value is nowhere in the list", async () => {
+    autocomplete("addr.country", ["Japan", "Jamaica"]);
+    const res = await setValue({ name: "addr.country", kind: "search" }, "Westeros");
+    expect(res.success).toBe(false);
+    expect(debugLog.join("\n")).toMatch(/nothing resembling this value is in the list/);
+  }, 20000);
+
+  it("reports an EMPTY list as over-filtering, not as a missing option", async () => {
+    // No options rendered at all — the shape a live over-filter produces. The
+    // distinction matters: an empty list is our typing's fault, a full list that
+    // does not match is the value's fault.
+    setBody('<input type="text" name="addr.country" id="addr.country" /><ul role="listbox"></ul>');
+    const res = await setValue({ name: "addr.country", kind: "search" }, "United States");
+    expect(res.success).toBe(false);
+    const log = debugLog.join("\n");
+    expect(log).toContain("options rendered after typing that: 0");
+    expect(log).toMatch(/The list was EMPTY -> what we typed over-filtered it/);
+    // And it re-types the first word to recover the labels...
+    expect(log).toContain('Re-typing just "United"');
+    // ...then puts the input back, so the diagnostic is invisible to the form.
+    //
+    // Asserted through the log, not through el.value, and the reason matters:
+    // typing here goes through document.execCommand, which is a NO-OP under
+    // happy-dom, so el.value never changes in this environment and asserting it
+    // would prove nothing either way. The log line does guard the thing that
+    // could actually regress — someone deleting the restore. The restore itself
+    // is only truly exercised in a real browser.
+    expect(log).toContain('restored the input to "United States"');
+  }, 20000);
 });

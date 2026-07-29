@@ -17,8 +17,11 @@
 const CONTENT_ID = "mk-family-debug-content";
 const STORAGE_KEY = "mkFamilyDebugLog";
 // Cap the persisted/in-memory history so a long session can't grow unbounded.
-// A complete I-130 walk is well under this, so the full run is never truncated.
-const MAX_LINES = 500;
+// Raised from 500: a full I-539 walk now logs the plan order and the unsent
+// fields for each of ~20 pages, plus an option dump on any autocomplete miss.
+// 500 truncated the START of such a run, which is where the diagnosis lives.
+// ~2000 lines is a few hundred KB — far inside chrome.storage.local's quota.
+const MAX_LINES = 2000;
 
 // Flat history of every dbg() line this run — backs the panel's Copy button and
 // the bulk re-render after a navigation.

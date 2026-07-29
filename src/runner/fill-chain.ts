@@ -220,6 +220,15 @@ export interface PageFillResult {
 const REVEAL_RENDER_TIMEOUT_MS = 4000;
 
 /**
+ * The last two segments of a Formik name. The full names run to 90+ characters
+ * and the meaning is always at the end, so an ordering or skip line stays
+ * readable instead of wrapping five times.
+ */
+function shortName(name: string): string {
+  return name.split(".").slice(-2).join(".");
+}
+
+/**
  * Wait for a field that should have just been revealed to appear in the DOM.
  * Returns true as soon as it does.
  *
@@ -249,6 +258,20 @@ export async function fillPage(
 ): Promise<PageFillResult> {
   const plan = planPageFill(page, fieldValues);
   const results: SetResult[] = [];
+
+  // What this page is about to do, and what it is NOT going to do. Both halves
+  // matter when reading a run back: a field the backend never sent a value for
+  // is invisible in the results, so it has to be named here or it looks filled.
+  dbg(`fill: ${page.slug} — planning ${plan.length} of ${page.fields.length} descriptor field(s)`);
+  if (plan.length) {
+    dbg(`  order: ${plan.map((p) => shortName(p.spec.name)).join(" -> ")}`);
+  }
+  const unsent = page.fields
+    .map((f) => f.name.replace(/\{i\}/g, "0"))
+    .filter((n) => fieldValues[n] === undefined || fieldValues[n] === "");
+  if (unsent.length) {
+    dbg(`  no value from the backend for: ${unsent.map(shortName).join(", ")}`);
+  }
 
   if (page.repeater) {
     // Render each repeater row before filling it. Count rows from the {i} fields
@@ -617,6 +640,11 @@ export async function fillAll(
   onUploadPage: (page: FormPage) => Promise<void>,
 ): Promise<PageFillResult[]> {
   const summaries: PageFillResult[] = [];
+  const uploadsSeen: string[] = [];
+  dbg(
+    `fillAll: START ${config.formType} — descriptor has ${config.pages.length} pages, ` +
+      `payload has ${Object.keys(fieldValues).length} field values`,
+  );
   const visited = new Set<string>();
   const maxSteps = config.pages.length + 10; // safety cap (room to skip unknown pages)
   let consecutiveUnknown = 0;
@@ -670,6 +698,7 @@ export async function fillAll(
           // line in the log, which is indistinguishable from a truncated log —
           // the exact failure that hid the doc-upload CORS bug.
           try {
+            uploadsSeen.push(page.slug);
             await onUploadPage(page);
           } catch (err) {
             dbg(
@@ -756,7 +785,51 @@ export async function fillAll(
     await sleep(600); // let the new page settle before re-detecting
   }
 
+  logRunSummary(config, summaries, uploadsSeen);
   return summaries;
+}
+
+/**
+ * One block at the end of the run holding everything worth acting on, so a
+ * pasted log can be read without scrolling back through 20 pages.
+ *
+ * Lists FAILURES with their page, because that is the only category that needs a
+ * decision. Skips are counted but not enumerated — a skip is the walk working
+ * correctly, and enumerating them buries the failures.
+ */
+function logRunSummary(
+  config: FormConfig,
+  summaries: PageFillResult[],
+  uploadsSeen: string[],
+): void {
+  const filled = summaries.reduce((n, s) => n + s.filled, 0);
+  const total = summaries.reduce((n, s) => n + s.total, 0);
+  const skipped = summaries.reduce((n, s) => n + s.skipped, 0);
+  dbg("──────────────────────────────────────────────");
+  dbg(`fillAll: RUN SUMMARY (${config.formType})`);
+  dbg(`  pages typed on: ${summaries.length}`);
+  dbg(`  fields filled:  ${filled}/${total}`);
+  dbg(`  not shown (conditional, correctly skipped): ${skipped}`);
+  dbg(`  upload pages visited: ${uploadsSeen.length ? uploadsSeen.join(", ") : "none"}`);
+
+  const failures: string[] = [];
+  for (const s of summaries) {
+    for (const r of s.results) {
+      if (!r.success) failures.push(`${s.slug} -> ${shortName(r.name)} (${r.message})`);
+    }
+  }
+  if (failures.length === 0) {
+    dbg("  FAILURES: none");
+  } else {
+    dbg(`  FAILURES (${failures.length}) — these are the ones to look at:`);
+    for (const f of failures) dbg(`    ${f}`);
+  }
+
+  const perPage = summaries
+    .map((s) => `${s.slug} ${s.filled}/${s.total}${s.skipped ? ` +${s.skipped} not shown` : ""}`)
+    .join("\n    ");
+  dbg(`  per page:\n    ${perPage}`);
+  dbg("──────────────────────────────────────────────");
 }
 
 /** Re-export for the toolbar's "Fill this section" action. */

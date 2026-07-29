@@ -204,6 +204,22 @@ async function resolveFilesFor(
       if (wantParty && (d.party || "").toUpperCase() !== wantParty) return false;
       return !!d.file_url;
     });
+    // What this slot wanted, what the case holds, and what therefore did NOT go
+    // up. The last part is the interesting half: an evidence slot silently
+    // leaving a document behind looks identical to a slot with nothing to do,
+    // and "the SSN card must never be uploaded to Evidence" is a rule we can only
+    // claim to honour if the log shows the card being left out on purpose.
+    dbg(
+      `doc-flow: ${descriptor.page_path} wants doc_type "${wanted}"` +
+        `${wantParty ? ` for party ${wantParty}` : ""} — ` +
+        `${matches.length} of ${docs.length} case document(s) match`,
+    );
+    if (docs.length) {
+      const others = [...new Set(docs.map((d) => (d.doc_type || "?").toLowerCase()))]
+        .filter((t) => t !== wanted)
+        .sort();
+      if (others.length) dbg(`  not for this slot: ${others.join(", ")}`);
+    }
     const files: File[] = [];
     const errors: string[] = [];
     let alreadyAttached = 0;

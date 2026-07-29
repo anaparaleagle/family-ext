@@ -186,6 +186,17 @@ function setRadio(name: string, value: string): boolean {
     }
   }
   dbg(`value-setter: no radio option matched "${value}" for "${name}" (${radios.length} options)`);
+  // Name what WAS on the page. A radio miss is either a value we do not send in
+  // the page's vocabulary (fix the backend map) or a group that is not really
+  // there (fix the reveal) — and "0 options" vs "3 options that all differ"
+  // tells those apart at a glance.
+  if (radios.length === 0) {
+    dbg(`  no inputs named "${name}" on this page at all — not a value problem`);
+  } else {
+    for (const radio of radios) {
+      dbg(`  option value=${JSON.stringify(radio.value)} label=${JSON.stringify(radioLabel(radio))}`);
+    }
+  }
   return false;
 }
 
@@ -246,15 +257,117 @@ const OPTION_SELECTORS = [
   '[class*="option"]',
 ];
 
-async function setSearch(el: HTMLInputElement, value: string): Promise<boolean> {
+/** Type `text` into a focused autocomplete, one character at a time (MUI filters
+ * per keystroke, so a bulk value assignment renders no options at all). */
+async function typeInto(el: HTMLInputElement, text: string): Promise<void> {
   el.focus();
   el.select();
   safeExec("delete");
-  for (const char of value) {
+  for (const char of text) {
     safeExec("insertText", char);
     await sleep(30);
   }
   el.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+/** Every option currently rendered by the open listbox, de-duplicated. */
+function renderedOptions(): string[] {
+  const seen = new Set<string>();
+  for (const sel of OPTION_SELECTORS) {
+    for (const opt of Array.from(document.querySelectorAll<HTMLElement>(sel))) {
+      const text = (opt.textContent ?? "").trim();
+      if (text) seen.add(text);
+    }
+  }
+  return [...seen];
+}
+
+/** Comparison key that ignores every difference of punctuation, spacing and
+ * case — so "Spouse Or Child Of F 1." and "Spouse or Child of F-1." collapse to
+ * the same thing. Used ONLY for diagnosis, never to select an option. */
+export function labelKey(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/** How many option labels to print before truncating. */
+const MAX_LOGGED_OPTIONS = 25;
+
+/**
+ * Explain an autocomplete miss in the log, in enough detail to fix it without a
+ * second live run. READ-ONLY: it never selects an option, and it leaves the
+ * input holding exactly the text it held on failure.
+ *
+ * The two causes need OPPOSITE fixes, so the log has to tell them apart:
+ *
+ *   - THE LIST WAS EMPTY -> what we typed over-filtered it. myUSCIS filters
+ *     per keystroke, so one wrong character leaves nothing to click. The fix is
+ *     ours: type less, then match. To recover the real labels anyway, this
+ *     re-types just the FIRST WORD and dumps what renders.
+ *
+ *   - THE LIST HAD OPTIONS but none matched -> the label differs from the value
+ *     we were given. `labelKey` then says whether it differs only by
+ *     punctuation/spacing (a data bug in our captured table, fix the source) or
+ *     genuinely is not there (wrong value entirely).
+ */
+async function diagnoseAutocompleteMiss(el: HTMLInputElement, value: string): Promise<void> {
+  const name = el.getAttribute("name") ?? "(unnamed)";
+  const shown = renderedOptions();
+  dbg(`value-setter: DIAGNOSTIC for "${name}"`);
+  dbg(`  we typed: ${JSON.stringify(value)} (${value.length} chars)`);
+  dbg(`  options rendered after typing that: ${shown.length}`);
+
+  const report = (options: string[], label: string): void => {
+    if (options.length === 0) return;
+    dbg(`  ${label} (${options.length}):`);
+    for (const o of options.slice(0, MAX_LOGGED_OPTIONS)) dbg(`    ${JSON.stringify(o)}`);
+    if (options.length > MAX_LOGGED_OPTIONS) {
+      dbg(`    ...and ${options.length - MAX_LOGGED_OPTIONS} more`);
+    }
+    // The punctuation/spacing verdict — the whole point of the exercise.
+    const key = labelKey(value);
+    const twin = options.find((o) => labelKey(o) === key);
+    if (twin) {
+      dbg(`  VERDICT: the option IS there but the text differs.`);
+      dbg(`    live:  ${JSON.stringify(twin)}`);
+      dbg(`    ours:  ${JSON.stringify(value)}`);
+      dbg(`    Same letters+digits, different punctuation/spacing -> OUR VALUE IS WRONG.`);
+    } else {
+      const near = options.filter((o) => {
+        const k = labelKey(o);
+        return k.includes(key.slice(0, 12)) || key.includes(k.slice(0, 12));
+      });
+      if (near.length) {
+        dbg(`  VERDICT: no exact twin. Closest live label(s):`);
+        for (const o of near.slice(0, 5)) dbg(`    ${JSON.stringify(o)}`);
+      } else {
+        dbg(`  VERDICT: nothing resembling this value is in the list at all.`);
+      }
+    }
+  };
+
+  if (shown.length > 0) {
+    dbg(`  So the list was NOT empty — the matcher rejected every option.`);
+    report(shown, "options on screen");
+    return;
+  }
+
+  // Empty list. Re-type just the first word to recover the real labels.
+  const firstWord = (value.match(/[A-Za-z0-9]+/) ?? [""])[0];
+  if (!firstWord) return;
+  dbg(`  The list was EMPTY -> what we typed over-filtered it.`);
+  dbg(`  Re-typing just ${JSON.stringify(firstWord)} to read the real labels (selects nothing):`);
+  await typeInto(el, firstWord);
+  await sleep(1500);
+  report(renderedOptions(), `options for ${JSON.stringify(firstWord)}`);
+  // Restore the input to exactly what it held on failure, so this diagnostic
+  // leaves no trace in the form state.
+  await typeInto(el, value);
+  await sleep(300);
+  dbg(`  restored the input to ${JSON.stringify(value)} — diagnostic changed nothing`);
+}
+
+async function setSearch(el: HTMLInputElement, value: string): Promise<boolean> {
+  await typeInto(el, value);
   await sleep(1500);
 
   const want = value.toLowerCase();
@@ -294,6 +407,7 @@ async function setSearch(el: HTMLInputElement, value: string): Promise<boolean> 
     }
   }
   dbg(`value-setter: no autocomplete option matched "${value}" for "${el.getAttribute("name")}"`);
+  await diagnoseAutocompleteMiss(el, value);
   return false;
 }
 

@@ -535,6 +535,38 @@ async function onFillSection(): Promise<void> {
   );
 }
 
+/**
+ * Stamp the top of every run with what is actually running.
+ *
+ * The extension VERSION is here for one blunt reason: a run diagnosed from a
+ * pasted log is worthless if nobody can tell which build produced it, and
+ * "I reloaded it" is not evidence. If the version line is missing or old, stop
+ * reading the log and reload the extension.
+ *
+ * Deliberately no field VALUES — this log gets pasted around, and the case holds
+ * an SSN, a passport number and a home address. Names, counts and outcomes are
+ * enough to diagnose from.
+ */
+function logRunHeader(config: FormConfig, payload: LoadedPayload): void {
+  let version = "unknown";
+  try {
+    version = chrome.runtime?.getManifest?.().version ?? "unknown";
+  } catch {
+    /* not in an extension context */
+  }
+  dbg("══════════════════════════════════════════════");
+  dbg(`ParaLeagle family autofill v${version} — ${config.formType}`);
+  dbg(`  case: ${payload.caseId}`);
+  dbg(`  api:  ${payload.apiBaseUrl}`);
+  dbg(`  page: ${window.location.pathname}`);
+  dbg(`  payload: ${Object.keys(payload.fieldValues).length} field values, ` +
+      `${payload.uploadPages.length} upload page(s)`);
+  if (payload.uploadPages.length) {
+    dbg(`  upload slots: ${payload.uploadPages.map((u) => u.page_path).join(", ")}`);
+  }
+  dbg("══════════════════════════════════════════════");
+}
+
 async function onFillAll(): Promise<void> {
   const config = currentConfig();
   if (!config) return setStatus("Not on a ParaLeagle-supported myUSCIS form.");
@@ -543,6 +575,7 @@ async function onFillAll(): Promise<void> {
   }
   const payload = await loadPayloadFor(config);
   if (!payload) return;
+  logRunHeader(config, payload);
   setStatus("Filling all pages…");
   const summaries = await fillAll(config, payload.fieldValues, (page) =>
     handleUploadPage(page, payload),

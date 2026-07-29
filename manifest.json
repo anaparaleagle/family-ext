@@ -1,9 +1,12 @@
 {
   "manifest_version": 3,
   "name": "ParaLeagle Family myUSCIS Autofill",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Autofill the guided online Forms I-130 and I-539 on myUSCIS from ParaLeagle family-visa data",
-  "permissions": ["activeTab", "storage"],
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
   "host_permissions": [
     "https://my.uscis.gov/*",
     "https://family-api.paraleagle.io/*",
@@ -29,13 +32,21 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://my.uscis.gov/*"],
-      "js": ["content.js"],
+      "matches": [
+        "https://my.uscis.gov/*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://my.uscis.gov/*"],
-      "js": ["formik-bridge.js"],
+      "matches": [
+        "https://my.uscis.gov/*"
+      ],
+      "js": [
+        "formik-bridge.js"
+      ],
       "run_at": "document_idle",
       "world": "MAIN"
     }
