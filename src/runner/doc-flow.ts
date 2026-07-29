@@ -40,6 +40,10 @@ interface DocRow {
   party?: string | null;
   file_url?: string | null;
   filename?: string | null;
+  /** Stored size, when the backend sends it. Absent on older backends. */
+  size_bytes?: number | null;
+  /** The backend's own verdict against the USCIS per-file limit. */
+  too_big_for_uscis?: boolean | null;
 }
 
 /** A row from GET /forms/generated/?case=<id> (GeneratedFormSerializer). */
@@ -292,6 +296,22 @@ async function resolveFilesFor(
       if (isFilenameAttached(name, rowTexts)) {
         dbg(`doc-flow: "${name}" is already attached to ${descriptor.page_path} — skipping`);
         alreadyAttached += 1;
+        continue;
+      }
+      // Same idea for a file USCIS would refuse: the LISTING knows the size, so
+      // decide here instead of transferring 34.6 MB to throw it away. The
+      // post-download check in downloadAsFile stays as the backstop for an older
+      // backend that sends no size.
+      const tooBig =
+        m.too_big_for_uscis === true ||
+        (typeof m.size_bytes === "number" && m.size_bytes > USCIS_MAX_FILE_BYTES);
+      if (tooBig) {
+        const size = typeof m.size_bytes === "number" ? `${(m.size_bytes / 1024 / 1024).toFixed(1)} MB` : "too large";
+        const message =
+          `${name} is ${size} — USCIS accepts 12 MB per file. ` +
+          `Replace it with a smaller scan in ParaLeagle, then re-run.`;
+        dbg(`doc-flow: ${message} (not downloaded)`);
+        errors.push(message);
         continue;
       }
       const { file, error } = await downloadAsFile(m.file_url as string, ctx.accessToken, name);

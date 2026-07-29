@@ -593,4 +593,55 @@ describe("doc-flow: a document larger than USCIS accepts", () => {
     // just unusable, and those two need opposite remedies.
     expect(warning).not.toMatch(/upload it in ParaLeagle first/i);
   }, 30000);
+
+  it("does not download at all when the listing already says it is too big", async () => {
+    // The backend now sends size_bytes / too_big_for_uscis, so the decision moves
+    // to the LISTING. Transferring 34.6 MB through the message channel only to
+    // discard it is pure waste, and the run is slow enough already.
+    const sendMessage = installProxy({
+      apiResponder: () =>
+        apiOk([
+          {
+            id: "d1",
+            doc_type: "form_i20",
+            file_url: "http://localhost:8001/media/form_i20.pdf",
+            filename: "form_i20.pdf",
+            size_bytes: 36_278_893,
+            too_big_for_uscis: true,
+          },
+        ]),
+    });
+    const res = await fillUploadPage(
+      { page_path: "/evidence/form-I-20", kind: "document", doc_type: "form_i20" },
+      CTX,
+    );
+    expect(res.attached).toBe(0);
+    expect(res.warnings.join(" ")).toContain("34.6 MB");
+    // The whole point: no bytes were ever asked for.
+    const downloads = sendMessage.mock.calls.filter(
+      (c: any[]) => c[0]?.type === "DOWNLOAD_FILE",
+    );
+    expect(downloads.length).toBe(0);
+  });
+
+  it("still attaches a file the listing reports as a legal size", async () => {
+    installProxy({
+      apiResponder: () =>
+        apiOk([
+          {
+            id: "d1",
+            doc_type: "form_i20",
+            file_url: "http://localhost:8001/media/form_i20.pdf",
+            filename: "form_i20.pdf",
+            size_bytes: 900_000,
+            too_big_for_uscis: false,
+          },
+        ]),
+    });
+    const res = await fillUploadPage(
+      { page_path: "/evidence/form-I-20", kind: "document", doc_type: "form_i20" },
+      CTX,
+    );
+    expect(res.attached).toBe(1);
+  });
 });
