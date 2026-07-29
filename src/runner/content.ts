@@ -201,7 +201,7 @@ function makeDraggable(target: HTMLElement, handle: HTMLElement): void {
       /* ignore */
     }
     const rect = target.getBoundingClientRect();
-    chrome.storage.local.set({ [TOOLBAR_POS_KEY]: { x: rect.left, y: rect.top } });
+    saveUiState({ [TOOLBAR_POS_KEY]: { x: rect.left, y: rect.top } });
   };
   handle.addEventListener("pointerup", endDrag);
   handle.addEventListener("pointercancel", endDrag);
@@ -248,7 +248,7 @@ async function collapseToolbar(): Promise<void> {
   badge.style.bottom = "auto";
   toolbar.style.display = "none";
   badge.style.display = "inline-flex";
-  await chrome.storage.local.set({ [TOOLBAR_COLLAPSED_KEY]: true });
+  saveUiState({ [TOOLBAR_COLLAPSED_KEY]: true });
 }
 
 async function expandToolbar(): Promise<void> {
@@ -263,7 +263,7 @@ async function expandToolbar(): Promise<void> {
   toolbar.style.bottom = "auto";
   badge.style.display = "none";
   toolbar.style.display = "flex";
-  await chrome.storage.local.set({ [TOOLBAR_COLLAPSED_KEY]: false });
+  saveUiState({ [TOOLBAR_COLLAPSED_KEY]: false });
 }
 
 // ── Debug log panel (ported from paraleagle-ext) ──────────────────────────────
@@ -625,8 +625,79 @@ function boot(): void {
 // toolbar out of the DOM) so the toolbar persists. buildToolbar() restores the
 // saved position + collapsed state on rebuild, so it never snaps back to the
 // corner.
+/**
+ * False once this content script's extension context has been torn down —
+ * which happens every time the extension is reloaded or updated while a myUSCIS
+ * tab is still open.
+ *
+ * The old content script keeps running in that tab, but every chrome.* call now
+ * throws "Extension context invalidated". With a 1-second poll that becomes a
+ * stream of uncaught errors in the page console, and worse, the DEAD toolbar is
+ * still sitting there looking clickable — so Fill all appears to do nothing.
+ */
+function contextAlive(): boolean {
+  try {
+    // Reading an id on a dead context throws; on a live one it is a string.
+    return typeof chrome.runtime?.id === "string";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Replace the toolbar with a single instruction when the context has died.
+ * A dead toolbar that still looks alive is worse than no toolbar: the buttons
+ * silently do nothing and it reads as the extension being broken.
+ */
+function showReloadNotice(): void {
+  document.getElementById(TOOLBAR_ID)?.remove();
+  document.getElementById(BADGE_ID)?.remove();
+  if (document.getElementById("mk-family-stale")) return;
+  const note = document.createElement("div");
+  note.id = "mk-family-stale";
+  note.setAttribute("role", "alert");
+  note.style.cssText =
+    "position:fixed;top:8px;right:8px;z-index:2147483647;max-width:260px;" +
+    "background:#7c2d12;color:#fff;font:13px/1.4 system-ui,sans-serif;" +
+    "padding:10px 12px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.3);";
+  note.textContent =
+    "ParaLeagle autofill was updated. Reload this page (F5) to use the new " +
+    "version — your draft is saved.";
+  document.body.appendChild(note);
+}
+
+/**
+ * Persist a scrap of toolbar UI state, swallowing an invalidated context.
+ *
+ * Every caller here is fire-and-forget — nobody waits to hear that a toolbar
+ * position was saved. That is exactly why these were the source of
+ * "Uncaught (in promise) Error: Extension context invalidated" after the
+ * extension was reloaded with a myUSCIS tab still open: the promise rejected and
+ * there was no handler. Losing a saved position on a dead context is harmless;
+ * an uncaught rejection that buries the real message is not.
+ */
+function saveUiState(items: Record<string, unknown>): void {
+  try {
+    void chrome.storage.local.set(items)?.catch?.(() => undefined);
+  } catch {
+    /* context gone — the reload notice covers it */
+  }
+}
+
 let lastPath = "";
+let routeTimer: ReturnType<typeof setInterval> | null = null;
+
 function watchRoute(): void {
+  if (!contextAlive()) {
+    // Stop polling FIRST: without this the interval keeps firing and every tick
+    // throws again, burying the one message that actually tells you what to do.
+    if (routeTimer !== null) {
+      clearInterval(routeTimer);
+      routeTimer = null;
+    }
+    showReloadNotice();
+    return;
+  }
   const path = window.location.pathname;
   const config = currentConfig();
   const wiped = !!config && !document.getElementById(TOOLBAR_ID);
@@ -641,4 +712,4 @@ if (document.readyState === "loading") {
 } else {
   boot();
 }
-setInterval(watchRoute, 1000);
+routeTimer = setInterval(watchRoute, 1000);
