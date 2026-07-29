@@ -408,12 +408,19 @@ const SAVE_COMMIT_TIMEOUT_MS = 8000;
  * doc-uploader reports "attached"); give Next much longer to enable. */
 const UPLOAD_NEXT_TIMEOUT_MS = 60000;
 /** How long to wait for the page's uploads to finish before watching Next.
- * Raised from 8s: we now wait on a REAL signal (myUSCIS swapping each row's
- * "Cancel" for "Remove") instead of guessing at spinner CSS classes, and a 10MB
- * scan genuinely takes longer than 8s to process server-side. Clicking Next early
- * is what raised USCIS's "your files have not finished uploading" modal on the
- * 2026-07-29 run. */
-const UPLOAD_SETTLE_TIMEOUT_MS = 20000;
+ *
+ * 180s, and the size is the point. This was 8s (a guess), then 45s, then 20s —
+ * and 20s stopped a live run dead with FOUR of ten files still uploading on the
+ * Additional-evidence page (an 8.5MB I-797 among them). A generous window is safe
+ * here precisely because the wait is gated on a REAL signal and ticks every 5s:
+ * it cannot hang silently, and it returns the instant the last upload lands. Being
+ * stingy costs a whole run; being generous costs nothing.
+ *
+ * The signal is myUSCIS's own per-row control — "Cancel" while a file is
+ * uploading, swapped for "Remove" when it lands — not a guess at spinner CSS
+ * classes. Clicking Next before they finish is what raised USCIS's "your files
+ * have not finished uploading" modal on the 2026-07-29 run. */
+const UPLOAD_SETTLE_TIMEOUT_MS = 180000;
 /** How many times to click Next on an upload page before giving up. myUSCIS
  * enables Next straight away but ignores the click until the file has finished
  * processing, and nothing in the DOM reliably says when that is — so we click,
