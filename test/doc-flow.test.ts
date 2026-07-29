@@ -645,3 +645,42 @@ describe("doc-flow: a document larger than USCIS accepts", () => {
     expect(res.attached).toBe(1);
   });
 });
+
+describe("doc-flow: two documents of the same type with no filename", () => {
+  it("gives them distinct names so neither is lost to the de-dupe", async () => {
+    // FAM-0100 holds two bank statements. The backend sent no filename for either,
+    // so both fell back to "bank_statement.pdf". The de-dupe matches on a
+    // 12-character stem, so one attached row would make the other look already
+    // attached — and the second statement would silently never be filed.
+    installProxy({
+      apiResponder: () =>
+        apiOk([
+          { id: "aaaaaaaa-1111", doc_type: "bank_statement", file_url: "http://localhost:8001/m/1.pdf" },
+          { id: "bbbbbbbb-2222", doc_type: "bank_statement", file_url: "http://localhost:8001/m/2.pdf" },
+        ]),
+    });
+    const res = await fillUploadPage(
+      { page_path: "/evidence/proof-of-ability-to-pay", kind: "document", doc_type: "bank_statement" },
+      CTX,
+    );
+    expect(res.attached).toBe(2);
+    const names = [...document.querySelectorAll(".uploaded-file")].map((r) => r.textContent);
+    expect(new Set(names).size).toBe(2);
+  });
+
+  it("keeps the clean name when the type holds only one document", async () => {
+    installProxy({
+      apiResponder: () =>
+        apiOk([
+          { id: "aaaaaaaa-1111", doc_type: "i94", file_url: "http://localhost:8001/m/i94.pdf" },
+        ]),
+    });
+    await fillUploadPage(
+      { page_path: "/evidence/form-i-94", kind: "document", doc_type: "i94" },
+      CTX,
+    );
+    // No gratuitous suffix on the overwhelmingly common single-document case.
+    expect(document.querySelector(".uploaded-file")?.textContent).toContain("i94.pdf");
+    expect(document.querySelector(".uploaded-file")?.textContent).not.toContain("-aaaaaaaa");
+  });
+});

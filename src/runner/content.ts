@@ -515,7 +515,35 @@ function button(
 
 // ── Actions ─────────────────────────────────────────────────────────────────
 
-async function onFillSection(): Promise<void> {
+/**
+ * True while a fill is running. Guards against a SECOND concurrent run.
+ *
+ * Clicking Fill all twice used to start two independent walks in the same tab, and
+ * they raced: on 2026-07-29 both downloaded the same 10MB I-20 and both injected
+ * it, because each checked "is this file already on the page" before the other's
+ * row had rendered. USCIS ended up holding form_i20.pdf twice. No amount of
+ * de-dupe fixes that — two runs checking simultaneously will both see nothing.
+ *
+ * The button going quiet during a large download is exactly when someone clicks it
+ * again, so this is the common case, not an edge case.
+ */
+let fillInProgress = false;
+
+/** Run `body` unless a fill is already going. Always releases the lock. */
+async function withRunLock(what: string, body: () => Promise<void>): Promise<void> {
+  if (fillInProgress) {
+    setStatus(`${what} is already running — wait for it to finish.`);
+    return;
+  }
+  fillInProgress = true;
+  try {
+    await body();
+  } finally {
+    fillInProgress = false;
+  }
+}
+
+async function fillSectionBody(): Promise<void> {
   const config = currentConfig();
   if (!config) return setStatus("Not on a ParaLeagle-supported myUSCIS form.");
   if (onLoginPage()) {
@@ -564,12 +592,22 @@ function logRunHeader(config: FormConfig, payload: LoadedPayload): void {
   dbg(`  payload: ${Object.keys(payload.fieldValues).length} field values, ` +
       `${payload.uploadPages.length} upload page(s)`);
   if (payload.uploadPages.length) {
-    dbg(`  upload slots: ${payload.uploadPages.map((u) => u.page_path).join(", ")}`);
+    // DISTINCT paths with a count, not the raw list. The Additional-evidence
+    // catch-all expands to one descriptor per doc_type, so the raw list printed
+    // "/evidence/additional-evidence" 83 times and buried the whole header.
+    const byPath = new Map<string, number>();
+    for (const u of payload.uploadPages) {
+      byPath.set(u.page_path, (byPath.get(u.page_path) ?? 0) + 1);
+    }
+    const slots = [...byPath.entries()]
+      .map(([path, n]) => (n > 1 ? `${path} (${n} doc types)` : path))
+      .join(", ");
+    dbg(`  upload slots: ${slots}`);
   }
   dbg("══════════════════════════════════════════════");
 }
 
-async function onFillAll(): Promise<void> {
+async function fillAllBody(): Promise<void> {
   const config = currentConfig();
   if (!config) return setStatus("Not on a ParaLeagle-supported myUSCIS form.");
   if (onLoginPage()) {
@@ -585,6 +623,14 @@ async function onFillAll(): Promise<void> {
   const filled = summaries.reduce((n, s) => n + s.filled, 0);
   const total = summaries.reduce((n, s) => n + s.total, 0);
   setStatus(`Done — ${filled}/${total} fields across ${summaries.length} pages`);
+}
+
+async function onFillSection(): Promise<void> {
+  return withRunLock("A fill", fillSectionBody);
+}
+
+async function onFillAll(): Promise<void> {
+  return withRunLock("Fill all", fillAllBody);
 }
 
 /**

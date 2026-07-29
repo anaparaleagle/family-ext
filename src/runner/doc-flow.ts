@@ -259,6 +259,7 @@ async function resolveFilesFor(
   descriptor: UploadPageDescriptor,
   docs: DocRow[],
   ctx: ResolveContext,
+  quiet = false,
 ): Promise<ResolvedFiles> {
   const rowTexts = attachedFileRowTexts();
 
@@ -275,22 +276,39 @@ async function resolveFilesFor(
     // leaving a document behind looks identical to a slot with nothing to do,
     // and "the SSN card must never be uploaded to Evidence" is a rule we can only
     // claim to honour if the log shows the card being left out on purpose.
-    dbg(
-      `doc-flow: ${descriptor.page_path} wants doc_type "${wanted}"` +
-        `${wantParty ? ` for party ${wantParty}` : ""} — ` +
-        `${matches.length} of ${docs.length} case document(s) match`,
-    );
-    if (docs.length) {
-      const others = [...new Set(docs.map((d) => (d.doc_type || "?").toLowerCase()))]
-        .filter((t) => t !== wanted)
-        .sort();
-      if (others.length) dbg(`  not for this slot: ${others.join(", ")}`);
+    // A catch-all page carries one descriptor per doc_type, so most of them match
+    // nothing. Logging every miss buried the run in "0 of 19 match" lines, so a
+    // miss is only worth a line when this page has a SINGLE descriptor — where it
+    // genuinely means "the slot found nothing".
+    if (matches.length > 0 || !quiet) {
+      dbg(
+        `doc-flow: ${descriptor.page_path} wants doc_type "${wanted}"` +
+          `${wantParty ? ` for party ${wantParty}` : ""} — ` +
+          `${matches.length} of ${docs.length} case document(s) match`,
+      );
+      if (docs.length && !quiet) {
+        const others = [...new Set(docs.map((d) => (d.doc_type || "?").toLowerCase()))]
+          .filter((t) => t !== wanted)
+          .sort();
+        if (others.length) dbg(`  not for this slot: ${others.join(", ")}`);
+      }
     }
     const files: File[] = [];
     const errors: string[] = [];
     let alreadyAttached = 0;
+    // When the backend sends no filename we fall back to the doc_type — but a slot
+    // can hold SEVERAL documents of one type (FAM-0100 has two bank statements),
+    // and naming them both "bank_statement.pdf" is not cosmetic: the de-dupe
+    // matches on a 12-character stem, so on a re-run the first row makes the second
+    // look already-attached and it is silently dropped from the filing. Suffix with
+    // the document id — stable across runs, so the de-dupe still works, unlike a
+    // positional index which shifts when a document is deleted.
+    const needsSuffix = matches.filter((d) => !d.filename).length > 1;
     for (const m of matches) {
-      const name = m.filename || `${m.doc_type}.pdf`;
+      const fallback = needsSuffix
+        ? `${m.doc_type}-${String(m.id).slice(0, 8)}.pdf`
+        : `${m.doc_type}.pdf`;
+      const name = m.filename || fallback;
       // SOF-1005: skip BEFORE downloading. The filename is known from the
       // listing, so the wasteful half (the proxy fetch of the bytes) is avoided.
       if (isFilenameAttached(name, rowTexts)) {
@@ -314,6 +332,7 @@ async function resolveFilesFor(
         errors.push(message);
         continue;
       }
+      dbg(`doc-flow: downloading ${name}…`);
       const { file, error } = await downloadAsFile(m.file_url as string, ctx.accessToken, name);
       if (file) files.push(file);
       else if (error) errors.push(error);
@@ -445,7 +464,7 @@ export async function fillUploadPageAll(
   const errors: string[] = [];
   let alreadyAttached = 0;
   for (const descriptor of descriptors) {
-    const resolved = await resolveFilesFor(descriptor, docs, ctx);
+    const resolved = await resolveFilesFor(descriptor, docs, ctx, descriptors.length > 1);
     files.push(...resolved.files);
     errors.push(...resolved.errors);
     alreadyAttached += resolved.alreadyAttached;
