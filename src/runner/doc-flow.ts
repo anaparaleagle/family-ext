@@ -349,20 +349,66 @@ export async function fillUploadPage(
   descriptor: UploadPageDescriptor,
   ctx: ResolveContext,
 ): Promise<{ attached: number; alreadyAttached: number; warnings: string[] }> {
+  return fillUploadPageAll([descriptor], ctx);
+}
+
+/**
+ * Fill one upload page from EVERY descriptor that targets it.
+ *
+ * A USCIS evidence slot is not one document type. "Proof of ability to pay" takes
+ * bank statements AND a financial affidavit AND sponsor pay stubs; the relationship
+ * slots take a marriage certificate OR a birth certificate. The backend expresses
+ * that as several upload_pages entries sharing one page_path — its resolver
+ * appends to a list, so duplicates are fine there. This is the half that was
+ * missing: the extension used to take only the FIRST match for a path, so the
+ * other document types were silently dropped from the filing.
+ *
+ * One page = one slot, so:
+ *  - the documents list is read ONCE and shared across the descriptors;
+ *  - every resolved file goes up in a SINGLE batch, because the dropzone takes one
+ *    DataTransfer;
+ *  - "nothing on file" is only a warning when NOTHING resolved for the whole page.
+ *    A case legitimately holding bank statements but no affidavit has satisfied the
+ *    slot, and warning per absent type would train people to ignore warnings.
+ */
+export async function fillUploadPageAll(
+  descriptors: UploadPageDescriptor[],
+  ctx: ResolveContext,
+): Promise<{ attached: number; alreadyAttached: number; warnings: string[] }> {
+  if (descriptors.length === 0) return { attached: 0, alreadyAttached: 0, warnings: [] };
+  const pagePath = descriptors[0].page_path;
+  if (descriptors.length > 1) {
+    dbg(
+      `doc-flow: ${pagePath} is fed by ${descriptors.length} document types: ` +
+        `${descriptors.map(missingDocLabel).join(", ")}`,
+    );
+  }
+
+  // Read the case's documents once, not once per descriptor.
   let docs: DocRow[] = [];
-  if (descriptor.kind === "document") {
+  if (descriptors.some((d) => d.kind === "document")) {
     const listed = await fetchDocuments(ctx);
     if (listed.error) {
       return {
         attached: 0,
         alreadyAttached: 0,
-        warnings: [`Could not attach to ${descriptor.page_path} — ${listed.error}`],
+        warnings: [`Could not attach to ${pagePath} — ${listed.error}`],
       };
     }
     docs = listed.rows;
   }
 
-  const { files, errors, alreadyAttached } = await resolveFilesFor(descriptor, docs, ctx);
+  const files: File[] = [];
+  const errors: string[] = [];
+  let alreadyAttached = 0;
+  for (const descriptor of descriptors) {
+    const resolved = await resolveFilesFor(descriptor, docs, ctx);
+    files.push(...resolved.files);
+    errors.push(...resolved.errors);
+    alreadyAttached += resolved.alreadyAttached;
+  }
+
+  const descriptor = descriptors[0];
   if (files.length === 0) {
     // Nothing to attach, for three very different reasons — and they need
     // opposite remedies, so they must never collapse into one message.
@@ -385,7 +431,9 @@ export async function fillUploadPage(
       );
       return { attached: 0, alreadyAttached, warnings: [] };
     }
-    const label = missingDocLabel(descriptor);
+    // Name every type the slot accepts, not just the first — "no bank_statement"
+    // sends someone hunting for one document when any of three would do.
+    const label = descriptors.map(missingDocLabel).join(" / ");
     return {
       attached: 0,
       alreadyAttached: 0,
@@ -406,11 +454,28 @@ export async function fillUploadPage(
   };
 }
 
-/** Match a stored upload-page descriptor to the current URL path. */
+/**
+ * EVERY stored upload-page descriptor for the current URL path.
+ *
+ * Plural on purpose. A slot that accepts several document types is expressed as
+ * several entries sharing a page_path, and the old singular `find()` took the
+ * first and silently dropped the rest — so a "proof of ability to pay" page wired
+ * for bank statements, an affidavit and pay stubs would have uploaded only the
+ * bank statements, and the log would have said "1 attached" as if that were the
+ * whole slot.
+ */
+export function descriptorsForPath(
+  path: string,
+  uploadPages: UploadPageDescriptor[],
+): UploadPageDescriptor[] {
+  const p = path.replace(/\/$/, "");
+  return uploadPages.filter((d) => p.endsWith(d.page_path.replace(/\/$/, "")));
+}
+
+/** First descriptor for a path, or null. Kept for callers that want just one. */
 export function descriptorForPath(
   path: string,
   uploadPages: UploadPageDescriptor[],
 ): UploadPageDescriptor | null {
-  const p = path.replace(/\/$/, "");
-  return uploadPages.find((d) => p.endsWith(d.page_path.replace(/\/$/, ""))) ?? null;
+  return descriptorsForPath(path, uploadPages)[0] ?? null;
 }

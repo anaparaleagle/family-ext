@@ -11,7 +11,7 @@ import { dbg, debugLog, resetDebugLog, hydrateDebugLog, renderDebugLogInto } fro
 import { detectCurrentPage } from "./section-detector";
 import { fillAll, fillPage, onLoginPage } from "./fill-chain";
 import { auditPage, summarizeAudit } from "./audit";
-import { descriptorForPath, fillUploadPage } from "./doc-flow";
+import { descriptorsForPath, fillUploadPageAll } from "./doc-flow";
 import { STORAGE_KEYS } from "./payload";
 import { configForPath } from "./registry";
 import { FormConfig, FormPage } from "./types";
@@ -83,13 +83,15 @@ async function loadPayloadFor(config: FormConfig): Promise<LoadedPayload | null>
  * page. Anything unexpected in here is logged and reported, not thrown.
  */
 async function handleUploadPage(page: FormPage, payload: LoadedPayload): Promise<void> {
-  const descriptor = descriptorForPath(page.slug, payload.uploadPages);
-  if (!descriptor) {
+  // ALL descriptors for this page, not just the first — one evidence slot can be
+  // fed by several document types (see fillUploadPageAll).
+  const descriptors = descriptorsForPath(page.slug, payload.uploadPages);
+  if (descriptors.length === 0) {
     dbg(`upload: no descriptor for ${page.slug}, skipping`);
     return;
   }
   try {
-    const result = await fillUploadPage(descriptor, {
+    const result = await fillUploadPageAll(descriptors, {
       apiBaseUrl: payload.apiBaseUrl,
       accessToken: payload.accessToken,
       caseId: payload.caseId,

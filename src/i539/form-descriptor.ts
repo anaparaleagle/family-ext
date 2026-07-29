@@ -633,6 +633,20 @@ export const I539_PAGES: FormPage[] = [
     fields: [],
   },
   {
+    // REQUIRED for F/M targets, and it sits right after the I-20 on the live
+    // sidebar. FOUND THE HARD WAY on 2026-07-29 (FAM-0100, F-1): the walk logged
+    // "page not in descriptor … skipping past it", the page stayed empty, Next
+    // never enabled, and the run could not reach Review at all.
+    //
+    // It is in the source doc's F-1 slot list — bank statements, financial
+    // affidavit, sponsor pay stubs — i.e. THREE document types into one slot,
+    // which is why descriptorsForPath had to become plural.
+    slug: "/evidence/proof-of-ability-to-pay",
+    title: "Proof of ability to pay",
+    kind: "upload",
+    fields: [],
+  },
+  {
     // REQUIRED.
     slug: "/evidence/written-statement",
     title: "Written statement",

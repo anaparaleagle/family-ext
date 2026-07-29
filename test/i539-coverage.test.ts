@@ -203,6 +203,9 @@ describe("I-539 descriptor shape", () => {
       // Sits between the I-94 and the written statement on the live sidebar
       // (confirmed on the 2026-07-17 and 2026-07-28 runs).
       "/evidence/form-I-20",
+      // Directly after the I-20 on an F/M draft — seen live 2026-07-29 when the
+      // walk hit it as an unknown page and stalled there.
+      "/evidence/proof-of-ability-to-pay",
       "/evidence/written-statement",
       "/evidence/additional-evidence",
     ]);

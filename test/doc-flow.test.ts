@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { fillUploadPage } from "../src/runner/doc-flow";
+import { fillUploadPage, fillUploadPageAll, descriptorsForPath } from "../src/runner/doc-flow";
 import type { UploadPageDescriptor } from "../src/runner/payload";
 
 const CTX = {
@@ -40,8 +40,9 @@ function mountDropzone(): void {
   });
 }
 
-/** Bytes the fake proxy hands back for any DOWNLOAD_FILE. */
-const PDF_BYTES = [37, 80, 68]; // "%PD"
+/** Bytes the fake proxy hands back for any DOWNLOAD_FILE, in the real wire
+ * format: base64, not a number array (see download-proxy.toBase64). */
+const PDF_BASE64 = btoa("%PD");
 
 /**
  * Install a fake service worker.
@@ -63,7 +64,7 @@ function installProxy(opts: {
     if (message.type === "DOWNLOAD_FILE") {
       const responder = opts.downloadResponder;
       if (responder) return responder(message.url);
-      return { success: true, data: PDF_BYTES, contentType: "application/pdf" };
+      return { success: true, dataBase64: PDF_BASE64, contentType: "application/pdf" };
     }
     throw new Error(`unexpected message type ${message.type}`);
   });
@@ -335,7 +336,7 @@ describe("doc-flow: document resolution", () => {
       downloadResponder: (url) =>
         url.endsWith("bad.jpg")
           ? { success: false, error: "HTTP 500" }
-          : { success: true, data: PDF_BYTES, contentType: "image/jpeg" },
+          : { success: true, dataBase64: PDF_BASE64, contentType: "image/jpeg" },
     });
     const res = await fillUploadPage(
       { page_path: "/evidences/photo-of-spouse", kind: "document", doc_type: "photos" },
@@ -434,5 +435,95 @@ describe("doc-flow: a document uploads to USCIS exactly once (SOF-1005)", () => 
     expect(res.attached).toBe(1); // the new one
     expect(res.alreadyAttached).toBe(1); // the one already there
     expect(document.querySelectorAll(".uploaded-file").length).toBe(2);
+  });
+});
+
+// ===========================================================================
+// ONE EVIDENCE SLOT, SEVERAL DOCUMENT TYPES
+//
+// "Proof of ability to pay" takes bank statements AND a financial affidavit AND
+// sponsor pay stubs. The backend expresses that as three upload_pages entries
+// sharing one page_path (its resolver appends, so duplicates are fine there).
+// The extension used to take only the FIRST match for a path, so two thirds of
+// the slot was dropped and the log still said "1 attached" as though the slot
+// were satisfied.
+//
+// Found live 2026-07-29 (FAM-0100): /evidence/proof-of-ability-to-pay was not in
+// the descriptor at all, the page stayed empty, Next never enabled and the walk
+// could not reach Review.
+// ===========================================================================
+
+describe("doc-flow: an evidence slot fed by several doc types", () => {
+  const PAGE = "/evidence/proof-of-ability-to-pay";
+  const descriptors: UploadPageDescriptor[] = [
+    { page_path: PAGE, kind: "document", doc_type: "bank_statement" },
+    { page_path: PAGE, kind: "document", doc_type: "financial_affidavit" },
+    { page_path: PAGE, kind: "document", doc_type: "pay_stubs" },
+  ];
+
+  it("returns every descriptor for a path, not just the first", () => {
+    const all = descriptorsForPath(`/forms/x/13359458${PAGE}`, [
+      { page_path: "/evidence/form-i-94", kind: "document", doc_type: "i94" },
+      ...descriptors,
+    ]);
+    expect(all.map((d) => d.doc_type)).toEqual([
+      "bank_statement",
+      "financial_affidavit",
+      "pay_stubs",
+    ]);
+  });
+
+  it("attaches documents of ALL the slot's types in one batch", async () => {
+    installProxy({
+      apiResponder: () =>
+        apiOk([
+          { id: "d1", doc_type: "bank_statement", file_url: "http://localhost:8001/m/b1.pdf", filename: "b1.pdf" },
+          { id: "d2", doc_type: "bank_statement", file_url: "http://localhost:8001/m/b2.pdf", filename: "b2.pdf" },
+          { id: "d3", doc_type: "financial_affidavit", file_url: "http://localhost:8001/m/aff.pdf", filename: "aff.pdf" },
+          { id: "d4", doc_type: "pay_stubs", file_url: "http://localhost:8001/m/stub.pdf", filename: "stub.pdf" },
+          // Not for this slot — must not ride along.
+          { id: "d5", doc_type: "i94", file_url: "http://localhost:8001/m/i94.pdf", filename: "i94.pdf" },
+        ]),
+    });
+    const res = await fillUploadPageAll(descriptors, CTX);
+    expect(res.attached).toBe(4);
+    expect(document.querySelectorAll(".uploaded-file").length).toBe(4);
+  });
+
+  it("is satisfied when only ONE of its types is on file", async () => {
+    // A case with bank statements but no affidavit has met the slot. Warning per
+    // absent type would train people to ignore warnings.
+    installProxy({
+      apiResponder: () =>
+        apiOk([
+          { id: "d1", doc_type: "bank_statement", file_url: "http://localhost:8001/m/b1.pdf", filename: "b1.pdf" },
+        ]),
+    });
+    const res = await fillUploadPageAll(descriptors, CTX);
+    expect(res.attached).toBe(1);
+    expect(res.warnings).toEqual([]);
+  });
+
+  it("names every accepted type when the slot is empty", async () => {
+    installProxy({ apiResponder: () => apiOk([]) });
+    const res = await fillUploadPageAll(descriptors, CTX);
+    expect(res.attached).toBe(0);
+    // Not just "no bank_statement" — that sends someone hunting for one document
+    // when any of three would do.
+    expect(res.warnings.join(" ")).toContain("bank_statement / financial_affidavit / pay_stubs");
+  });
+
+  it("reads the documents list ONCE for the whole page, not once per type", async () => {
+    const sendMessage = installProxy({
+      apiResponder: () =>
+        apiOk([
+          { id: "d1", doc_type: "bank_statement", file_url: "http://localhost:8001/m/b1.pdf", filename: "b1.pdf" },
+        ]),
+    });
+    await fillUploadPageAll(descriptors, CTX);
+    const listReads = sendMessage.mock.calls.filter(
+      (c: any[]) => c[0]?.type === "API_GET" && String(c[0]?.path).startsWith("/documents/"),
+    );
+    expect(listReads.length).toBe(1);
   });
 });
