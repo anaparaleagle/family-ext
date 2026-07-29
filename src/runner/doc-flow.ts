@@ -19,12 +19,19 @@
 // form was loaded. Both file URLs come from the same backend contract:
 //   - documents:        DocumentSerializer.file_url        (GET /documents/?case=)
 //   - generated forms:  GeneratedFormSerializer.file_url   (GET /forms/generated/?case=)
-// Both are absolute media URLs the download-proxy fetches with the firm token.
-// The attach itself (DataTransfer into the dropzone) is exercised live via
-// agent-browser; the URL-resolution shape is the verified backend contract.
+// On prod both are PRESIGNED S3 URLs (config/settings/s3.py), not paths on the
+// API host — the download-proxy allowlists S3 and deliberately withholds the
+// bearer token there, since a presigned URL is already self-authenticating.
+//
+// EVERY request in here goes through the service worker (engine/download-proxy)
+// via runner/api-transport. A content script runs at my.uscis.gov's origin and
+// MV3 does not exempt it from CORS, so a direct `fetch` to the family API has
+// its preflight refused and never sends the real request. That is what broke doc
+// upload entirely: the rejected fetch was uncaught and killed the walk silently.
 
 import { attachFiles, attachedFileRowTexts, isFilenameAttached } from "../engine/doc-uploader";
 import { dbg } from "../engine/logger";
+import { apiGet } from "./api-transport";
 import { UploadPageDescriptor } from "./payload";
 
 interface DocRow {
@@ -58,22 +65,37 @@ interface ResolveContext {
 export const SESSION_EXPIRED_MESSAGE =
   "Session expired — reopen the popup and Load case.";
 
+/**
+ * Turn a failed ApiResult into one user-facing sentence. A 401 means the token
+ * the popup mirrored into storage aged out, which has a specific remedy; a
+ * transport failure (no status) means the request never reached the server.
+ */
+function describeApiFailure(what: string, status: number | undefined, error: string | undefined): string {
+  if (status === 401 || status === 403) return `${what}: ${SESSION_EXPIRED_MESSAGE}`;
+  if (status !== undefined) return `${what} failed (HTTP ${status}).`;
+  return `${what} could not reach the ParaLeagle API — ${error ?? "unknown error"}.`;
+}
+
+/** What a list read produced: rows, or the reason it produced none. */
+interface ListResult<T> {
+  rows: T[];
+  error?: string;
+}
+
 /** Fetch the family-backend documents list for a case (firm-scoped, STAFF). */
-async function fetchDocuments(ctx: ResolveContext): Promise<DocRow[]> {
-  const res = await fetch(`${ctx.apiBaseUrl}/documents/?case=${encodeURIComponent(ctx.caseId)}`, {
-    headers: { Authorization: `Bearer ${ctx.accessToken}` },
-  });
+async function fetchDocuments(ctx: ResolveContext): Promise<ListResult<DocRow>> {
+  const res = await apiGet<{ results?: DocRow[] } | DocRow[]>(
+    `/documents/?case=${encodeURIComponent(ctx.caseId)}`,
+    ctx,
+  );
   if (!res.ok) {
-    dbg(
-      res.status === 401
-        ? `doc-flow: documents list 401 — ${SESSION_EXPIRED_MESSAGE}`
-        : `doc-flow: documents list failed (${res.status})`,
-    );
-    return [];
+    const message = describeApiFailure("Documents list", res.status, res.error);
+    dbg(`doc-flow: ${message}`);
+    return { rows: [], error: message };
   }
-  const data = await res.json();
-  const rows = (data.results ?? data) as DocRow[];
-  return Array.isArray(rows) ? rows : [];
+  const data = res.data as { results?: DocRow[] } | DocRow[] | null;
+  const rows = (Array.isArray(data) ? data : data?.results) ?? [];
+  return { rows: Array.isArray(rows) ? rows : [] };
 }
 
 /**
@@ -93,45 +115,71 @@ async function fetchDocuments(ctx: ResolveContext): Promise<DocRow[]> {
 async function fetchGeneratedForm(
   ctx: ResolveContext,
   formType: string,
-): Promise<GeneratedFormRow | null> {
-  const url =
-    `${ctx.apiBaseUrl}/forms/generated/` +
+): Promise<{ row: GeneratedFormRow | null; error?: string }> {
+  const path =
+    `/forms/generated/` +
     `?case=${encodeURIComponent(ctx.caseId)}&form_type=${encodeURIComponent(formType)}`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${ctx.accessToken}` },
-  });
+  const res = await apiGet<{ results?: GeneratedFormRow[] } | GeneratedFormRow[]>(path, ctx);
   if (!res.ok) {
-    dbg(
-      res.status === 401
-        ? `doc-flow: generated-forms list 401 — ${SESSION_EXPIRED_MESSAGE}`
-        : `doc-flow: generated-forms list failed (${res.status})`,
-    );
-    return null;
+    const message = describeApiFailure("Generated-forms list", res.status, res.error);
+    dbg(`doc-flow: ${message}`);
+    return { row: null, error: message };
   }
-  const data = await res.json();
-  const rows = (data.results ?? data) as GeneratedFormRow[];
-  if (!Array.isArray(rows)) return null;
+  const data = res.data as { results?: GeneratedFormRow[] } | GeneratedFormRow[] | null;
+  const rows = (Array.isArray(data) ? data : data?.results) ?? [];
+  if (!Array.isArray(rows)) return { row: null };
   const matching = rows.filter((r) => r.form_type === formType && r.file_url);
-  if (matching.length === 0) return null;
-  return matching.reduce((best, r) => ((r.version ?? 0) > (best.version ?? 0) ? r : best));
+  if (matching.length === 0) return { row: null };
+  return {
+    row: matching.reduce((best, r) => ((r.version ?? 0) > (best.version ?? 0) ? r : best)),
+  };
 }
 
-/** Download a file_url through the background proxy and wrap it as a File. */
-async function downloadAsFile(url: string, accessToken: string, filename: string): Promise<File | null> {
-  const response = await chrome.runtime.sendMessage({ type: "DOWNLOAD_FILE", url, accessToken });
+/**
+ * Download a file_url through the background proxy and wrap it as a File.
+ *
+ * Returns the reason on failure instead of only logging it. A blocked origin
+ * ("not in the extension's allowlist") is a CONFIGURATION bug, not a missing
+ * document, and telling the user to "upload it in ParaLeagle" would send them
+ * chasing a file that is already there.
+ */
+async function downloadAsFile(
+  url: string,
+  accessToken: string,
+  filename: string,
+): Promise<{ file: File | null; error?: string }> {
+  let response: { success?: boolean; error?: string; data?: number[]; contentType?: string } | undefined;
+  try {
+    response = await chrome.runtime.sendMessage({ type: "DOWNLOAD_FILE", url, accessToken });
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    dbg(`doc-flow: download could not reach the background worker: ${error}`);
+    return { file: null, error: `Download failed — ${error}` };
+  }
   if (!response?.success) {
     // The proxy reports a failed fetch as "HTTP <status>"; a 401 there means the
     // mirrored token aged out, which is worth naming rather than showing raw.
     const error = String(response?.error ?? "unknown error");
-    dbg(
-      /\b401\b/.test(error)
-        ? `doc-flow: download 401 for ${url} — ${SESSION_EXPIRED_MESSAGE}`
-        : `doc-flow: download failed for ${url}: ${error}`,
-    );
-    return null;
+    const message = /\b401\b/.test(error)
+      ? `Download of ${filename}: ${SESSION_EXPIRED_MESSAGE}`
+      : `Download of ${filename} failed — ${error}`;
+    dbg(`doc-flow: ${message}`);
+    return { file: null, error: message };
   }
-  const blob = new Blob([new Uint8Array(response.data)], { type: response.contentType });
-  return new File([blob], filename, { type: response.contentType });
+  const blob = new Blob([new Uint8Array(response.data ?? [])], { type: response.contentType });
+  return { file: new File([blob], filename, { type: response.contentType }) };
+}
+
+/**
+ * Files this descriptor resolved to, plus any hard failures worth surfacing, plus
+ * how many were skipped because the page already shows them (SOF-1005). All
+ * three are distinct outcomes with opposite remedies: attach these, fix this,
+ * do nothing.
+ */
+interface ResolvedFiles {
+  files: File[];
+  errors: string[];
+  alreadyAttached: number;
 }
 
 /** Resolve one upload-page descriptor to the File(s) it needs.
@@ -145,7 +193,7 @@ async function resolveFilesFor(
   descriptor: UploadPageDescriptor,
   docs: DocRow[],
   ctx: ResolveContext,
-): Promise<{ files: File[]; alreadyAttached: number }> {
+): Promise<ResolvedFiles> {
   const rowTexts = attachedFileRowTexts();
 
   if (descriptor.kind === "document") {
@@ -157,18 +205,22 @@ async function resolveFilesFor(
       return !!d.file_url;
     });
     const files: File[] = [];
+    const errors: string[] = [];
     let alreadyAttached = 0;
     for (const m of matches) {
       const name = m.filename || `${m.doc_type}.pdf`;
+      // SOF-1005: skip BEFORE downloading. The filename is known from the
+      // listing, so the wasteful half (the proxy fetch of the bytes) is avoided.
       if (isFilenameAttached(name, rowTexts)) {
         dbg(`doc-flow: "${name}" is already attached to ${descriptor.page_path} — skipping`);
         alreadyAttached += 1;
         continue;
       }
-      const file = await downloadAsFile(m.file_url as string, ctx.accessToken, name);
+      const { file, error } = await downloadAsFile(m.file_url as string, ctx.accessToken, name);
       if (file) files.push(file);
+      else if (error) errors.push(error);
     }
-    return { files, alreadyAttached };
+    return { files, errors, alreadyAttached };
   }
 
   if (descriptor.kind === "generated_form") {
@@ -180,28 +232,37 @@ async function resolveFilesFor(
     const formType = descriptor.form_type;
     if (!formType) {
       dbg("doc-flow: generated_form descriptor missing form_type");
-      return { files: [], alreadyAttached: 0 };
+      return { files: [], errors: [], alreadyAttached: 0 };
     }
     const name = `${formType}.pdf`;
     // Checked before the listing call: if it is already on the page there is
     // nothing this visit can usefully do.
     if (isFilenameAttached(name, rowTexts)) {
       dbg(`doc-flow: "${name}" is already attached to ${descriptor.page_path} — skipping`);
-      return { files: [], alreadyAttached: 1 };
+      return { files: [], errors: [], alreadyAttached: 1 };
     }
-    const row = await fetchGeneratedForm(ctx, formType);
+    const { row, error } = await fetchGeneratedForm(ctx, formType);
+    if (error) return { files: [], errors: [error], alreadyAttached: 0 };
     if (!row || !row.file_url) {
       dbg(
         `doc-flow: no generated ${formType} on file for this case — generate it in ` +
           `ParaLeagle before attaching.`,
       );
-      return { files: [], alreadyAttached: 0 };
+      return { files: [], errors: [], alreadyAttached: 0 };
     }
-    const file = await downloadAsFile(row.file_url, ctx.accessToken, name);
-    return { files: file ? [file] : [], alreadyAttached: 0 };
+    const { file, error: downloadError } = await downloadAsFile(
+      row.file_url,
+      ctx.accessToken,
+      name,
+    );
+    return {
+      files: file ? [file] : [],
+      errors: downloadError ? [downloadError] : [],
+      alreadyAttached: 0,
+    };
   }
 
-  return { files: [], alreadyAttached: 0 };
+  return { files: [], errors: [], alreadyAttached: 0 };
 }
 
 /**
@@ -222,18 +283,46 @@ function missingDocLabel(descriptor: UploadPageDescriptor): string {
  * instead of a near-silent "No file resolved" — the "No …" prefix is what the
  * debug panel highlights (see engine/logger.applyLineStyle), so it reads as a
  * warning, not a quiet skip (SOF-892).
+ *
+ * A FAILED read/download is reported as itself, never as "no document on file".
+ * Those two need opposite remedies: one is ours to fix, the other is the firm's.
+ *
+ * NEVER THROWS — see the module header. A rejection here propagates through
+ * fillAll and kills the whole walk with no log line.
  */
 export async function fillUploadPage(
   descriptor: UploadPageDescriptor,
   ctx: ResolveContext,
 ): Promise<{ attached: number; alreadyAttached: number; warnings: string[] }> {
-  const docs = descriptor.kind === "document" ? await fetchDocuments(ctx) : [];
-  const { files, alreadyAttached } = await resolveFilesFor(descriptor, docs, ctx);
+  let docs: DocRow[] = [];
+  if (descriptor.kind === "document") {
+    const listed = await fetchDocuments(ctx);
+    if (listed.error) {
+      return {
+        attached: 0,
+        alreadyAttached: 0,
+        warnings: [`Could not attach to ${descriptor.page_path} — ${listed.error}`],
+      };
+    }
+    docs = listed.rows;
+  }
+
+  const { files, errors, alreadyAttached } = await resolveFilesFor(descriptor, docs, ctx);
   if (files.length === 0) {
-    // Nothing to attach for two very different reasons. Everything already on the
-    // page is the SUCCESS case (a re-run, a back/forward, or the SPA re-firing the
-    // hook) and must not be dressed up as a missing document — that warning tells
-    // the user to go upload a file they already uploaded.
+    // Nothing to attach, for three very different reasons — and they need
+    // opposite remedies, so they must never collapse into one message.
+    // A FAILED read/download is ours to fix and comes first.
+    if (errors.length > 0) {
+      return {
+        attached: 0,
+        alreadyAttached,
+        warnings: errors.map((e) => `Could not attach to ${descriptor.page_path} — ${e}`),
+      };
+    }
+    // Everything already on the page is the SUCCESS case (a re-run, a
+    // back/forward, or the SPA re-firing the hook) and must not be dressed up as
+    // a missing document — that warning tells the user to go upload a file they
+    // already uploaded.
     if (alreadyAttached > 0) {
       dbg(
         `doc-flow: ${descriptor.page_path} already has all ${alreadyAttached} ` +
@@ -250,10 +339,16 @@ export async function fillUploadPage(
       ],
     };
   }
+  // Some files resolved and some failed: attach what we have, but say so.
+  // resolveFilesFor already dropped the already-attached ones, so attachFiles'
+  // own count is 0 on this path; summing keeps the total right for any other
+  // caller too.
   const result = await attachFiles(files);
-  // resolveFilesFor already dropped the attached ones, so attachFiles' own count
-  // is 0 on this path; summing keeps the total right for any other caller too.
-  return { ...result, alreadyAttached: result.alreadyAttached + alreadyAttached };
+  return {
+    ...result,
+    alreadyAttached: result.alreadyAttached + alreadyAttached,
+    warnings: [...result.warnings, ...errors],
+  };
 }
 
 /** Match a stored upload-page descriptor to the current URL path. */

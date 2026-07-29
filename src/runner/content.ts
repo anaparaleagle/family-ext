@@ -73,24 +73,39 @@ async function loadPayloadFor(config: FormConfig): Promise<LoadedPayload | null>
   return payload;
 }
 
+/**
+ * Resolve + attach the files for one upload page.
+ *
+ * NEVER THROWS. `fillAll` awaits this inside its page loop, and `onFillAll` is
+ * fired as `void onFillAll()` — so an escaping rejection became an unhandled
+ * rejection that ended the walk mid-run with NO log line at all. That is how the
+ * doc-upload CORS failure hid: the debug log simply stopped after the last filled
+ * page. Anything unexpected in here is logged and reported, not thrown.
+ */
 async function handleUploadPage(page: FormPage, payload: LoadedPayload): Promise<void> {
   const descriptor = descriptorForPath(page.slug, payload.uploadPages);
   if (!descriptor) {
     dbg(`upload: no descriptor for ${page.slug}, skipping`);
     return;
   }
-  const result = await fillUploadPage(descriptor, {
-    apiBaseUrl: payload.apiBaseUrl,
-    accessToken: payload.accessToken,
-    caseId: payload.caseId,
-  });
-  // SOF-1005: name the already-attached files too, or a correct re-run reads as
-  // "0 attached" and looks broken.
-  const skipped = result.alreadyAttached
-    ? `, ${result.alreadyAttached} already attached`
-    : "";
-  setStatus(`Upload ${page.slug}: ${result.attached} attached${skipped}`);
-  for (const w of result.warnings) dbg(`upload: ${w}`);
+  try {
+    const result = await fillUploadPage(descriptor, {
+      apiBaseUrl: payload.apiBaseUrl,
+      accessToken: payload.accessToken,
+      caseId: payload.caseId,
+    });
+    // SOF-1005: name the already-attached files too, or a correct re-run reads as
+    // "0 attached" and looks broken.
+    const skipped = result.alreadyAttached
+      ? `, ${result.alreadyAttached} already attached`
+      : "";
+    setStatus(`Upload ${page.slug}: ${result.attached} attached${skipped}`);
+    for (const w of result.warnings) dbg(`upload: ${w}`);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    setStatus(`Upload ${page.slug}: failed`);
+    dbg(`upload: No file attached to ${page.slug} — unexpected error: ${message}`);
+  }
 }
 
 // ── Toolbar UI ──────────────────────────────────────────────────────────────

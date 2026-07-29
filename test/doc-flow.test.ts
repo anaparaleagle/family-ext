@@ -40,43 +40,191 @@ function mountDropzone(): void {
   });
 }
 
+/** Bytes the fake proxy hands back for any DOWNLOAD_FILE. */
+const PDF_BYTES = [37, 80, 68]; // "%PD"
+
+/**
+ * Install a fake service worker.
+ *
+ * `apiResponder` answers API_GET by path; DOWNLOAD_FILE always succeeds unless
+ * `downloadResponder` says otherwise. Everything the runner does must go through
+ * here — see the "never calls fetch directly" test for why that matters.
+ */
+function installProxy(opts: {
+  apiResponder?: (path: string) => unknown;
+  downloadResponder?: (url: string) => unknown;
+} = {}): any {
+  const sendMessage = vi.fn(async (message: any) => {
+    if (message.type === "API_GET") {
+      const responder = opts.apiResponder;
+      if (!responder) return { success: true, status: 200, data: { results: [] } };
+      return responder(message.path);
+    }
+    if (message.type === "DOWNLOAD_FILE") {
+      const responder = opts.downloadResponder;
+      if (responder) return responder(message.url);
+      return { success: true, data: PDF_BYTES, contentType: "application/pdf" };
+    }
+    throw new Error(`unexpected message type ${message.type}`);
+  });
+  (globalThis as any).chrome = { runtime: { sendMessage } };
+  return sendMessage;
+}
+
+/** An API_GET success envelope. */
+function apiOk(results: unknown[]): unknown {
+  return { success: true, status: 200, data: { results } };
+}
+
+let fetchSpy: any;
+
 beforeEach(() => {
   mountDropzone();
-  // Background proxy: return 3 bytes for any DOWNLOAD_FILE message.
-  (globalThis as any).chrome = {
-    runtime: {
-      sendMessage: vi.fn(async () => ({
-        success: true,
-        data: [37, 80, 68], // "%PD"
-        contentType: "application/pdf",
-      })),
-    },
-  };
+  // Any direct fetch from runner code is a BUG (MV3 blocks it cross-origin from
+  // a content script). Install a spy that fails loudly if anything calls it.
+  fetchSpy = vi.fn(async () => {
+    throw new Error("runner code must not call fetch directly");
+  });
+  vi.stubGlobal("fetch", fetchSpy);
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   document.body.innerHTML = "";
+});
+
+describe("doc-flow: transport", () => {
+  // THE REGRESSION THIS FILE EXISTS FOR.
+  //
+  // doc-flow used to `fetch` the family API straight from the content script. A
+  // content script runs at my.uscis.gov's origin and MV3 does not exempt it from
+  // CORS, so the preflight was refused (prod logs 2026-07-27: OPTIONS
+  // /api/v1/documents/ answered 218 bytes with no Access-Control-Allow-* headers,
+  // and the real GET was never sent). The rejected fetch was uncaught and killed
+  // the whole walk. Every API read must go through the service worker.
+  it("reads the documents list via the service worker, never via fetch", async () => {
+    const sendMessage = installProxy({
+      apiResponder: () =>
+        apiOk([
+          {
+            id: "d1",
+            doc_type: "i94",
+            file_url: "http://localhost:8001/media/i94.pdf",
+            filename: "i94.pdf",
+          },
+        ]),
+    });
+
+    const res = await fillUploadPage(
+      { page_path: "/evidence/form-i-94", kind: "document", doc_type: "i94" },
+      CTX,
+    );
+
+    expect(res.attached).toBe(1);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(sendMessage.mock.calls[0][0]).toMatchObject({
+      type: "API_GET",
+      apiBaseUrl: "http://localhost:8001/api/v1",
+      path: "/documents/?case=case-123",
+      accessToken: "tok",
+    });
+  });
+
+  it("warns instead of throwing when the API is unreachable (CORS refusal)", async () => {
+    // What a CORS-refused request looks like coming back from the worker.
+    installProxy({
+      apiResponder: () => ({ success: false, error: "Failed to fetch" }),
+    });
+
+    const promise = fillUploadPage(
+      { page_path: "/evidence/form-i-94", kind: "document", doc_type: "i94" },
+      CTX,
+    );
+    // MUST resolve. A rejection here is what silently ended the walk.
+    await expect(promise).resolves.toBeDefined();
+    const res = await promise;
+    expect(res.attached).toBe(0);
+    expect(res.warnings.join(" ")).toMatch(/could not reach the ParaLeagle API/i);
+  });
+
+  it("does not blame the firm for a failure that is ours to fix", async () => {
+    // A transport failure must NOT say "upload it in ParaLeagle first" — the
+    // document may well be there; the request never arrived.
+    installProxy({ apiResponder: () => ({ success: false, error: "Failed to fetch" }) });
+    const res = await fillUploadPage(
+      { page_path: "/evidence/form-i-94", kind: "document", doc_type: "i94" },
+      CTX,
+    );
+    expect(res.warnings.join(" ")).not.toMatch(/upload it in ParaLeagle first/i);
+  });
+
+  it("resolves (not rejects) when the background worker is gone", async () => {
+    (globalThis as any).chrome = {
+      runtime: {
+        sendMessage: vi.fn(async () => {
+          throw new Error("Receiving end does not exist");
+        }),
+      },
+    };
+    const res = await fillUploadPage(
+      { page_path: "/evidence/form-i-94", kind: "document", doc_type: "i94" },
+      CTX,
+    );
+    expect(res.attached).toBe(0);
+    expect(res.warnings.length).toBeGreaterThan(0);
+  });
+
+  it("names a session expiry on 401 rather than a generic failure", async () => {
+    installProxy({ apiResponder: () => ({ success: false, status: 401, error: "HTTP 401" }) });
+    const res = await fillUploadPage(
+      { page_path: "/evidence/form-i-94", kind: "document", doc_type: "i94" },
+      CTX,
+    );
+    expect(res.warnings.join(" ")).toMatch(/session expired/i);
+  });
+
+  it("reports a blocked download origin as a config problem, not a missing doc", async () => {
+    // Prod file_urls are presigned S3. If the proxy allowlist ever misses the
+    // media origin, the user must not be told the document is absent.
+    installProxy({
+      apiResponder: () =>
+        apiOk([
+          {
+            id: "d1",
+            doc_type: "i94",
+            file_url: "https://some-bucket.s3.eu-west-2.amazonaws.com/x.pdf?X-Amz-Signature=a",
+            filename: "i94.pdf",
+          },
+        ]),
+      downloadResponder: () => ({
+        success: false,
+        error: "Download blocked — https://evil.example is not in the extension's allowlist.",
+      }),
+    });
+    const res = await fillUploadPage(
+      { page_path: "/evidence/form-i-94", kind: "document", doc_type: "i94" },
+      CTX,
+    );
+    expect(res.attached).toBe(0);
+    const warning = res.warnings.join(" ");
+    expect(warning).toMatch(/allowlist/i);
+    expect(warning).not.toMatch(/upload it in ParaLeagle first/i);
+  });
 });
 
 describe("doc-flow: generated_form (I-130A) resolution", () => {
   it("hits GET /forms/generated/?case=<id> and attaches the latest I-130A file", async () => {
-    const fetchMock = vi.fn(async (url: string) => {
-      expect(url).toBe(
-        "http://localhost:8001/api/v1/forms/generated/?case=case-123&form_type=I-130A",
-      );
-      return {
-        ok: true,
-        json: async () => ({
-          results: [
-            { id: "g1", form_type: "I-130A", version: 1, file_url: "http://localhost:8001/media/i130a_v1.pdf" },
-            { id: "g2", form_type: "I-130A", version: 2, file_url: "http://localhost:8001/media/i130a_v2.pdf" },
-            { id: "g3", form_type: "I-130", version: 1, file_url: "http://localhost:8001/media/i130.pdf" },
-          ],
-        }),
-      } as Response;
+    const sendMessage = installProxy({
+      apiResponder: (path) => {
+        expect(path).toBe("/forms/generated/?case=case-123&form_type=I-130A");
+        return apiOk([
+          { id: "g1", form_type: "I-130A", version: 1, file_url: "http://localhost:8001/media/i130a_v1.pdf" },
+          { id: "g2", form_type: "I-130A", version: 2, file_url: "http://localhost:8001/media/i130a_v2.pdf" },
+          { id: "g3", form_type: "I-130", version: 1, file_url: "http://localhost:8001/media/i130.pdf" },
+        ]);
+      },
     });
-    vi.stubGlobal("fetch", fetchMock);
 
     const descriptor: UploadPageDescriptor = {
       page_path: "/evidences/i130a-supplimental-information-for-spouse-beneficiary",
@@ -88,19 +236,18 @@ describe("doc-flow: generated_form (I-130A) resolution", () => {
     expect(res.attached).toBe(1);
 
     // It downloaded the LATEST (version 2) file_url via the proxy, not v1 or the I-130.
-    const sendMessage = (globalThis as any).chrome.runtime.sendMessage as ReturnType<typeof vi.fn>;
-    expect(sendMessage).toHaveBeenCalledTimes(1);
-    expect(sendMessage.mock.calls[0][0]).toMatchObject({
+    const downloads = sendMessage.mock.calls
+      .map((c: any) => c[0])
+      .filter((m: any) => m.type === "DOWNLOAD_FILE");
+    expect(downloads).toHaveLength(1);
+    expect(downloads[0]).toMatchObject({
       type: "DOWNLOAD_FILE",
       url: "http://localhost:8001/media/i130a_v2.pdf",
     });
   });
 
   it("warns (no attach) when no generated form of that type is on file", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({ ok: true, json: async () => ({ results: [] }) }) as Response),
-    );
+    installProxy({ apiResponder: () => apiOk([]) });
     const descriptor: UploadPageDescriptor = {
       page_path: "/evidences/i130a-supplimental-information-for-spouse-beneficiary",
       kind: "generated_form",
@@ -114,21 +261,15 @@ describe("doc-flow: generated_form (I-130A) resolution", () => {
 
 describe("doc-flow: document resolution", () => {
   it("hits GET /documents/?case=<id>, matches doc_type, and attaches", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string) => {
-        expect(url).toBe("http://localhost:8001/api/v1/documents/?case=case-123");
-        return {
-          ok: true,
-          json: async () => ({
-            results: [
-              { id: "d1", doc_type: "marriage_certificate", file_url: "http://localhost:8001/media/marriage.pdf", filename: "marriage.pdf" },
-              { id: "d2", doc_type: "photos", file_url: "http://localhost:8001/media/photo.jpg" },
-            ],
-          }),
-        } as Response;
-      }),
-    );
+    const sendMessage = installProxy({
+      apiResponder: (path) => {
+        expect(path).toBe("/documents/?case=case-123");
+        return apiOk([
+          { id: "d1", doc_type: "marriage_certificate", file_url: "http://localhost:8001/media/marriage.pdf", filename: "marriage.pdf" },
+          { id: "d2", doc_type: "photos", file_url: "http://localhost:8001/media/photo.jpg" },
+        ]);
+      },
+    });
 
     const descriptor: UploadPageDescriptor = {
       page_path: "/evidences/proof-of-marriage",
@@ -137,18 +278,17 @@ describe("doc-flow: document resolution", () => {
     };
     const res = await fillUploadPage(descriptor, CTX);
     expect(res.attached).toBe(1);
-    const sendMessage = (globalThis as any).chrome.runtime.sendMessage as ReturnType<typeof vi.fn>;
-    expect(sendMessage.mock.calls[0][0].url).toBe("http://localhost:8001/media/marriage.pdf");
+    const downloads = sendMessage.mock.calls
+      .map((c: any) => c[0])
+      .filter((m: any) => m.type === "DOWNLOAD_FILE");
+    expect(downloads[0].url).toBe("http://localhost:8001/media/marriage.pdf");
   });
 
   it("warns the user to upload in ParaLeagle when no document matches", async () => {
     // SOF-892: a required evidence page with no matching document was a
     // near-silent no-op ("No file resolved for …"). The warning must instead be
     // user-facing and actionable — name the missing doc and point at ParaLeagle.
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({ ok: true, json: async () => ({ results: [] }) }) as Response),
-    );
+    installProxy({ apiResponder: () => apiOk([]) });
     const descriptor: UploadPageDescriptor = {
       page_path: "/evidence/form-i-94",
       kind: "document",
@@ -163,18 +303,13 @@ describe("doc-flow: document resolution", () => {
   });
 
   it("filters documents by party when the descriptor scopes one", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => ({
-          results: [
-            { id: "p1", doc_type: "photos", party: "PETITIONER", file_url: "http://localhost:8001/media/pet.jpg" },
-            { id: "p2", doc_type: "photos", party: "APPLICANT", file_url: "http://localhost:8001/media/app.jpg" },
-          ],
-        }),
-      }) as Response),
-    );
+    const sendMessage = installProxy({
+      apiResponder: () =>
+        apiOk([
+          { id: "p1", doc_type: "photos", party: "PETITIONER", file_url: "http://localhost:8001/media/pet.jpg" },
+          { id: "p2", doc_type: "photos", party: "APPLICANT", file_url: "http://localhost:8001/media/app.jpg" },
+        ]),
+    });
 
     const descriptor: UploadPageDescriptor = {
       page_path: "/evidences/photo-of-spouse",
@@ -184,8 +319,30 @@ describe("doc-flow: document resolution", () => {
     };
     const res = await fillUploadPage(descriptor, CTX);
     expect(res.attached).toBe(1);
-    const sendMessage = (globalThis as any).chrome.runtime.sendMessage as ReturnType<typeof vi.fn>;
-    expect(sendMessage.mock.calls[0][0].url).toBe("http://localhost:8001/media/app.jpg");
+    const downloads = sendMessage.mock.calls
+      .map((c: any) => c[0])
+      .filter((m: any) => m.type === "DOWNLOAD_FILE");
+    expect(downloads[0].url).toBe("http://localhost:8001/media/app.jpg");
+  });
+
+  it("attaches what resolved and still reports the file that failed", async () => {
+    installProxy({
+      apiResponder: () =>
+        apiOk([
+          { id: "p1", doc_type: "photos", file_url: "http://localhost:8001/media/ok.jpg", filename: "ok.jpg" },
+          { id: "p2", doc_type: "photos", file_url: "http://localhost:8001/media/bad.jpg", filename: "bad.jpg" },
+        ]),
+      downloadResponder: (url) =>
+        url.endsWith("bad.jpg")
+          ? { success: false, error: "HTTP 500" }
+          : { success: true, data: PDF_BYTES, contentType: "image/jpeg" },
+    });
+    const res = await fillUploadPage(
+      { page_path: "/evidences/photo-of-spouse", kind: "document", doc_type: "photos" },
+      CTX,
+    );
+    expect(res.attached).toBe(1);
+    expect(res.warnings.join(" ")).toMatch(/bad\.jpg/);
   });
 });
 
@@ -196,23 +353,21 @@ describe("doc-flow: a document uploads to USCIS exactly once (SOF-1005)", () => 
     doc_type: "marriage_certificate",
   };
 
-  function stubOneDocument(): void {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => ({
-          results: [
-            {
-              id: "d1",
-              doc_type: "marriage_certificate",
-              file_url: "http://localhost:8001/media/marriage.pdf",
-              filename: "marriage.pdf",
-            },
-          ],
-        }),
-      }) as Response),
-    );
+  const MARRIAGE_DOC = {
+    id: "d1",
+    doc_type: "marriage_certificate",
+    file_url: "http://localhost:8001/media/marriage.pdf",
+    filename: "marriage.pdf",
+  };
+
+  /** The documents list read goes through the service worker, not fetch. */
+  function stubOneDocument(): any {
+    return installProxy({ apiResponder: () => apiOk([MARRIAGE_DOC]) });
+  }
+
+  /** How many times the proxy was asked to download bytes (not API reads). */
+  function downloadCount(sendMessage: any): number {
+    return sendMessage.mock.calls.filter((c: any[]) => c[0]?.type === "DOWNLOAD_FILE").length;
   }
 
   it("attaches nothing on a second visit to the same page, and says so", async () => {
@@ -244,13 +399,15 @@ describe("doc-flow: a document uploads to USCIS exactly once (SOF-1005)", () => 
     // Dropping the File before the DataTransfer is built is not enough — the
     // background proxy fetch is the expensive half, so an already-attached file
     // must not be fetched again either.
-    stubOneDocument();
+    const sendMessage = stubOneDocument();
     await fillUploadPage(descriptor, CTX);
-    const sendMessage = (globalThis as any).chrome.runtime.sendMessage as ReturnType<typeof vi.fn>;
-    const downloadsAfterFirst = sendMessage.mock.calls.length;
+    const downloadsAfterFirst = downloadCount(sendMessage);
 
     await fillUploadPage(descriptor, CTX);
-    expect(sendMessage.mock.calls.length).toBe(downloadsAfterFirst);
+    // Counts DOWNLOAD_FILE only. The second visit still reads the documents
+    // list (that is how it learns the filename to compare), so a total
+    // message count would rise for a correct run.
+    expect(downloadCount(sendMessage)).toBe(downloadsAfterFirst);
   });
 
   it("still attaches a genuinely new file when one is already on the page", async () => {
@@ -259,28 +416,19 @@ describe("doc-flow: a document uploads to USCIS exactly once (SOF-1005)", () => 
     stubOneDocument();
     await fillUploadPage(descriptor, CTX);
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => ({
-          results: [
-            {
-              id: "d1",
-              doc_type: "marriage_certificate",
-              file_url: "http://localhost:8001/media/marriage.pdf",
-              filename: "marriage.pdf",
-            },
-            {
-              id: "d2",
-              doc_type: "marriage_certificate",
-              file_url: "http://localhost:8001/media/marriage_page2.pdf",
-              filename: "marriage_page2.pdf",
-            },
-          ],
-        }),
-      }) as Response),
-    );
+    // Same case, now with a second page of the certificate on file.
+    installProxy({
+      apiResponder: () =>
+        apiOk([
+          MARRIAGE_DOC,
+          {
+            id: "d2",
+            doc_type: "marriage_certificate",
+            file_url: "http://localhost:8001/media/marriage_page2.pdf",
+            filename: "marriage_page2.pdf",
+          },
+        ]),
+    });
 
     const res = await fillUploadPage(descriptor, CTX);
     expect(res.attached).toBe(1); // the new one

@@ -507,7 +507,19 @@ export async function fillAll(
       } else {
         visited.add(page.slug);
         if (page.kind === "upload") {
-          await onUploadPage(page);
+          // Belt-and-braces: the caller already guarantees this never throws,
+          // but the walk must survive a bad upload page regardless. An escaping
+          // rejection here ends the run as an unhandled rejection with NO stop
+          // line in the log, which is indistinguishable from a truncated log —
+          // the exact failure that hid the doc-upload CORS bug.
+          try {
+            await onUploadPage(page);
+          } catch (err) {
+            dbg(
+              `fillAll: No file attached to ${page.slug} — upload step errored ` +
+                `(${err instanceof Error ? err.message : String(err)}); continuing`,
+            );
+          }
         } else {
           // Don't fill until the page's inputs have rendered, so a first-paint
           // race doesn't whiff every field with "element not on page".
