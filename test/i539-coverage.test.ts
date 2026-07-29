@@ -10,8 +10,8 @@
 // Nothing may fall between the two. If USCIS adds a field and someone re-captures
 // the dump, this test fails until a human classifies it — which is the point.
 
-import { describe, it, expect } from "vitest";
-import { readdirSync, readFileSync } from "fs";
+import { beforeAll, describe, it, expect } from "vitest";
+import { existsSync, readdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { I539_PAGES, I539_SKIP } from "../src/i539/form-descriptor";
 import { fieldNamesOf } from "../src/runner/types";
@@ -105,11 +105,104 @@ describe("I-539 descriptor <-> live field dump", () => {
   });
 });
 
+// ===========================================================================
+// I-539 descriptor <-> BACKEND VALUE MAP
+//
+// This guard did not exist, and its absence is why three separate bugs shipped:
+// the premium-processing radio (backend sent it, descriptor never drove it), the
+// /evidence/form-I-20 page (backend routed the I-20 to it, descriptor did not
+// declare it so the walk skipped past and the document never uploaded), and the
+// six gating ".none" toggles (backend sends them, descriptor skips them, so
+// Fill-all stalls on a blank A-Number). Every one of those is the SAME shape:
+// an online field or page needs a backend map entry AND a descriptor entry, and
+// neither half works alone.
+//
+// The single entry each of those needed is today's instance. THIS is the fix.
+// ===========================================================================
+
+const BACKEND_MAP = resolve(
+  __dirname,
+  "../../paraleagle-family-backend/family_visa/visa_config/bundles/form_myuscis_definitions.json",
+);
+// Sibling repo — present in the local dev layout, and in CI only when the
+// FAMILY_BACKEND_TOKEN secret is set. Self-skips rather than failing every PR;
+// see the same note in coverage.test.ts.
+const HAVE_BACKEND_MAP = existsSync(BACKEND_MAP);
+
+/**
+ * Every field name and upload page-path the backend can emit for ANY of the
+ * seven I-539 groups. They share one map through `definitions_from` aliases
+ * (resolved the way visa_config/loader.py resolves them), but the union is taken
+ * rather than assumed so a group that ever gets its own map is still covered.
+ */
+function loadBackendI539(): { mapped: string[]; uploadPaths: string[] } {
+  const json = JSON.parse(readFileSync(BACKEND_MAP, "utf-8"));
+  const mapped = new Set<string>();
+  const uploadPaths = new Set<string>();
+  for (const key of Object.keys(json)) {
+    if (!key.startsWith("I-539")) continue;
+    const entry = json[key].definitions_from ? json[json[key].definitions_from] : json[key];
+    const def = entry?.definitions?.["I-539"];
+    if (!def) continue;
+    for (const name of Object.keys(def.field_to_factkey_map ?? {})) mapped.add(name);
+    for (const page of def.upload_pages ?? []) uploadPaths.add(page.page_path);
+  }
+  return { mapped: [...mapped], uploadPaths: [...uploadPaths] };
+}
+
+describe.skipIf(!HAVE_BACKEND_MAP)("I-539 descriptor <-> backend value map", () => {
+  const driven = new Set(fieldNamesOf(I539_PAGES));
+  const skipped = new Set(I539_SKIP);
+  let mapped: string[] = [];
+  let uploadPaths: string[] = [];
+  // Loaded in beforeAll, not the describe body: skipIf still RUNS the body, so an
+  // eager read would throw at collection and take the whole file down.
+  beforeAll(() => {
+    ({ mapped, uploadPaths } = loadBackendI539());
+  });
+
+  it("drives every field name the backend can emit", () => {
+    const missing = mapped.filter((n) => !driven.has(n));
+    expect(missing, `backend emits these but the descriptor never fills them: ${missing.join(", ")}`)
+      .toEqual([]);
+  });
+
+  it("never skips a field the backend sends a value for", () => {
+    // A name in BOTH the backend map and I539_SKIP is a contradiction: the
+    // backend resolves a value and the descriptor throws it away, so USCIS keeps
+    // showing a required error and nothing in the log says why.
+    const thrownAway = mapped.filter((n) => skipped.has(n));
+    expect(
+      thrownAway,
+      `backend sends these but the descriptor skips them: ${thrownAway.join(", ")}`,
+    ).toEqual([]);
+  });
+
+  it("declares an upload page for every evidence slot the backend can route to", () => {
+    // The real guard behind the I-20 bug. A backend slot with no descriptor page
+    // means detectCurrentPage finds nothing, fillAll logs "page not in
+    // descriptor", clicks past it, and the document is silently missing from the
+    // filing. Note /evidence/form-I-20 has a CAPITAL I while its neighbours are
+    // lower-case, and matching is case-sensitive — so this compares exactly.
+    const uploadSlugs = new Set(
+      I539_PAGES.filter((p) => p.kind === "upload").map((p) => p.slug),
+    );
+    const undeclared = uploadPaths.filter((p) => !uploadSlugs.has(p));
+    expect(
+      undeclared,
+      `backend routes documents to these pages but the descriptor has no upload page: ${undeclared.join(", ")}`,
+    ).toEqual([]);
+  });
+});
+
 describe("I-539 descriptor shape", () => {
-  it("marks the three evidence pages as upload-only", () => {
+  it("marks every evidence page as upload-only, in sidebar order", () => {
     const uploads = I539_PAGES.filter((p) => p.kind === "upload");
     expect(uploads.map((p) => p.slug)).toEqual([
       "/evidence/form-i-94",
+      // Sits between the I-94 and the written statement on the live sidebar
+      // (confirmed on the 2026-07-17 and 2026-07-28 runs).
+      "/evidence/form-I-20",
       "/evidence/written-statement",
       "/evidence/additional-evidence",
     ]);

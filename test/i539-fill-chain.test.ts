@@ -354,3 +354,143 @@ describe("I-539 additional-information repeater", () => {
     expect(count).toBe(1);
   });
 });
+
+// ===========================================================================
+// CONDITIONAL REVEALS
+//
+// Nine fields never filled on the 2026-07-28 live run, in two clusters, and both
+// clusters were the same shape: the walk typed into inputs that only exist after
+// a yes/no answer is set. `cond(...)` marked them conditional but never said
+// WHICH answer reveals them, so the chain could not order the answer first, could
+// not wait for the block, and could not tell a legitimate absence from a bug.
+//
+// These lock the three behaviours that fixes: order the revealer first however
+// deep the chain, do not attempt a field whose reveal the payload cannot satisfy,
+// and keep a genuinely broken reveal loud.
+// ===========================================================================
+
+describe("I-539 conditional reveals", () => {
+  const reason = page("/getting-started/reason-for-request");
+  const APPLICATION_TYPE = "gettingStarted.reasonForRequest.applicationType";
+  const CHANGE_TARGET = "gettingStarted.reasonForRequest.statusInfo.changeOfStatus";
+  const PREMIUM = "formikFactoryUIMeta.gettingStarted.reasonForRequest.premiumProcessing";
+
+  it("sets the revealing answer before the fields it reveals", () => {
+    const plan = planPageFill(reason, {
+      [APPLICATION_TYPE]: "changeOfStatus",
+      [CHANGE_TARGET]: "Spouse Or Child Of F 1.",
+      "gettingStarted.reasonForRequest.statusInfo.dateOfChange": "09/01/2026",
+    });
+    const names = plan.map((p) => p.spec.name);
+    expect(names.indexOf(APPLICATION_TYPE)).toBeLessThan(names.indexOf(CHANGE_TARGET));
+    expect(names.indexOf(APPLICATION_TYPE)).toBeLessThan(
+      names.indexOf("gettingStarted.reasonForRequest.statusInfo.dateOfChange"),
+    );
+  });
+
+  // THE ORDERING BUG, precisely. The premium question is a RADIO revealed by a
+  // SEARCH field. The old rule was "radios first, because radios may reveal
+  // things", which drove premium before the change-to target existed — so it
+  // failed on every single run. Reveal depth has to outrank field kind.
+  it("sets a radio AFTER the search field that reveals it", () => {
+    const plan = planPageFill(reason, {
+      [APPLICATION_TYPE]: "changeOfStatus",
+      [CHANGE_TARGET]: "Spouse Or Child Of F 1.",
+      [PREMIUM]: "true",
+    });
+    const names = plan.map((p) => p.spec.name);
+    expect(names.indexOf(CHANGE_TARGET)).toBeLessThan(names.indexOf(PREMIUM));
+    // And the whole two-stage chain resolves in order.
+    expect(names.indexOf(APPLICATION_TYPE)).toBeLessThan(names.indexOf(CHANGE_TARGET));
+  });
+
+  it("does not attempt a field whose revealing question was never answered", () => {
+    // We hold a premium answer but nothing set the change-to target, so USCIS
+    // never renders the radio. Attempting it produced "element not on page" and
+    // counted as a FAILURE, which reads as a bug when there is nothing to do.
+    const plan = planPageFill(reason, {
+      [APPLICATION_TYPE]: "extensionOfStay",
+      [PREMIUM]: "true",
+    });
+    expect(plan.map((p) => p.spec.name)).not.toContain(PREMIUM);
+  });
+
+  it("does not attempt a field whose revealing answer is the non-revealing one", () => {
+    // "extensionOfStay" is a real answer, just not the one that opens the
+    // change-of-status block.
+    const plan = planPageFill(reason, {
+      [APPLICATION_TYPE]: "extensionOfStay",
+      [CHANGE_TARGET]: "Spouse Or Child Of F 1.",
+    });
+    expect(plan.map((p) => p.spec.name)).not.toContain(CHANGE_TARGET);
+  });
+
+  it("accepts any of several revealing answers", () => {
+    // The principal's-petition block opens on EITHER yes-variant, and stays shut
+    // on "no". One reveal, three answers.
+    const infoRequest = page("/your-application/information-about-request");
+    const SEPARATE =
+      "yourApplication.informationAboutRequest.informationAboutRequestPage1.basedOnSeparateFamilyPetition";
+    const RECEIPT =
+      "yourApplication.informationAboutRequest.informationAboutRequestPage1.separatePetitionReceiptNumber.receiptNumber";
+
+    for (const answer of ["filedWithThisI539", "filedPreviouslyAndPending"]) {
+      const plan = planPageFill(infoRequest, { [SEPARATE]: answer, [RECEIPT]: "EAC1234567890" });
+      expect(plan.map((p) => p.spec.name), answer).toContain(RECEIPT);
+    }
+    const shut = planPageFill(infoRequest, { [SEPARATE]: "no", [RECEIPT]: "EAC1234567890" });
+    expect(shut.map((p) => p.spec.name)).not.toContain(RECEIPT);
+  });
+
+  // Cluster B as it actually happened: four values held, no answer to the
+  // question that opens the block. The page reported 0/4 filled. It must now
+  // report nothing attempted, not four failures.
+  it("plans nothing from the principal-petition block when the question is unanswered", () => {
+    const plan = planPageFill(page("/your-application/information-about-request"), {
+      "yourApplication.informationAboutRequest.informationAboutRequestPage1.separatePetitionReceiptNumber.receiptNumber":
+        "EAC1234567890",
+      "yourApplication.informationAboutRequest.informationAboutRequestPage1.fullName.firstName": "Ravi",
+      "yourApplication.informationAboutRequest.informationAboutRequestPage1.fullName.lastName": "Kumar",
+      "yourApplication.informationAboutRequest.informationAboutRequestPage1.dateFiled": "01/15/2026",
+    });
+    expect(plan).toEqual([]);
+  });
+
+  // Cluster A as it actually happened: five address values held, and the radio
+  // that opens the block absent from the payload entirely (the backend map can
+  // only emit "true" or blank for it, never "false").
+  it("plans nothing from the physical-address block when the mailing question is unanswered", () => {
+    const plan = planPageFill(page("/about-you/your-contact-information"), {
+      "applicant.yourContactInformation.physicalAddresses.addressLineOne": "12 Oak St",
+      "applicant.yourContactInformation.physicalAddresses.city": "Austin",
+      "applicant.yourContactInformation.physicalAddresses.state": "Texas",
+      "applicant.yourContactInformation.physicalAddresses.zipCode": "78701",
+    });
+    expect(plan).toEqual([]);
+  });
+
+  it("fills the physical-address block once the mailing question says they differ", () => {
+    const plan = planPageFill(page("/about-you/your-contact-information"), {
+      "applicant.yourContactInformation.isMailingEqualToPhysical": "false",
+      "applicant.yourContactInformation.physicalAddresses.addressLineOne": "12 Oak St",
+      "applicant.yourContactInformation.physicalAddresses.city": "Austin",
+    });
+    const names = plan.map((p) => p.spec.name);
+    expect(names).toContain("applicant.yourContactInformation.physicalAddresses.addressLineOne");
+    expect(names.indexOf("applicant.yourContactInformation.isMailingEqualToPhysical")).toBeLessThan(
+      names.indexOf("applicant.yourContactInformation.physicalAddresses.addressLineOne"),
+    );
+  });
+
+  it("marks a revealing field so the DOM pass knows to wait for the block", () => {
+    const plan = planPageFill(reason, {
+      [APPLICATION_TYPE]: "changeOfStatus",
+      [CHANGE_TARGET]: "Spouse Or Child Of F 1.",
+    });
+    const revealer = plan.find((p) => p.spec.name === APPLICATION_TYPE);
+    expect(revealer?.reveals).toBe(true);
+    // And the revealed field carries what revealed it, so a failure can say why.
+    const revealed = plan.find((p) => p.spec.name === CHANGE_TARGET);
+    expect(revealed?.revealedBy?.by).toBe(APPLICATION_TYPE);
+  });
+});

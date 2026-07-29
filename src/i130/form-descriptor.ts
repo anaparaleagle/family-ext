@@ -149,8 +149,17 @@ export const I130_PAGES: FormPage[] = [
       radio("applicant.additionalInformation.immigrationStatus", ["4", "11"]),
       radio("applicant.additionalInformation.gainedLPROrCitizenzhipThroughAdoption", ["true", "false"]),
       t("applicant.additionalInformation.alienNumber.number"),
+      // Gating "I do not have this number" checkboxes. USCIS wants the number OR
+      // the tick, never neither, and Next stays disabled until one of them is
+      // set — so a petitioner with no A-Number stalled a Fill-all here until a
+      // human ticked the box. The backend ticks each when its number fact is
+      // blank (petitioner facts, on the online applicant.* side — the I-130
+      // inversion). Same fix as the I-539's six gates.
+      check("formikFactoryUIMeta.applicant.additionalInformation.alienNumber.none"),
       t("applicant.additionalInformation.uscisNumber.number"),
+      check("formikFactoryUIMeta.applicant.additionalInformation.uscisNumber.none"),
       t("applicant.additionalInformation.socialSecurityNumber.number"),
+      check("formikFactoryUIMeta.applicant.additionalInformation.socialSecurityNumber.none"),
       t("applicant.additionalInformation.dateOfBirth"),
       search("applicant.additionalInformation.cityCountryNonUS.country"),
       t("applicant.additionalInformation.cityCountryNonUS.city"),
@@ -322,8 +331,14 @@ export const I130_PAGES: FormPage[] = [
     kind: "form",
     fields: [
       t("beneficiary.additionalInformation.alienNumber.number"),
+      // Same three gates on the relative's side (applicant facts, on the online
+      // beneficiary.* side). A relative with no A-Number is the COMMON case, so
+      // this page stalled on most filings.
+      check("formikFactoryUIMeta.beneficiary.additionalInformation.alienNumber.none"),
       t("beneficiary.additionalInformation.uscisNumber.number"),
+      check("formikFactoryUIMeta.beneficiary.additionalInformation.uscisNumber.none"),
       t("beneficiary.additionalInformation.socialSecurityNumber.number"),
+      check("formikFactoryUIMeta.beneficiary.additionalInformation.socialSecurityNumber.none"),
       t("beneficiary.additionalInformation.dateOfBirth"),
       search("beneficiary.additionalInformation.cityCountryNonUS.country"),
       t("beneficiary.additionalInformation.cityCountryNonUS.city"),

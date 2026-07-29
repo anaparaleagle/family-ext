@@ -14,7 +14,7 @@
 import { setValue, findByName } from "../engine/value-setter";
 import { FieldSpec, SetResult } from "../engine/types";
 import { dbg } from "../engine/logger";
-import { DescriptorField, FormConfig, FormPage, RepeaterSpec } from "./types";
+import { DescriptorField, FormConfig, FormPage, RepeaterSpec, RevealSpec } from "./types";
 import { detectCurrentPage } from "./section-detector";
 
 export interface PlannedField {
@@ -22,6 +22,15 @@ export interface PlannedField {
   value: string;
   /** Repeater row index (0 for non-repeaters), used to know when to click Add. */
   rowIndex: number;
+  /** The descriptor marked this field `cond(...)` — it may legitimately be absent. */
+  conditional?: boolean;
+  /** Which field/value reveals it, when the descriptor declares that. */
+  revealedBy?: RevealSpec;
+  /**
+   * True when some OTHER field on this page is revealed by this one, so the page
+   * must wait for the revealed block to render after this is set.
+   */
+  reveals?: boolean;
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -48,8 +57,44 @@ export function repeaterRowCount(
   return count;
 }
 
-/** Sort: radios first (may reveal conditional fields), then country/state
- * (search) before other text (they drive cascading lookups), then the rest. */
+/**
+ * How many reveals deep a field sits: 0 when nothing reveals it, else one more
+ * than its revealer. Following the chain is the point — on the reason-for-request
+ * page, choosing "a change of status" reveals the change-to target, and setting
+ * that target reveals the premium-processing radio. Depths 0, 1, 2, filled in
+ * that order.
+ *
+ * A revealedBy pointing at a field that is not planned (no payload value) counts
+ * as depth 1: it still sorts after everything unconditional, and the skip check
+ * in fillPage is what decides not to attempt it.
+ *
+ * Defends against a cyclic or self-referential declaration by capping the walk —
+ * a descriptor typo must not hang the fill.
+ */
+function revealDepth(p: PlannedField, byName: Map<string, PlannedField>): number {
+  let depth = 0;
+  let seen = p;
+  const visited = new Set<string>([p.spec.name]);
+  while (seen.revealedBy) {
+    depth += 1;
+    const parent = byName.get(seen.revealedBy.by);
+    if (!parent || visited.has(parent.spec.name) || depth > 10) break;
+    visited.add(parent.spec.name);
+    seen = parent;
+  }
+  return depth;
+}
+
+/**
+ * Sort so a field that REVEALS others is set before them, then radios (which may
+ * reveal a block the descriptor has not pinned down), then country/state (search)
+ * before other text (they drive cascading lookups), then the rest.
+ *
+ * Reveal depth outranks kind deliberately. "Radios first" was the old proxy for
+ * "reveals first", and it is too coarse in both directions: the premium radio is
+ * revealed BY a search field, so radios-first attempted it before the thing that
+ * makes it exist, and it failed every run.
+ */
 function orderFields(planned: PlannedField[]): PlannedField[] {
   const rank = (p: PlannedField): number => {
     if (p.spec.kind === "radio") return 0;
@@ -58,15 +103,45 @@ function orderFields(planned: PlannedField[]): PlannedField[] {
     if (n.includes("state") || n.includes("province")) return 2;
     return 3;
   };
-  // Stable sort by (rowIndex, rank) so row 0 fully precedes row 1, and within a
-  // row radios/country/state lead.
-  return [...planned].sort((a, b) => a.rowIndex - b.rowIndex || rank(a) - rank(b));
+  const byName = new Map(planned.map((p) => [p.spec.name, p]));
+  const depth = new Map(planned.map((p) => [p.spec.name, revealDepth(p, byName)]));
+  // Stable sort by (rowIndex, reveal depth, rank) so row 0 fully precedes row 1,
+  // revealers precede what they reveal, and within one depth radios/country/state
+  // still lead.
+  return [...planned].sort(
+    (a, b) =>
+      a.rowIndex - b.rowIndex ||
+      (depth.get(a.spec.name) ?? 0) - (depth.get(b.spec.name) ?? 0) ||
+      rank(a) - rank(b),
+  );
+}
+
+/**
+ * True when the payload cannot satisfy this field's declared reveal, so myUSCIS
+ * will never render it and there is nothing to attempt.
+ *
+ * Two ways to fail: the revealing field has no value at all (the question was
+ * never answered), or it has one that is not a revealing answer (answering "no"
+ * to the separate-petition question keeps the receipt-number block shut).
+ */
+function revealUnsatisfied(reveal: RevealSpec, fieldValues: Record<string, string>): boolean {
+  const answer = fieldValues[reveal.by];
+  if (answer === undefined || answer === "") return true;
+  if (reveal.is === undefined) return false; // any non-blank answer reveals it
+  const accepted = Array.isArray(reveal.is) ? reveal.is : [reveal.is];
+  return !accepted.includes(answer);
 }
 
 /**
  * Build the ordered fill plan for a page from the descriptor + payload. Pure:
  * no DOM. For repeaters it expands {i} for each row the payload supplies.
  * A field with no payload value (or "" for non-checkboxes) is omitted.
+ *
+ * A conditional field whose declared reveal the payload cannot satisfy is omitted
+ * too. It is NOT a failure and must not be reported as one: we hold a value for
+ * it but no way to make USCIS show the input, so the honest plan is not to try.
+ * That is how the principal-petition block used to read as "0/4 filled" —
+ * four values, no answer to the question that opens the block.
  */
 export function planPageFill(
   page: FormPage,
@@ -81,7 +156,20 @@ export function planPageFill(
     // Empty string fills nothing except a checkbox (where "" => leave unchecked,
     // which is the default — so we skip it too; checkboxes only act when truthy).
     if (value === "") return;
-    out.push({ spec: { name, kind: field.kind, optionValue: field.options ? value : undefined }, value, rowIndex });
+    if (field.revealedBy && revealUnsatisfied(field.revealedBy, fieldValues)) {
+      dbg(
+        `fill: not attempting ${name} — nothing answered ` +
+          `"${field.revealedBy.by}", so USCIS never shows this field`,
+      );
+      return;
+    }
+    out.push({
+      spec: { name, kind: field.kind, optionValue: field.options ? value : undefined },
+      value,
+      rowIndex,
+      conditional: field.conditional,
+      revealedBy: field.revealedBy,
+    });
   };
 
   if (page.repeater) {
@@ -103,6 +191,11 @@ export function planPageFill(
     for (const field of page.fields) collect(field, 0);
   }
 
+  // Flag the fields that OTHERS depend on, so fillPage knows to wait for a block
+  // to render after setting one instead of guessing with a fixed sleep.
+  const revealers = new Set(out.map((p) => p.revealedBy?.by).filter(Boolean) as string[]);
+  for (const p of out) if (revealers.has(p.spec.name)) p.reveals = true;
+
   return orderFields(out);
 }
 
@@ -110,15 +203,45 @@ export function planPageFill(
 
 export interface PageFillResult {
   slug: string;
+  /** Fields actually attempted (excludes conditionals the page never revealed). */
   total: number;
   filled: number;
   failed: number;
+  /**
+   * Conditional fields that were not on the page — a legitimate non-reveal, not a
+   * failure. Reported separately so a page reads as "12/12 filled (2 not shown)"
+   * rather than "12/14", which looks broken.
+   */
+  skipped: number;
   results: SetResult[];
+}
+
+/** How long to wait for a revealed block to render after its answer is set. */
+const REVEAL_RENDER_TIMEOUT_MS = 4000;
+
+/**
+ * Wait for a field that should have just been revealed to appear in the DOM.
+ * Returns true as soon as it does.
+ *
+ * This replaces a flat sleep for declared reveals: it returns the instant the
+ * block renders (usually far quicker than the old 800ms) and still gives a slow
+ * React commit real time. It is NOT a retry — a missing element after the full
+ * window is reported as a failure, because a declared reveal that was driven and
+ * still produced nothing is a genuine bug, not slowness.
+ */
+async function waitForRevealed(spec: FieldSpec, timeoutMs = REVEAL_RENDER_TIMEOUT_MS): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    if (findByName(spec.name, spec.optionValue) !== null) return true;
+    if (Date.now() >= deadline) return false;
+    await sleep(150);
+  }
 }
 
 /**
  * Fill the current page. For repeaters, clicks "Add" to render each row before
- * filling it. Radios fill first. Returns a per-field result summary.
+ * filling it. Fields that reveal other fields go first (see orderFields).
+ * Returns a per-field result summary.
  */
 export async function fillPage(
   page: FormPage,
@@ -140,15 +263,48 @@ export async function fillPage(
   }
 
   let lastWasRadio = false;
+  let skipped = 0;
   for (const p of plan) {
     if (lastWasRadio && p.spec.kind !== "radio") {
       // A radio may have revealed conditional fields; let React settle.
       await sleep(800);
     }
+
+    if (p.revealedBy) {
+      // Its reveal WAS driven (planPageFill dropped it otherwise), so wait for the
+      // block to render rather than racing it. If it never renders, fall through
+      // and let setValue report the failure — loudly. A driven reveal that shows
+      // nothing is a broken descriptor or a changed form, and silence there is
+      // exactly what let the premium radio and the address block sit unfilled.
+      const appeared = await waitForRevealed(p.spec);
+      if (!appeared) {
+        dbg(
+          `fill: ${p.spec.name} did not appear after setting "${p.revealedBy.by}" — ` +
+            `the reveal is wrong or the form changed`,
+        );
+      }
+    } else if (p.conditional && findByName(p.spec.name, p.spec.optionValue) === null) {
+      // Conditional with NO declared reveal: all we can do is look. Absent means a
+      // legitimate non-reveal (this branch hides the block), so skip it quietly
+      // instead of counting a failure. Probed AFTER the radio-settle above so a
+      // field a same-page radio just revealed is seen as present.
+      skipped++;
+      dbg(`fill: skip ${p.spec.name} — conditional field not shown on this page`);
+      lastWasRadio = false;
+      continue;
+    }
+
     const res = await setValue(p.spec, p.value);
     results.push(res);
     if (!res.success) dbg(`fill: FAIL ${p.spec.name} — ${res.message}`);
     lastWasRadio = p.spec.kind === "radio" && res.success;
+
+    // This answer opens a block below it. Give the block a chance to mount before
+    // the next field is looked up — the wait ends as soon as it renders.
+    if (p.reveals && res.success) {
+      const revealed = plan.find((q) => q.revealedBy?.by === p.spec.name);
+      if (revealed) await waitForRevealed(revealed.spec);
+    }
 
     // After country/state autocomplete, wait for dependent lookups.
     const n = p.spec.name.toLowerCase();
@@ -163,6 +319,7 @@ export async function fillPage(
     total: results.length,
     filled,
     failed: results.length - filled,
+    skipped,
     results,
   };
 }
@@ -526,7 +683,10 @@ export async function fillAll(
           await waitForPageReady(page, fieldValues);
           const res = await fillPage(page, fieldValues);
           summaries.push(res);
-          dbg(`fillAll: ${page.slug} — ${res.filled}/${res.total} filled`);
+          dbg(
+            `fillAll: ${page.slug} — ${res.filled}/${res.total} filled` +
+              (res.skipped ? ` (${res.skipped} conditional not shown)` : ""),
+          );
         }
       }
     }

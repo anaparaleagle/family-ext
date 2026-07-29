@@ -14,6 +14,25 @@
 
 import { FieldKind } from "../engine/types";
 
+/**
+ * What makes a conditional field render.
+ *
+ * Marking a field `conditional` says "this may legitimately be absent". Saying
+ * WHICH answer reveals it is what lets the fill-chain do something useful:
+ * drive that answer first, wait for the block to render, and tell a genuine
+ * non-reveal apart from a real failure.
+ */
+export interface RevealSpec {
+  /** The field whose answer reveals this one. */
+  by: string;
+  /**
+   * The value(s) of `by` that reveal it. Omit when ANY non-blank answer does
+   * (e.g. the premium radio appears once a change-to target is chosen, whichever
+   * status that is).
+   */
+  is?: string | string[];
+}
+
 export interface DescriptorField {
   /** Formik `[name]` — matches the backend payload key exactly. */
   name: string;
@@ -22,12 +41,23 @@ export interface DescriptorField {
   options?: string[];
   /**
    * True when the input only renders after an upstream answer reveals it (a
-   * conditional reveal). The fill-chain does not treat these specially — the
-   * value-setter reports "element not on page" and moves on — but marking them
-   * keeps the descriptor honest about what a happy-path page actually shows,
-   * and lets the audit explain a legitimate absence.
+   * conditional reveal). On its own this only means "a legitimate absence is
+   * possible" — the fill-chain probes for the element and skips quietly rather
+   * than reporting a failure.
    */
   conditional?: boolean;
+  /**
+   * WHICH answer reveals this field. When present the fill-chain:
+   *   - orders `by` before this field, however deep the chain (radios-first is
+   *     too coarse — the premium radio is revealed by a SEARCH field);
+   *   - waits for this field's input to actually render after `by` is set,
+   *     instead of a fixed sleep;
+   *   - skips this field when the payload has no value for `by` (we could never
+   *     have revealed it, so there is nothing to do and nothing to report);
+   *   - keeps a genuine FAILURE loud when `by` WAS driven and the field still
+   *     did not appear — that is a broken reveal, not an absent one.
+   */
+  revealedBy?: RevealSpec;
 }
 
 export interface RepeaterSpec {
@@ -93,8 +123,18 @@ export const radio = (name: string, options: string[]): DescriptorField => ({
 export const check = (name: string): DescriptorField => ({ name, kind: "checkbox" });
 export const area = (name: string): DescriptorField => ({ name, kind: "textarea" });
 
-/** Same as the helpers above, but marks the field as a conditional reveal. */
-export const cond = (field: DescriptorField): DescriptorField => ({ ...field, conditional: true });
+/**
+ * Same as the helpers above, but marks the field as a conditional reveal.
+ *
+ * Pass `revealedBy` whenever it is known — without it the chain can only probe
+ * and shrug, so a field whose reveal we DO drive will still be attempted in the
+ * wrong order and fail. With it, the chain drives the reveal first.
+ */
+export const cond = (field: DescriptorField, revealedBy?: RevealSpec): DescriptorField => ({
+  ...field,
+  conditional: true,
+  ...(revealedBy ? { revealedBy } : {}),
+});
 
 /**
  * Every distinct fillable field name a descriptor drives (repeater `{i}`

@@ -9,6 +9,7 @@ import {
 import { I130_PAGES } from "../src/i130/form-descriptor";
 import { findByName } from "../src/engine/value-setter";
 import { setBody, textInput, radioGroup, addButton } from "./fixtures/dom";
+import { cond, radio, t, FormPage } from "../src/runner/types";
 
 function page(slug: string) {
   const p = I130_PAGES.find((x) => x.slug === slug);
@@ -212,4 +213,107 @@ describe("fillPage (DOM)", () => {
     expect(res.filled).toBe(2);
     expect((findByName("applicant.yourAddressHistory.1.address.city") as HTMLInputElement).value).toBe("Dallas");
   });
+});
+
+// ===========================================================================
+// CONDITIONAL FIELDS ON THE PAGE ITSELF
+//
+// Three outcomes that must stay distinct, because they need opposite responses:
+//   - conditional, no declared reveal, not on the page  -> skip quietly
+//   - conditional, reveal WAS driven, still not there   -> a real failure
+//   - not conditional, not on the page                  -> a real failure
+//
+// Collapsing the first into a failure is what made a correct run read as broken
+// (five address fields "FAIL element not on page" on a case where the block was
+// legitimately shut). Collapsing the second into a skip would have HIDDEN the
+// premium radio and the address bug — the block genuinely should have been there.
+// ===========================================================================
+
+describe("fillPage — conditional fields", () => {
+  beforeEach(() => setBody(""));
+
+  const contactPage: FormPage = {
+    slug: "/synthetic/contact",
+    title: "Contact",
+    kind: "form",
+    fields: [
+      t("applicant.mailingAddress.city"),
+      cond(t("applicant.physicalAddress.city")),
+      cond(t("applicant.physicalAddress.zipCode")),
+    ],
+  };
+
+  it("skips an undeclared conditional that is not on the page, without failing it", async () => {
+    setBody(textInput("applicant.mailingAddress.city"));
+    const res = await fillPage(contactPage, {
+      "applicant.mailingAddress.city": "Austin",
+      "applicant.physicalAddress.city": "Austin",
+      "applicant.physicalAddress.zipCode": "78701",
+    });
+    expect(res.filled).toBe(1);
+    expect(res.failed).toBe(0); // the two hidden conditionals are NOT failures
+    expect(res.skipped).toBe(2);
+    expect(res.total).toBe(1); // only the shown field is counted
+  });
+
+  it("fills a conditional field once it IS revealed", async () => {
+    setBody(
+      textInput("applicant.mailingAddress.city") + textInput("applicant.physicalAddress.city"),
+    );
+    const res = await fillPage(contactPage, {
+      "applicant.mailingAddress.city": "Austin",
+      "applicant.physicalAddress.city": "Dallas",
+      "applicant.physicalAddress.zipCode": "78701", // still hidden -> skipped
+    });
+    expect(res.filled).toBe(2);
+    expect(res.skipped).toBe(1);
+    expect(res.failed).toBe(0);
+  });
+
+  it("still counts a NON-conditional absent field as a failure", async () => {
+    setBody(textInput("applicant.mailingAddress.city"));
+    const plainPage: FormPage = {
+      slug: "/synthetic/plain",
+      title: "Plain",
+      kind: "form",
+      fields: [t("applicant.mailingAddress.city"), t("applicant.mailingAddress.state")],
+    };
+    const res = await fillPage(plainPage, {
+      "applicant.mailingAddress.city": "Austin",
+      "applicant.mailingAddress.state": "TX", // element not on page -> a real FAIL
+    });
+    expect(res.filled).toBe(1);
+    expect(res.failed).toBe(1);
+    expect(res.skipped).toBe(0);
+  });
+
+  // The one that must stay LOUD. We answered the question that opens the block,
+  // and the input still is not there — the descriptor is wrong or USCIS changed
+  // the form. Reporting that as a quiet skip is how nine unfilled fields went
+  // unnoticed for weeks.
+  it("FAILS a declared-reveal field that never appears, rather than skipping it", async () => {
+    const declaredPage: FormPage = {
+      slug: "/synthetic/declared",
+      title: "Declared",
+      kind: "form",
+      fields: [
+        radio("applicant.sameAddress", ["true", "false"]),
+        cond(t("applicant.physicalAddress.city"), { by: "applicant.sameAddress", is: "false" }),
+      ],
+    };
+    // The radio is present and answered "false", but the revealed input is absent.
+    setBody(
+      radioGroup("applicant.sameAddress", [
+        { value: "true", label: "Yes" },
+        { value: "false", label: "No" },
+      ]),
+    );
+    const res = await fillPage(declaredPage, {
+      "applicant.sameAddress": "false",
+      "applicant.physicalAddress.city": "Austin",
+    });
+    expect(res.filled).toBe(1); // the radio
+    expect(res.failed).toBe(1); // the revealed field, loudly
+    expect(res.skipped).toBe(0); // NOT swept under the carpet
+  }, 20000);
 });

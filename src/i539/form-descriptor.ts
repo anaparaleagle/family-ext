@@ -32,8 +32,11 @@
 //    visit. See the entry at the bottom of I539_PAGES for the safety rationale.
 //
 // KNOWN GAPS (honest — do not paper over):
-//  1. The `formikFactoryUIMeta.*` toggles are in I539_SKIP (below), not in any
-//     page's `fields` — see that list for the consequence.
+//  1. The six GATING `formikFactoryUIMeta.*` toggles ("...none" /
+//     "noTravelDocumentNumber" / "noEmail") are now DRIVEN as check(...) fields
+//     from the backend map, so a Fill-all no longer STALLS on a blank A-Number /
+//     SSN / USCIS# / passport / travel-doc / email. The REMAINING
+//     `formikFactoryUIMeta.*` toggles stay in I539_SKIP — the user answers those.
 //
 // Field kinds follow the I-130 precedent + the live lesson from 2026-06-26:
 //  - MUI Autocompletes render as <input type="text"> in a dump but must be
@@ -59,19 +62,28 @@ import { FormPage, area, check, cond, phone, radio, search, t } from "../runner/
  *
  * 1. `formikFactoryUIMeta.*` — UI-only toggles the APPLICANT/user answers, not
  *    FACT data (the I-130 leaves the same class of toggle unmapped). What is left
- *    here are the "I do not have or know my X" checkboxes and the preparer/
- *    interpreter "no business / no mobile / no email" meta. (SOF-892 moved the
- *    preparer REVEAL toggles OUT of this list — see group 2 — because the backend
- *    now drives them from firm data.)
- *    CONSEQUENCE, stated plainly: several of these GATE a required field. If the
- *    applicant genuinely has no A-Number, the online form needs
- *    `...alienNumber.none` CHECKED before Next will enable; we will not check it,
- *    so a Fill-all run stops there until a human ticks the box. That is the
- *    correct trade for now — the backend map does not exist yet, so there is no
- *    resolved value that could decide it. To enable it later, move the toggle
- *    out of this list into its page's `fields` as `check(...)`; the engine's
- *    checkbox setter already handles truthy values. planPageFill only fills
- *    names that appear in a page's `fields`, so skip == permanently unfilled.
+ *    here is the preparer/interpreter "no business / no email" meta plus
+ *    sameAsDaytimePhone. (SOF-892 moved the preparer REVEAL toggles OUT of this
+ *    list — see group 2 — because the backend now drives them from firm data.)
+ *
+ *    HISTORY, because the reasoning was right and then went stale: the six GATING
+ *    "I do not have my X" checkboxes (`...alienNumber.none`,
+ *    `socialSecurityNumber.none`, `uscisNumber.none`, `recentEntry.passport.none`,
+ *    `recentEntry.noTravelDocumentNumber`, `contactInformation.noEmail`) used to
+ *    sit here, on the grounds that "the backend map does not exist yet, so there
+ *    is no resolved value that could decide it". The map DOES exist now and sends
+ *    all six (each a {checkbox, equals:"", on:"true"} entry that ticks the box
+ *    when its backing fact is blank). Leaving them skipped meant a Fill-all
+ *    STALLED: if the applicant genuinely has no A-Number, the online form needs
+ *    `...alienNumber.none` CHECKED before Next enables, so the run stopped there
+ *    until a human ticked the box — and it stopped BEFORE the evidence pages, so
+ *    no document uploaded either. They are now driven as `check(...)` on their
+ *    pages.
+ *
+ *    planPageFill only fills names that appear in a page's `fields`, so anything
+ *    still in this list is permanently left to the user — which is right for what
+ *    remains. The descriptor<->backend guard in test/i539-coverage.test.ts now
+ *    fails if a name is ever in BOTH this list and the backend map again.
  *
  * 2. `gettingStarted.preparer.*` — the firm's own preparer identity. SOF-892:
  *    these are now DRIVEN from the firm's G-28 attorney block (backend map
@@ -95,12 +107,9 @@ export const I539_SKIP: string[] = [
   "formikFactoryUIMeta.gettingStarted.interpreter.contact.noMobilePhone",
   "formikFactoryUIMeta.gettingStarted.interpreter.contact.noEmailAddress",
   "formikFactoryUIMeta.applicant.yourContactInformation.contactInformation.sameAsDaytimePhone",
-  "formikFactoryUIMeta.applicant.yourContactInformation.contactInformation.noEmail",
-  "formikFactoryUIMeta.applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.passport.none",
-  "formikFactoryUIMeta.applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.noTravelDocumentNumber",
-  "formikFactoryUIMeta.applicant.otherInformation.alienNumber.none",
-  "formikFactoryUIMeta.applicant.otherInformation.socialSecurityNumber.none",
-  "formikFactoryUIMeta.applicant.otherInformation.uscisNumber.none",
+  // The six GATING toggles that used to sit here are now DRIVEN as check(...) on
+  // "Your contact information", "Your immigration information" and "Other
+  // information" — see the HISTORY note above.
 
   // 2. Interpreter identity — left to the user.
   //    SOF-892 moved the preparer given/family name, business, daytime phone and
@@ -174,10 +183,44 @@ export const I539_PAGES: FormPage[] = [
         "changeOfStatus",
       ]),
       // Same display-text autocomplete trap as currentNonImmigrantStatus — see
-      // misc/changeOfStatus-target-options.json.
-      cond(search("gettingStarted.reasonForRequest.statusInfo.changeOfStatus")),
-      cond(t("gettingStarted.reasonForRequest.statusInfo.dateOfChange")),
+      // misc/changeOfStatus-target-options.json. Revealed by choosing "a change
+      // of status" (03 -> 03b).
+      cond(search("gettingStarted.reasonForRequest.statusInfo.changeOfStatus"), {
+        by: "gettingStarted.reasonForRequest.applicationType",
+        is: "changeOfStatus",
+      }),
+      cond(t("gettingStarted.reasonForRequest.statusInfo.dateOfChange"), {
+        by: "gettingStarted.reasonForRequest.applicationType",
+        is: "changeOfStatus",
+      }),
       t("gettingStarted.reasonForRequest.requestedDateOfExtension"),
+      // Doc 2.3, a repeated request: "Would you like to request Premium
+      // Processing Service?" was never answered because the descriptor had no
+      // entry for it, even though the backend has been sending the answer from
+      // applicant.want_premium all along. Half-fixed reads as not fixed — the
+      // question stayed blank on USCIS.
+      //
+      // Field name captured live 2026-07-28. Sits directly below
+      // requestedDateOfExtension.
+      //
+      // TWO-STAGE REVEAL, which is why it needs revealedBy and not a bare cond():
+      // picking "a change of status" is not enough — the radio stays out of the
+      // DOM until the change-to TARGET is set, and only premium-eligible targets
+      // (F/M/J) render it at all. So it is revealed by the target, not by the
+      // application type. `is` is omitted deliberately: ANY target may reveal it,
+      // and which ones do is USCIS's business, not ours to hardcode.
+      //
+      // Ordering matters more than it looks: this is a RADIO revealed by a SEARCH
+      // field. The old radios-first rule would drive it before the target existed
+      // and fail every run — see orderFields in fill-chain.ts.
+      //
+      // A blank want_premium leaves the radio UNSET. The backend's i539_yesno
+      // already returns "" for a blank and planPageFill drops empty values, so
+      // there is nothing to add here — and deliberately no default. Guessing "No"
+      // on a premium request is not ours to guess.
+      cond(radio("formikFactoryUIMeta.gettingStarted.reasonForRequest.premiumProcessing", ["true", "false"]), {
+        by: "gettingStarted.reasonForRequest.statusInfo.changeOfStatus",
+      }),
     ],
   },
   {
@@ -260,6 +303,10 @@ export const I539_PAGES: FormPage[] = [
       phone("applicant.yourContactInformation.contactInformation.daytimePhone"),
       phone("applicant.yourContactInformation.contactInformation.mobilePhone"),
       t("applicant.yourContactInformation.contactInformation.emailAddress"),
+      // GATE: USCIS wants the email OR this tick, never neither — a blank
+      // required field holds the page. The backend ticks it when
+      // applicant.email is blank.
+      check("formikFactoryUIMeta.applicant.yourContactInformation.contactInformation.noEmail"),
       t("applicant.yourContactInformation.mailingAddress.inCareOfName"),
       t("applicant.yourContactInformation.mailingAddress.addressLineOne"),
       t("applicant.yourContactInformation.mailingAddress.addressLineTwo"),
@@ -267,11 +314,25 @@ export const I539_PAGES: FormPage[] = [
       search("applicant.yourContactInformation.mailingAddress.state"),
       t("applicant.yourContactInformation.mailingAddress.zipCode"),
       radio("applicant.yourContactInformation.isMailingEqualToPhysical", ["true", "false"]),
-      cond(t("applicant.yourContactInformation.physicalAddresses.addressLineOne")),
-      cond(t("applicant.yourContactInformation.physicalAddresses.addressLineTwo")),
-      cond(t("applicant.yourContactInformation.physicalAddresses.city")),
-      cond(search("applicant.yourContactInformation.physicalAddresses.state")),
-      cond(t("applicant.yourContactInformation.physicalAddresses.zipCode")),
+      // The US physical-address block, revealed by answering "no" to "is your
+      // mailing address the same as your physical address?" (08 -> 08b).
+      //
+      // These five read 5 FAILED on the 2026-07-28 run ("element not on page"),
+      // and NOT because of ordering — the radio was never in the payload at all,
+      // so nothing opened the block. See the backend map note: the entry for
+      // isMailingEqualToPhysical is checkbox-shaped and can only emit "true" or
+      // blank, never "false". Declaring the reveal here means that case now reads
+      // as "not attempted, nothing answered the question" instead of five
+      // failures with no cause attached.
+      ...[
+        t("applicant.yourContactInformation.physicalAddresses.addressLineOne"),
+        t("applicant.yourContactInformation.physicalAddresses.addressLineTwo"),
+        t("applicant.yourContactInformation.physicalAddresses.city"),
+        search("applicant.yourContactInformation.physicalAddresses.state"),
+        t("applicant.yourContactInformation.physicalAddresses.zipCode"),
+      ].map((f) =>
+        cond(f, { by: "applicant.yourContactInformation.isMailingEqualToPhysical", is: "false" }),
+      ),
       search("applicant.yourContactInformation.foreignPhysicalAddress.country"),
       t("applicant.yourContactInformation.foreignPhysicalAddress.addressLineOne"),
       t("applicant.yourContactInformation.foreignPhysicalAddress.addressLineTwo"),
@@ -304,7 +365,17 @@ export const I539_PAGES: FormPage[] = [
       t("applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.dateOfLastArrival"),
       t("applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.i94Number"),
       t("applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.passport.number"),
+      // GATE: passport number OR this tick. Backend ticks it when
+      // applicant.passport_number is blank.
+      check(
+        "formikFactoryUIMeta.applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.passport.none",
+      ),
       t("applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.travelDocumentNumber"),
+      // GATE: travel-document number OR this tick. Most applicants have no
+      // travel document, so this is the common path, not the edge case.
+      check(
+        "formikFactoryUIMeta.applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.noTravelDocumentNumber",
+      ),
       search("applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.countryOfIssuance"),
       t("applicant.yourImmigrationInformation.yourImmigrationInformation1.recentEntry.expirationDate"),
     ],
@@ -333,9 +404,18 @@ export const I539_PAGES: FormPage[] = [
     title: "Other information",
     kind: "form",
     fields: [
+      // Each number is GATED by its own "I do not have or know my X" tick: USCIS
+      // wants the number OR the tick, never neither. Most I-539 applicants have
+      // no A-Number and no USCIS account number, so without these ticks the walk
+      // stalled here on almost every case — and this page sits BEFORE the
+      // evidence pages, so nothing uploaded either. The backend ticks each one
+      // when its backing fact is blank.
       t("applicant.otherInformation.alienNumber.number"),
+      check("formikFactoryUIMeta.applicant.otherInformation.alienNumber.none"),
       t("applicant.otherInformation.socialSecurityNumber.number"),
+      check("formikFactoryUIMeta.applicant.otherInformation.socialSecurityNumber.none"),
       t("applicant.otherInformation.uscisNumber.number"),
+      check("formikFactoryUIMeta.applicant.otherInformation.uscisNumber.none"),
       t("applicant.otherInformation.schoolName"),
       t("applicant.otherInformation.sevisNumber"),
     ],
@@ -435,20 +515,33 @@ export const I539_PAGES: FormPage[] = [
         "yourApplication.informationAboutRequest.informationAboutRequestPage1.basedOnSeparateFamilyPetition",
         ["filedWithThisI539", "no", "filedPreviouslyAndPending"],
       ),
-      cond(
+      // The principal's-petition block. The 17b capture shows all five of these
+      // revealed together by ONE answer — basedOnSeparateFamilyPetition being
+      // anything other than "no". It is NOT a second stage behind selectedFormType.
+      //
+      // Four of these read 0/4 filled on the 2026-07-28 run: we held the
+      // principal's receipt number, name and filing date (they come off the
+      // principal party), but the case had no answer to the question that opens
+      // the block, so the inputs were never in the DOM. With the reveal declared,
+      // that case is now reported as "not attempted" with the reason, and the
+      // fields fill as soon as the questionnaire answer is present.
+      ...[
         radio("yourApplication.informationAboutRequest.informationAboutRequestPage1.selectedFormType", [
           "formI129",
           "formI539",
         ]),
-      ),
-      cond(
         t(
           "yourApplication.informationAboutRequest.informationAboutRequestPage1.separatePetitionReceiptNumber.receiptNumber",
         ),
+        t("yourApplication.informationAboutRequest.informationAboutRequestPage1.fullName.firstName"),
+        t("yourApplication.informationAboutRequest.informationAboutRequestPage1.fullName.lastName"),
+        t("yourApplication.informationAboutRequest.informationAboutRequestPage1.dateFiled"),
+      ].map((f) =>
+        cond(f, {
+          by: "yourApplication.informationAboutRequest.informationAboutRequestPage1.basedOnSeparateFamilyPetition",
+          is: ["filedWithThisI539", "filedPreviouslyAndPending"],
+        }),
       ),
-      cond(t("yourApplication.informationAboutRequest.informationAboutRequestPage1.fullName.firstName")),
-      cond(t("yourApplication.informationAboutRequest.informationAboutRequestPage1.fullName.lastName")),
-      cond(t("yourApplication.informationAboutRequest.informationAboutRequestPage1.dateFiled")),
     ],
   },
   {
@@ -515,6 +608,27 @@ export const I539_PAGES: FormPage[] = [
     // REQUIRED. accept=jpg/jpeg/pdf/tif/tiff, max 12MB/file.
     slug: "/evidence/form-i-94",
     title: "Form I-94",
+    kind: "upload",
+    fields: [],
+  },
+  {
+    // REQUIRED for F/M targets — myUSCIS inserts an I-20 upload page right after
+    // the I-94, and the backend routes doc_type form_i20 to it. PROVEN live on
+    // 2026-07-17 (F-1 COS) and again 2026-07-28 (draft 13352536, F-2), where the
+    // walk logged "page not in descriptor … skipping past it" and the I-20 never
+    // reached USCIS.
+    //
+    // NOTE THE CAPITAL I. Its neighbours are lower-case and page detection is a
+    // case-sensitive path-suffix match, so "form-i-20" would silently never
+    // match and the page would keep being skipped.
+    //
+    // The f1-cos capture (dump 19-evidence-form-i94.json) shows an Evidence
+    // sidebar WITHOUT this slot, which nearly got the page dropped from the
+    // backend feed as a phantom. Two live runs say it is real; the likeliest
+    // explanation is that the captured draft had not answered enough to reveal
+    // it. Worth a note if anyone re-captures.
+    slug: "/evidence/form-I-20",
+    title: "Form I-20",
     kind: "upload",
     fields: [],
   },
