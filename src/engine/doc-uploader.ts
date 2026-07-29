@@ -120,34 +120,71 @@ function findDropzoneRoot(fileInput: HTMLInputElement): HTMLElement | null {
   return closest ?? (fileInput.parentElement as HTMLElement | null);
 }
 
-function removeControls(): HTMLElement[] {
+/** A settled row's action — the upload finished and the file can be removed. */
+const REMOVE_LABELS = new Set(["remove", "delete", "remove file", "delete file"]);
+
+/**
+ * An IN-FLIGHT row's action. myUSCIS offers "Cancel" while an upload is still
+ * running and swaps it for "Remove" once it completes.
+ *
+ * Missing this was a three-way blind spot, all from one omission (2026-07-29,
+ * FAM-0100): the SOF-1005 de-dupe could not see an in-flight row so a second Fill
+ * all sent the same I-20 again and USCIS listed it twice; the "page has files"
+ * count read zero; and the wait-before-Next thought the page was idle, clicked
+ * Next, and tripped USCIS's own "your files have not finished uploading" modal.
+ */
+const IN_FLIGHT_LABELS = new Set(["cancel", "cancel upload", "stop", "stop upload"]);
+
+function controlsMatching(labels: Set<string>): HTMLElement[] {
   const controls = Array.from(
     document.querySelectorAll<HTMLElement>('button, a, [role="button"]'),
   );
-  return controls.filter((c) => {
-    const t = (c.textContent || "").trim().toLowerCase();
-    return t === "remove" || t === "delete" || t === "remove file" || t === "delete file";
-  });
+  return controls.filter((c) => labels.has((c.textContent || "").trim().toLowerCase()));
 }
 
-/** Count per-file Remove/Delete controls — the reliable "page has files" signal. */
+function removeControls(): HTMLElement[] {
+  return controlsMatching(REMOVE_LABELS);
+}
+
+/**
+ * Every per-file row control, settled OR still uploading.
+ *
+ * "Is this file on the page" and "has it finished" are DIFFERENT questions. For
+ * de-duping, a file still uploading is absolutely already on the page — sending it
+ * again is the duplicate we are trying to prevent.
+ */
+function fileRowControls(): HTMLElement[] {
+  return [...removeControls(), ...controlsMatching(IN_FLIGHT_LABELS)];
+}
+
+/** How many uploads myUSCIS is still working on. 0 means the page has settled. */
+export function uploadsInFlight(): number {
+  return controlsMatching(IN_FLIGHT_LABELS).length;
+}
+
+/** Count per-file rows — the reliable "page has files" signal. Counts a row that
+ * is still uploading, because it IS a file on the page. */
 export function countAttachedFileControls(): number {
-  return removeControls().length;
+  return fileRowControls().length;
 }
 
 /**
  * The text of each attached-file row already on the page (SOF-1005).
  *
- * myUSCIS prints an attached file's NAME beside its Remove control, so we anchor
- * on the same Remove controls ``countAttachedFileControls`` already trusts and
- * read the surrounding row's text. We walk up a couple of levels because the
- * name and the button are siblings inside a row wrapper, not parent/child, and we
- * stop well short of <body> so a whole-page text blob can never be mistaken for a
- * filename. Returns raw row text — matching is ``isFilenameAttached``'s job.
+ * myUSCIS prints an attached file's NAME beside its row control, so we anchor on
+ * the same controls ``countAttachedFileControls`` already trusts and read the
+ * surrounding row's text. We walk up a couple of levels because the name and the
+ * button are siblings inside a row wrapper, not parent/child, and we stop well
+ * short of <body> so a whole-page text blob can never be mistaken for a filename.
+ * Returns raw row text — matching is ``isFilenameAttached``'s job.
+ *
+ * Anchors on EVERY row control, including a still-uploading row's "Cancel". A file
+ * mid-upload is already on the page; treating it as absent is what made a second
+ * Fill all send the same I-20 twice.
  */
 export function attachedFileRowTexts(): string[] {
   const texts: string[] = [];
-  for (const control of removeControls()) {
+  for (const control of fileRowControls()) {
     let node: HTMLElement | null = control.parentElement;
     for (let depth = 0; depth < 3 && node && node !== document.body; depth += 1) {
       const text = (node.textContent || "").trim();

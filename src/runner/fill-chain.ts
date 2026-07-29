@@ -16,6 +16,7 @@ import { FieldSpec, SetResult } from "../engine/types";
 import { dbg } from "../engine/logger";
 import { DescriptorField, FormConfig, FormPage, RepeaterSpec, RevealSpec } from "./types";
 import { detectCurrentPage } from "./section-detector";
+import { uploadsInFlight } from "../engine/doc-uploader";
 
 export interface PlannedField {
   spec: FieldSpec;
@@ -406,9 +407,13 @@ const SAVE_COMMIT_TIMEOUT_MS = 8000;
  * uploading server-side (processing runs a few seconds past the point the
  * doc-uploader reports "attached"); give Next much longer to enable. */
 const UPLOAD_NEXT_TIMEOUT_MS = 60000;
-/** Best-effort: how long to wait for an in-progress upload spinner to clear
- * before we even start watching Next. The robust signal is Next enabling. */
-const UPLOAD_SETTLE_TIMEOUT_MS = 8000;
+/** How long to wait for the page's uploads to finish before watching Next.
+ * Raised from 8s: we now wait on a REAL signal (myUSCIS swapping each row's
+ * "Cancel" for "Remove") instead of guessing at spinner CSS classes, and a 10MB
+ * scan genuinely takes longer than 8s to process server-side. Clicking Next early
+ * is what raised USCIS's "your files have not finished uploading" modal on the
+ * 2026-07-29 run. */
+const UPLOAD_SETTLE_TIMEOUT_MS = 45000;
 /** Selectors that signal an active upload/progress indicator in the page body. */
 const UPLOAD_PROGRESS_SELECTOR =
   '[role="progressbar"], progress, [class*="progress" i], [class*="spinner" i], [class*="uploading" i]';
@@ -578,17 +583,52 @@ export async function waitForPageReady(
 }
 
 /**
- * Best-effort wait for an in-progress upload UI to disappear after a batch is
- * attached. The authoritative signal that an upload finished is Next becoming
- * enabled (the caller watches that next); this just avoids clicking before the
- * spinner clears. Never throws — a bad selector or odd DOM simply resolves.
+ * Wait for the page's uploads to actually finish before Next is considered.
+ *
+ * The authoritative signal is myUSCIS's OWN per-row control: a row still uploading
+ * offers "Cancel" and becomes "Remove" when it completes. That is observable and
+ * exact, unlike the spinner-class guess this used to rely on — which reported
+ * "settled" while two files were mid-flight, so the walk clicked Next and USCIS
+ * raised "Your files will not upload if you leave this page" (2026-07-29,
+ * FAM-0100). The spinner check is kept as a secondary signal for pages that show
+ * progress without a Cancel control.
+ *
+ * Never throws — an odd DOM simply resolves and the caller still gates on Next.
  */
 async function waitForUploadToSettle(timeoutMs = UPLOAD_SETTLE_TIMEOUT_MS): Promise<void> {
   const start = Date.now();
+  let announced = false;
   while (Date.now() - start < timeoutMs) {
-    if (!hasVisibleUploadProgress()) return;
+    const pending = uploadsInFlight();
+    if (pending === 0 && !hasVisibleUploadProgress()) {
+      if (announced) dbg("fillAll: uploads finished");
+      return;
+    }
+    if (pending > 0 && !announced) {
+      announced = true;
+      dbg(`fillAll: waiting for ${pending} upload(s) to finish before Next`);
+    }
     await sleep(400);
   }
+  if (uploadsInFlight() > 0) {
+    dbg(
+      `fillAll: ${uploadsInFlight()} upload(s) still running after ` +
+        `${Math.round(timeoutMs / 1000)}s — not clicking Next. Leaving the page now ` +
+        `would cancel them. Wait for them to finish, then re-run.`,
+    );
+  }
+}
+
+/**
+ * True when myUSCIS is showing its "your files have not finished uploading" modal.
+ *
+ * If this is up, the walk must STOP. Its "Leave this page" button aborts every
+ * upload in progress, so clicking it would throw away the very documents we just
+ * attached — never automate past this.
+ */
+function onUnfinishedUploadDialog(): boolean {
+  const text = document.body?.innerText ?? "";
+  return /files will not upload if you leave|have not finished uploading/i.test(text);
 }
 
 function hasVisibleUploadProgress(): boolean {
@@ -728,6 +768,26 @@ export async function fillAll(
       // to enable before clicking. The robust signal is Next becoming enabled —
       // if it never does, stop rather than click a dead button forever.
       await waitForUploadToSettle();
+      // If uploads are STILL running, do not touch Next. myUSCIS answers a
+      // navigation attempt with "Your files will not upload if you leave this
+      // page", whose only ways out are "Stay" or "Leave this page" — and Leave
+      // aborts every upload in progress, throwing away the documents we just
+      // attached. Stopping here keeps them uploading.
+      if (uploadsInFlight() > 0) {
+        dbg(
+          `fillAll: ${uploadsInFlight()} upload(s) still in progress on ${page?.slug ?? "this page"} ` +
+            `— stopping rather than risk cancelling them. Let them finish, then re-run.`,
+        );
+        break;
+      }
+      if (onUnfinishedUploadDialog()) {
+        dbg(
+          "fillAll: myUSCIS is asking whether to leave while files are still " +
+            'uploading. Click "Stay on this page", let them finish, then re-run. ' +
+            "(Never click \"Leave this page\" — it cancels the uploads.)",
+        );
+        break;
+      }
       const next = await waitForNextEnabled(UPLOAD_NEXT_TIMEOUT_MS);
       if (!next || next.disabled) {
         dbg(
