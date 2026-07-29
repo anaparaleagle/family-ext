@@ -414,6 +414,16 @@ const UPLOAD_NEXT_TIMEOUT_MS = 60000;
  * is what raised USCIS's "your files have not finished uploading" modal on the
  * 2026-07-29 run. */
 const UPLOAD_SETTLE_TIMEOUT_MS = 20000;
+/** How many times to click Next on an upload page before giving up. myUSCIS
+ * enables Next straight away but ignores the click until the file has finished
+ * processing, and nothing in the DOM reliably says when that is — so we click,
+ * check whether the page moved, and click again. */
+const UPLOAD_ADVANCE_ATTEMPTS = 6;
+/** How long to give the page to change after each click. */
+const UPLOAD_ADVANCE_WAIT_MS = 12000;
+/** Pause between click attempts. 6 attempts x (12s + 8s) ~= 2 minutes, which
+ * comfortably covers a 10MB scan without ever looking hung: every attempt logs. */
+const UPLOAD_ADVANCE_RETRY_MS = 8000;
 /** Selectors that signal an active upload/progress indicator in the page body. */
 const UPLOAD_PROGRESS_SELECTOR =
   '[role="progressbar"], progress, [class*="progress" i], [class*="spinner" i], [class*="uploading" i]';
@@ -741,6 +751,8 @@ export async function fillAll(
     }
     const page = detectCurrentPage(config.pages);
     let isUploadPage = false;
+    // Set by the upload branch, which does its own click-and-retry advance.
+    let advanced = false;
     if (!page) {
       // Page not in the descriptor — e.g. a preparer detail sub-page, or an
       // uncaptured conditional. Don't stop the whole run; skip past it via Next.
@@ -835,7 +847,42 @@ export async function fillAll(
         );
         break;
       }
-      next.click();
+      // CLICK, AND CLICK AGAIN IF NOTHING HAPPENS.
+      //
+      // This is the fix for the thing that made Fill all need two clicks. On an
+      // upload page myUSCIS ENABLES Next immediately but silently IGNORES the
+      // click until the file has finished processing server-side. Nothing in the
+      // DOM reliably says when that is: the row's action control is "Cancel" while
+      // uploading on some rows and ABSENT on others (seen live 2026-07-29), so a
+      // control-based signal reads "settled" while a 10MB scan is still going.
+      //
+      // So stop trying to read USCIS's mind and use the OUTCOME instead: if the
+      // page did not move, the click was too early — wait and click again. That is
+      // exactly what a second Fill all was doing by hand.
+      advanced = false;
+      for (let attempt = 1; attempt <= UPLOAD_ADVANCE_ATTEMPTS; attempt++) {
+        const btn = findNextButton() ?? next;
+        btn.click();
+        if (await waitForPageChange(prevUrl, UPLOAD_ADVANCE_WAIT_MS)) {
+          advanced = true;
+          break;
+        }
+        if (attempt < UPLOAD_ADVANCE_ATTEMPTS) {
+          dbg(
+            `fillAll: Next did not move the page (attempt ${attempt}/${UPLOAD_ADVANCE_ATTEMPTS}) — ` +
+              `myUSCIS is still processing the upload; waiting and clicking again`,
+          );
+          await sleep(UPLOAD_ADVANCE_RETRY_MS);
+        }
+      }
+      if (!advanced) {
+        dbg(
+          `fillAll: Next would not advance past ${page?.slug ?? "this upload page"} after ` +
+            `${UPLOAD_ADVANCE_ATTEMPTS} attempts. The upload is taking longer than ` +
+            `expected — let it finish and re-run.`,
+        );
+        break;
+      }
     } else {
       let next = await waitForNextEnabled();
       if (!next) {
@@ -866,7 +913,7 @@ export async function fillAll(
       if (next) next.click();
     }
 
-    if (!(await waitForPageChange(prevUrl))) {
+    if (!advanced && !(await waitForPageChange(prevUrl))) {
       dbg("fillAll: page did not change after Next, stopping");
       break;
     }
