@@ -518,11 +518,28 @@ export function findSaveButton(doc: Document = document): HTMLElement | null {
   return null;
 }
 
+/**
+ * Wait for the page's Next to become clickable.
+ *
+ * Ticks every 10s while waiting. On an upload page this window is 60s, and it used
+ * to pass in total silence — so a run that was patiently waiting for USCIS to
+ * finish processing a 10MB scan was indistinguishable from a hung one. That is
+ * precisely when someone clicks Fill all again and starts a second walk.
+ */
 async function waitForNextEnabled(timeoutMs = DEFAULT_NEXT_TIMEOUT_MS): Promise<HTMLButtonElement | null> {
   const start = Date.now();
+  let lastTick = 0;
   while (Date.now() - start < timeoutMs) {
     const btn = findNextButton();
     if (btn && !btn.disabled) return btn;
+    const elapsed = Math.round((Date.now() - start) / 1000);
+    if (elapsed >= 10 && elapsed - lastTick >= 10) {
+      lastTick = elapsed;
+      dbg(
+        `fillAll: still waiting for Next to enable (${elapsed}s of ` +
+          `${Math.round(timeoutMs / 1000)}s)${btn ? " — button present but disabled" : " — no button found yet"}`,
+      );
+    }
     await sleep(300);
   }
   return findNextButton();
@@ -598,15 +615,26 @@ export async function waitForPageReady(
 async function waitForUploadToSettle(timeoutMs = UPLOAD_SETTLE_TIMEOUT_MS): Promise<void> {
   const start = Date.now();
   let announced = false;
+  let lastTick = 0;
   while (Date.now() - start < timeoutMs) {
     const pending = uploadsInFlight();
-    if (pending === 0 && !hasVisibleUploadProgress()) {
+    const spinning = hasVisibleUploadProgress();
+    if (pending === 0 && !spinning) {
       if (announced) dbg("fillAll: uploads finished");
       return;
     }
-    if (pending > 0 && !announced) {
+    // Announce whichever signal we are waiting on, and tick every 5s. The first
+    // version only spoke when it could see a Cancel control, so a wait driven by
+    // the spinner signal looked like a hung run for up to 45 seconds — which is
+    // when someone clicks Fill all again.
+    const elapsed = Math.round((Date.now() - start) / 1000);
+    if (!announced || elapsed - lastTick >= 5) {
       announced = true;
-      dbg(`fillAll: waiting for ${pending} upload(s) to finish before Next`);
+      lastTick = elapsed;
+      dbg(
+        `fillAll: waiting for uploads to finish before Next — ` +
+          `${pending} in flight${spinning ? ", progress indicator visible" : ""} (${elapsed}s)`,
+      );
     }
     await sleep(400);
   }
@@ -788,6 +816,10 @@ export async function fillAll(
         );
         break;
       }
+      dbg(
+        `fillAll: uploads settled on ${page?.slug ?? "this page"} — waiting for Next ` +
+          `to enable (up to ${Math.round(UPLOAD_NEXT_TIMEOUT_MS / 1000)}s)`,
+      );
       const next = await waitForNextEnabled(UPLOAD_NEXT_TIMEOUT_MS);
       if (!next || next.disabled) {
         dbg(

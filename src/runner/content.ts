@@ -538,6 +538,15 @@ async function withRunLock(what: string, body: () => Promise<void>): Promise<voi
   fillInProgress = true;
   try {
     await body();
+  } catch (err) {
+    // A throw here used to end the run with NO log line at all — no stop reason,
+    // no summary, nothing. Indistinguishable from "still working", which is
+    // exactly what made a stall impossible to diagnose. Every run now ends with a
+    // line saying how it ended.
+    const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error && err.stack ? (err.stack.split(/\r?\n/)[1] ?? "").trim() : "";
+    setStatus(`${what} stopped on an error: ${message}`);
+    dbg(`ERROR: ${what} threw — ${message}${stack ? ` (${stack})` : ""}`);
   } finally {
     fillInProgress = false;
   }
