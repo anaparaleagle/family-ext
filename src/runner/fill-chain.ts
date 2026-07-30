@@ -1037,8 +1037,11 @@ export async function fillAll(
       if (!advanced) {
         dbg(
           `fillAll: Next would not advance past ${page?.slug ?? "this upload page"} after ` +
-            `${UPLOAD_ADVANCE_ATTEMPTS} attempts. The upload is taking longer than ` +
-            `expected — let it finish and re-run.`,
+            `${attempts} attempt${attempts === 1 ? "" : "s"}. ` +
+            (attachedHere === 0
+              ? "Nothing was attached here, so this is a page myUSCIS will not let " +
+                "us leave empty — attach the document in ParaLeagle and re-run."
+              : "The upload is taking longer than expected — let it finish and re-run."),
         );
         break;
       }
