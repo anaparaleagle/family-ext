@@ -131,10 +131,15 @@ describe("N-400 capture: option codes are opaque and must not be re-derived", ()
 describe("N-400 capture: autocomplete option text must match byte for byte", () => {
   const lists = CONSOLIDATED.AUTOCOMPLETE_OPTION_LISTS;
 
-  it("keeps the state list's capital 'Of', which standard data does not have", () => {
-    // "District Of Columbia" — a capital O. Reference data says "of". An
-    // exact-match pass therefore MISSES it and the state stays blank on any DC
-    // address. Same failure family as the I-539 "CODE - Description" pickers.
+  it("records the state list's capital 'Of' as captured", () => {
+    // "District Of Columbia" — a capital O, where reference data says "of".
+    //
+    // This pins what the live list ACTUALLY says. It is NOT a bug: the
+    // value-setter's exact-label pass lowercases both sides, so the backend's
+    // "District of Columbia" matches fine. An earlier version of this comment
+    // claimed it would silently fail — that was wrong, and worth not re-deriving.
+    // Case differences are safe here; a missing LETTER ("Blond" for "Blonde")
+    // is not, which is what the hair/eye assertions below actually guard.
     const states: string[] = GAP.SHARED_AUTOCOMPLETE_LISTS.state.firstFew;
     expect(states).toContain("District Of Columbia");
     expect(states).not.toContain("District of Columbia");
