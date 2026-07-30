@@ -28,6 +28,8 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
+import { pageForUrl } from "../src/runner/section-detector";
+import type { FormPage } from "../src/runner/types";
 
 const DUMP_DIR = resolve(__dirname, "fixtures/n400-online-field-dump");
 
@@ -315,7 +317,7 @@ const DESCRIPTOR_SPECIFIER = "../src/n400/form-descriptor";
 describe.skipIf(!HAVE_DESCRIPTOR)("N-400 descriptor <-> live dump", () => {
   let driven = new Set<string>();
   let skipped = new Set<string>();
-  let pages: Array<{ slug: string; kind: string; fields: Array<{ name: string }> }> = [];
+  let pages: FormPage[] = [];
 
   beforeAll(async () => {
     const mod = await import(/* @vite-ignore */ DESCRIPTOR_SPECIFIER);
@@ -358,6 +360,47 @@ describe.skipIf(!HAVE_DESCRIPTOR)("N-400 descriptor <-> live dump", () => {
   it("has unique slugs", () => {
     const slugs = pages.map((p) => p.slug);
     expect(new Set(slugs).size).toBe(slugs.length);
+  });
+
+  it("keeps the descriptor page order in the captured sidebar order", () => {
+    // The walk advances with the form's own Next buttons, so descriptor order IS
+    // the walk order. If it disagrees with the sidebar, the chain looks for the
+    // wrong page next and pages get skipped — a silent coverage hole rather than
+    // an error. The dump's `pages` array preserves the live sidebar sequence, so
+    // the relative order of everything present in both must match exactly.
+    const dumpOrder = (UNCONDITIONAL.pages as Array<{ s: string }>).map((p) => p.s);
+    const descriptorOrder = pages.map((p) => p.slug);
+    const shared = new Set(dumpOrder.filter((s) => descriptorOrder.includes(s)));
+    // Guard against a vacuous pass: if the two sides shared nothing, the
+    // comparison below would trivially hold and prove nothing.
+    expect(shared.size, "descriptor and dump share no pages — comparison is vacuous")
+      .toBeGreaterThanOrEqual(30);
+    expect(
+      descriptorOrder.filter((s) => shared.has(s)),
+      "descriptor page order diverges from the captured sidebar order",
+    ).toEqual(dumpOrder.filter((s) => shared.has(s)));
+  });
+
+  it("detects every page from its real live URL, with no mis-detection", () => {
+    // Runs the ACTUAL detector against the real URL shape rather than reasoning
+    // about slug structure. An earlier version of this test asserted a property
+    // of suffix-related slug pairs and passed while finding zero such pairs —
+    // vacuously. This version cannot: every page must round-trip to itself.
+    //
+    // The risk being checked is real. pageForUrl matches by path SUFFIX and
+    // relies on sorting longest-slug-first, so a page whose slug is a suffix of
+    // another's would resolve to the wrong page — and this form has several
+    // sub-pages nested under a parent of the same name
+    // (/moral-character/crimes-and-offenses/crimes-and-offenses-page-2).
+    const BASE = "https://my.uscis.gov/forms/application-for-naturalization/13370795";
+    const mismatches: string[] = [];
+    for (const page of pages) {
+      const got = pageForUrl(pages, `${BASE}${page.slug}`);
+      if (got?.slug !== page.slug) mismatches.push(`${page.slug} -> ${got?.slug ?? "NO MATCH"}`);
+    }
+    expect(mismatches, `pages that do not detect as themselves: ${mismatches.join(", ")}`).toEqual([]);
+    // Non-vacuous by construction: it asserted once per page.
+    expect(pages.length).toBeGreaterThan(40);
   });
 });
 
