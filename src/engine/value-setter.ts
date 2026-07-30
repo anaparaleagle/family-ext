@@ -62,6 +62,83 @@ export function findByName(name: string, optionValue?: string): HTMLElement | nu
   return document.querySelector<HTMLElement>(`[name="${escaped}"]`);
 }
 
+/** Collapse whitespace runs so derived label text compares against live DOM text
+ * that carries newlines and indentation. */
+function normaliseText(s: string): string {
+  return s.replace(/\s+/g, " ").trim();
+}
+
+/** The visible label for an input: aria-label, then a bound <label for=…>. */
+function visibleLabel(el: Element): string {
+  const aria = el.getAttribute("aria-label");
+  if (aria) return normaliseText(aria);
+  const id = el.getAttribute("id");
+  if (id) {
+    const bound = document.querySelector(`label[for="${cssEscape(id)}"]`);
+    if (bound) return normaliseText(bound.textContent || "");
+  }
+  return "";
+}
+
+/** Same tag AND same input type, so a text field never resolves to a checkbox
+ * sitting beside it. */
+function sameType(a: Element, b: Element): boolean {
+  if (a.tagName !== b.tagName) return false;
+  return (a.getAttribute("type") || "text") === (b.getAttribute("type") || "text");
+}
+
+/**
+ * Find the input for a spec, falling back to structure and then label when its
+ * `name` is not in the DOM.
+ *
+ * Order is deliberate:
+ *   1. `name` — exact, cheapest, and correct whenever the name is stable. A field
+ *      with a real Formik path must never take a fallback path.
+ *   2. `locate.nearName` — the next same-type input after a VERIFIED anchor,
+ *      searched only inside the anchor's own field group, so a second address
+ *      block cannot be filled from the first block's anchor.
+ *   3. `locate.labelContains` — normalised substring match on the visible label.
+ *
+ * Returns null rather than guessing. A wrong element here would type a value into
+ * someone else's field, which is far worse than a reported failure.
+ */
+export function locateElement(spec: FieldSpec): HTMLElement | null {
+  const byName = findByName(spec.name, spec.optionValue);
+  if (byName) return byName;
+  const locate = spec.locate;
+  if (!locate) return null;
+
+  if (locate.nearName) {
+    const anchor = findByName(locate.nearName);
+    if (anchor) {
+      // Search the anchor's own field group. Without that containment a bare
+      // wrapper would widen the search to the whole document and any later input
+      // would match.
+      const group =
+        anchor.closest(".MuiFormControl-root, fieldset, .MuiFormGroup-root") ??
+        anchor.parentElement;
+      if (group) {
+        const inputs = Array.from(group.querySelectorAll<HTMLElement>("input, textarea, select"));
+        const at = inputs.indexOf(anchor as HTMLElement);
+        if (at !== -1) {
+          for (const candidate of inputs.slice(at + 1)) {
+            if (sameType(anchor, candidate)) return candidate;
+          }
+        }
+      }
+    }
+  }
+
+  if (locate.labelContains) {
+    const want = normaliseText(locate.labelContains).toLowerCase();
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>("input, textarea, select"))) {
+      if (visibleLabel(el).toLowerCase().includes(want)) return el;
+    }
+  }
+
+  return null;
+}
+
 /** Minimal CSS attribute-value escaper (names contain dots, which are legal in
  * an attribute *value* but we still guard quotes/backslashes). */
 function cssEscape(s: string): string {
@@ -485,7 +562,11 @@ export async function setValue(spec: FieldSpec, value: string): Promise<SetResul
       return result(name, ok, ok ? "set radio" : "radio option not found");
     }
 
-    const el = findByName(name, spec.optionValue);
+    // locateElement is findByName plus the declared structural/label fallbacks.
+    // For a field with a stable name it IS findByName, so nothing changes there.
+    // Radios above are excluded: they resolve by (name, optionValue) across a
+    // group, and no radio we have seen carries an unstable name.
+    const el = locateElement(spec);
     if (!el) return result(name, false, "element not on page");
 
     switch (kind) {

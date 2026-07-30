@@ -11,7 +11,7 @@
 // repeater pages, it counts how many indexed rows the payload supplies, clicks
 // "Add" to render each, then fills the indexed names.
 
-import { setValue, findByName } from "../engine/value-setter";
+import { setValue, findByName, locateElement } from "../engine/value-setter";
 import { FieldSpec, SetResult } from "../engine/types";
 import { dbg } from "../engine/logger";
 import { DescriptorField, FormConfig, FormPage, RepeaterSpec, RevealSpec } from "./types";
@@ -229,7 +229,12 @@ export function planPageFill(
       return;
     }
     out.push({
-      spec: { name, kind: field.kind, optionValue: field.options ? value : undefined },
+      spec: {
+        name,
+        kind: field.kind,
+        optionValue: field.options ? value : undefined,
+        ...(field.locate ? { locate: field.locate } : {}),
+      },
       value,
       rowIndex,
       conditional: field.conditional,
@@ -330,7 +335,7 @@ function shortName(name: string): string {
 async function waitForRevealed(spec: FieldSpec, timeoutMs = REVEAL_RENDER_TIMEOUT_MS): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
-    if (findByName(spec.name, spec.optionValue) !== null) return true;
+    if (locateElement(spec) !== null) return true;
     if (Date.now() >= deadline) return false;
     await sleep(150);
   }
@@ -395,7 +400,7 @@ export async function fillPage(
             `the reveal is wrong or the form changed`,
         );
       }
-    } else if (p.conditional && findByName(p.spec.name, p.spec.optionValue) === null) {
+    } else if (p.conditional && locateElement(p.spec) === null) {
       // Conditional with NO declared reveal: all we can do is look. Absent means a
       // legitimate non-reveal (this branch hides the block), so skip it quietly
       // instead of counting a failure. Probed AFTER the radio-settle above so a
@@ -712,7 +717,9 @@ export async function waitForPageReady(
     }
     // Pure repeater page: rows render only after Add, so its presence = page up.
     if (page.repeater && findAddButton(page.repeater.addButtonText)) return true;
-    return plan.some((p) => findByName(p.spec.name, p.spec.optionValue) !== null);
+    // locateElement, not findByName: a page whose fields are all LOCATED (no
+    // usable name attribute) would otherwise read as "not this page".
+    return plan.some((p) => locateElement(p.spec) !== null);
   };
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {

@@ -12,7 +12,7 @@
 // Nothing in this file knows about I-130, I-539, or family-visa data.
 // ===========================================================================
 
-import { FieldKind } from "../engine/types";
+import { FieldKind, LocateSpec } from "../engine/types";
 
 /**
  * What makes a conditional field render.
@@ -58,6 +58,15 @@ export interface DescriptorField {
    *     did not appear — that is a broken reveal, not an absent one.
    */
   revealedBy?: RevealSpec;
+  /**
+   * How to find this input when its `name` is not in the DOM.
+   *
+   * Needed because myUSCIS does not always give an input a Formik path: the
+   * N-400's current-address "To" date has a random UUID for a name. With `locate`
+   * set, `name` becomes a LOGICAL key — what the backend emits the value under —
+   * and the element is found structurally (or by label) instead.
+   */
+  locate?: LocateSpec;
 }
 
 /**
@@ -184,6 +193,17 @@ export const radio = (name: string, options: string[]): DescriptorField => ({
 });
 export const check = (name: string): DescriptorField => ({ name, kind: "checkbox" });
 export const area = (name: string): DescriptorField => ({ name, kind: "textarea" });
+
+/**
+ * A field whose real `name` cannot be used — give it a logical name plus how to
+ * find it. Structure first (`nearName`, a field name we verified), label second.
+ *
+ * `named("...toDate", t, { nearName: "...fromDate", labelContains: "To (MM/DD/YYYY)" })`
+ */
+export const located = (
+  field: DescriptorField,
+  locate: LocateSpec,
+): DescriptorField => ({ ...field, locate });
 
 /**
  * Same as the helpers above, but marks the field as a conditional reveal.

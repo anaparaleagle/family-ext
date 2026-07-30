@@ -33,10 +33,11 @@
 //  both entries, so the rule is encoded once instead of copied 39 times.
 //
 // KNOWN GAPS (honest — do not paper over):
-//  1. The current-address "To" date has a RANDOM UUID for a name
-//     (`8742c00f-...` on the capture run), not a Formik path. It cannot be
-//     declared here and cannot be filled by name. It needs label matching
-//     ("To (MM/DD/YYYY)"). Listed in N400_SKIP with that reason.
+//  1. HANDLED (was a gap): the current-address "To" date has a RANDOM UUID for a
+//     name (`8742c00f-...` on the capture run), so no name-keyed selector can
+//     reach it. It is now declared with `located(...)` — a logical name for the
+//     payload plus a structural anchor off the From date, label as fallback.
+//     Unit-tested; NOT yet confirmed against the live page.
 //  2. The five RACE checkboxes have BARE NUMERIC names ("1","2","3","5","6") with
 //     no Formik path. They ARE declared below by those exact names, but that a
 //     write to `[name="1"]` actually registers is UNVERIFIED — it was never
@@ -55,6 +56,7 @@ import {
   area,
   check,
   cond,
+  located,
   phone,
   radio,
   search,
@@ -83,10 +85,11 @@ const q = (base: string): DescriptorField[] => [
  * reviewed record of what we leave alone.
  */
 export const N400_SKIP: string[] = [
-  // The current-address "To" date. Its name is a RANDOM UUID generated per
-  // render, so there is no stable selector — see gap 1 in the header. A guessed
-  // name would silently fill nothing, which is worse than a declared gap.
-  // (Excluded from the coverage comparison anyway, since it has no dotted path.)
+  // Nothing is deliberately skipped on this form. The one field that could not be
+  // reached by name (the current-address "To" date) is now driven via `located(...)`
+  // rather than abandoned. The five RACE checkboxes carry bare numeric names with
+  // no dotted path, so they fall outside the coverage comparison; they are declared
+  // and driven, but see gap 2 in the header — that a write registers is unverified.
 ];
 
 export const N400_PAGES: FormPage[] = [
@@ -209,7 +212,23 @@ export const N400_PAGES: FormPage[] = [
       search("applicant.yourContactInformation.physicalAddress.state"),
       t("applicant.yourContactInformation.physicalAddress.zipCode"),
       t("applicant.yourContactInformation.physicalAddress.datesOfResidence.fromDate"),
-      // NOTE: the matching "To" date is the UUID-named field — see N400_SKIP.
+      // The matching "To" date has a RANDOM UUID for a name, so it is addressed
+      // by STRUCTURE: the next text input after the From date, inside the same
+      // field group. The name below is LOGICAL — it appears nowhere in the DOM,
+      // and is simply the key the backend map emits this value under.
+      //
+      // Anchor first, label second, deliberately: the anchor name was verified
+      // from a live capture, whereas the label string is the product of the
+      // capture's own heuristic (it read as "To (MM/DD/YYYY) Present", where
+      // "Present" almost certainly belongs to the adjacent checkbox). Matching a
+      // string we derived is the weaker signal.
+      located(
+        t("applicant.yourContactInformation.physicalAddress.datesOfResidence.toDate"),
+        {
+          nearName: "applicant.yourContactInformation.physicalAddress.datesOfResidence.fromDate",
+          labelContains: "To (MM/DD/YYYY)",
+        },
+      ),
       // CHECKBOX-shaped, so it can only ever emit "true" or blank, never "false".
       // The same shape was a live bug on both the I-130 and I-539; map it with
       // the {checkbox, equals, on} entry form, not as a radio.
