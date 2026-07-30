@@ -1,0 +1,85 @@
+{
+  "_doc": "PATH MATRIX for the guided online N-400 — how the page set varies by eligibility basis and marital status. Draft 13370795, 2026-07-30. Each row was SET and COMMITTED with Next, then the sidebar was re-read. This is the last open piece of the capture. Nothing was Submitted, Signed or Paid.",
+  "_captured": "2026-07-30",
+
+  "ELIGIBILITY_BASIS_MATRIX": {
+    "method": "For each of the six eligibility codes: set the radio, commit with Next, re-read every sidebar href. All six measured back to back under otherwise identical answers, so these ARE comparable.",
+    "result": {
+      "pagesCommonToAllSixCodes": 48,
+      "unionAcrossAllSixCodes": 53,
+      "pagesThatVARY": 5,
+      "everyVaryingPageIsAnEvidencePage": true
+    },
+    "per_code": {
+      "191": { "label": "General provision", "totalSlugs": 48, "addsNothing": true },
+      "189": { "label": "VAWA", "totalSlugs": 48, "addsNothing": true },
+      "195": { "label": "Other", "totalSlugs": 48, "addsNothing": true },
+      "192": { "label": "Spouse of a U.S. citizen", "adds": ["/evidence/your-current-spouse-us-citizenship", "/evidence/evidence-about-your-marriage"], "note": "measured in the earlier pass" },
+      "193": { "label": "Spouse of USC in qualified employment outside the US", "totalSlugs": 50, "adds": ["/evidence/your-current-spouse-us-citizenship", "/evidence/current-spouse-qualifying-employment"] },
+      "194": { "label": "Military service during a period of hostilities", "totalSlugs": 51, "adds": ["/evidence/official-military-orders", "/evidence/separation-from-us-armed-forces", "/evidence/form-n426-request-for-certification-of-military-or-naval-service"] },
+      "190": { "label": "At least one year of honorable military service at any time", "totalSlugs": 51, "adds": ["same three as 194"] }
+    },
+    "KEY_TAKEAWAYS": [
+      "VAWA (189), General (191) and Other (195) add NO pages at all — they are structurally identical to each other.",
+      "The two MILITARY codes (190, 194) are structurally identical to each other and add three military evidence pages.",
+      "192 and 193 SHARE /evidence/your-current-spouse-us-citizenship but differ in their second page (evidence-about-your-marriage vs current-spouse-qualifying-employment).",
+      "So eligibility basis affects ONLY which evidence/upload pages are offered. It never changes a typed page. That means the backend map's field side needs no eligibility branching at all — only upload_pages does."
+    ],
+    "N426_NOTE": "/evidence/form-n426-request-for-certification-of-military-or-naval-service is a slot for Form N-426 (Request for Certification of Military or Naval Service) — a separate USCIS form the firm would have to produce. We do not generate N-426 today, and the military bases are not in our case-type model, so this is out of scope but worth recording."
+  },
+
+  "MARITAL_STATUS_MATRIX": {
+    "method": "All six status codes set and committed. CAVEAT: this sweep ran with eligibility=191, whereas the earlier Married/Divorced readings were taken under eligibility=192. So compare the DELTAS below, not raw totals across the two sweeps.",
+    "per_code": {
+      "1": { "label": "Single, never married", "totalSlugs": 46, "evidencePages": 9, "familyPages": ["/your-family/marital-status", "/your-family/children"], "numberOfTimesMarriedRendered": false, "note": "FEWEST pages of any status. numberOfTimesMarried is not even rendered, and two evidence pages drop away (the marriage-certificate slot and child-and-spousal-support)." },
+      "2": { "label": "Married", "evidencePages": 12, "familyPages": ["/your-family/marital-status", "/your-family/current-spouse", "/your-family/current-spouse/current-spouse-page-2", "/your-family/children"], "note": "The ONLY status that reveals the current-spouse pages. Also the only one that adds /evidence/child-and-spousal-support." },
+      "3": { "label": "Divorced", "evidencePages": 11, "familyPages": ["/your-family/marital-status", "/your-family/children"] },
+      "4": { "label": "Widowed", "totalSlugs": 48, "evidencePages": 11, "familyPages": ["/your-family/marital-status", "/your-family/children"] },
+      "5": { "label": "Marriage annulled", "totalSlugs": 48, "evidencePages": 11, "familyPages": ["/your-family/marital-status", "/your-family/children"] },
+      "7": { "label": "Separated", "totalSlugs": 48, "evidencePages": 11, "familyPages": ["/your-family/marital-status", "/your-family/children"] }
+    },
+    "SURPRISE": "SEPARATED (7) does NOT reveal the current-spouse pages, even though a separated applicant still has a spouse. Only MARRIED (2) does. If the firm expects spouse details to be filed for a separated client, the online form simply does not ask for them.",
+    "PRIOR_MARRIAGE_NOW_CONCLUSIVE": "All SIX marital statuses were tested, several with numberOfTimesMarried=2 committed. NOT ONE produces prior-marriage typed fields. Combined with the earlier spouse-side test, this confirms: the online N-400 collects prior-marriage substance ONLY as documents, via /evidence/current-marriage-certificate-and-previous-marriage-documents. The paper N-400 does have those fields, so this is a genuine paper-vs-online capability gap — facts we hold for the PDF have nowhere to go online. A mapping decision, not an extension bug."
+  },
+
+  "OCCUPATION_IS_A_CLOSED_LIST": {
+    "field": "applicant.schoolsAndEmployment.{i}.employmentInfo.occupation",
+    "kind": "MUI Autocomplete — closed list, NOT free text",
+    "optionCount": 29,
+    "options": [
+      "Admin Support, Including Clerks", "Architectural Occupations", "Artist/Writer/Athlete/Entertainer",
+      "Business/Management/Marketing", "Construction/Skilled Trades", "Counselors, Education/Vocation",
+      "Editors: Publication, Broadcast, and Script", "Environmental, Product, and Related Designers",
+      "Executive, Admin, Managerial", "Farming/Forestry/Fishing", "Food Services/Hospitality",
+      "Health Diagnosing Occupations", "Health Technologist/Technician", "I.T. Software Development",
+      "Lawyers and Judges", "Logistics/Transportation", "Military", "Natural Scientists",
+      "Occupation Not Reported/Unknown/Invalid", "Occupations in Athletics and Sports",
+      "Occupations in Data Communications and Networks", "Operators/Fabricators/Laborers",
+      "Precision Production/Craft/Rep", "Public Relations Management Occupations",
+      "Sales and Distribution Management Occupations", "Security/Protective Services",
+      "Social/Recreation/Religious Work", "Wholesale and Retail Trade Managers and Officials",
+      "Wholesale and Retail Trade Managers and Officials"
+    ],
+    "THIS_IS_A_REAL_MAPPING_PROBLEM": "Our fact applicant.employment_education_history[i].occupation_or_field is FREE TEXT (a client types 'Software Engineer'). The online form will only accept one of these 29 categories. So the backend needs a free-text -> category classifier, and the edge cases are judgement calls, not string matching. 'Occupation Not Reported/Unknown/Invalid' exists as a fallback but using it silently would degrade a filing.",
+    "USCIS_BUG": "'Wholesale and Retail Trade Managers and Officials' appears TWICE in the live list. 29 entries, 28 distinct. An exact-match picker will hit the first, which is fine — but a uniqueness assertion over the option list would fail.",
+    "punctuation_warning": "Several entries carry commas, slashes, colons and periods ('I.T. Software Development', 'Editors: Publication, Broadcast, and Script'). Byte-exact matching required."
+  },
+
+  "FINAL_STATE_OF_THE_CAPTURE": {
+    "complete": [
+      "Every page slug across every eligibility and marital path (union 53).",
+      "Unconditional field shape for all reachable typed pages.",
+      "The <x>.question -> <x>.additionalExplanation reveal rule, with a negative control.",
+      "All seven repeaters: add label, row-commit label, indexed row field names, and the one NESTED repeater.",
+      "All four schools-and-employment polymorphic row shapes.",
+      "All evidence pages and their (uniform) upload control.",
+      "Every multi-option code table, including the four different code styles.",
+      "Autocomplete option lists: eye, hair, height, country, state, occupation."
+    ],
+    "genuinely_untested": [
+      "Actually ATTACHING a file to an evidence page (no upload was performed — the control was only inspected).",
+      "The /review-and-submit/* downstream routes (statement, signature, pay) — deliberately never visited.",
+      "Whether any page appears only after MORE answers than we seeded (e.g. deep inside the crime sub-flow)."
+    ]
+  }
+}

@@ -1,0 +1,135 @@
+{
+  "_doc": "THIRD PASS — the Next-COMMITTED walk of the guided online N-400. Draft 13370795, 2026-07-30. Answers were seeded with safe junk and COMMITTED with Next, which is the only way myUSCIS persists them and therefore the only way conditional PAGES appear. Companion to n400-online-field-dump.json (unconditional shape) and n400-online-reveals.json (in-page reveals + repeater rows). Nothing was ever Submitted, Signed or Paid; Next is refused on any /review-and-submit/* path.",
+  "_captured": "2026-07-30",
+
+  "HEADLINE": "The page count is not 37. It grows from 37 to 49 as answers are committed, and almost all of the growth is /evidence/* upload pages. My earlier statement that 'only two evidence pages exist' was true ONLY of a blank draft and is now corrected: there are at least TWELVE.",
+
+  "page_count_by_state": [
+    { "state": "blank draft", "slugs": 37, "evidence": 2 },
+    { "state": "eligibilityCode=192 (spouse of USC), committed", "slugs": 39, "note": "adds the two spouse evidence pages" },
+    { "state": "+ hasInterpreter=true", "slugs": 40, "note": "adds /getting-started/interpreter" },
+    { "state": "+ crimesAndOffenses committedCrime=true AND arrested=true, committed", "slugs": 49, "note": "adds 2 crime sub-pages and 7 more evidence pages" }
+  ],
+
+  "ALL_TWELVE_EVIDENCE_PAGES": {
+    "note": "Verbatim from the sidebar hrefs. Matching is a case-sensitive path-suffix compare, so reproduce the case EXACTLY.",
+    "slugs": [
+      "/evidence/your-permanent-resident-card",
+      "/evidence/your-current-spouse-us-citizenship",
+      "/evidence/current-marriage-certificate-and-previous-marriage-documents",
+      "/evidence/evidence-about-your-marriage",
+      "/evidence/arrests-without-charges",
+      "/evidence/arrests-with-charges",
+      "/evidence/Alternative-sentencing-or-rehabilitative-programs",
+      "/evidence/convictions-and-sentences",
+      "/evidence/arrests-or-convictions-removed-from-your-records",
+      "/evidence/traffic-incidents",
+      "/evidence/fine-restitutions-and-wage-garnishments",
+      "/evidence/additional-evidence"
+    ],
+    "CASE_TRAP": "/evidence/Alternative-sentencing-or-rehabilitative-programs has a CAPITAL A while every neighbouring slug is lower-case. This is the exact same trap as the I-539's /evidence/form-I-20. A helpfully-lowercased 'alternative-...' would silently match nothing, the walk would log 'page not in descriptor', click past, and the document would never reach USCIS.",
+    "also_note": "/evidence/child-and-spousal-support was seen in the earlier UNCOMMITTED probe (revealed by marital status = Married) but is NOT in this committed list, because marital status was never committed as Married in this run. So the full set is larger still than twelve."
+  },
+
+  "CORRECTION_green_card_slot_exists": {
+    "wrong": "The earlier report said nearly everything (green card, tax transcripts...) must fall to the /evidence/additional-evidence catch-all because no dedicated slot existed.",
+    "right": "/evidence/your-permanent-resident-card IS a dedicated green-card slot — it simply does not appear on a blank draft. The catch-all is still needed for tax transcripts, passports, drivers_license and the rest, but green_card now has a real target.",
+    "lesson": "Never conclude 'no slot exists' from a blank draft. Slot discovery REQUIRES committed answers."
+  },
+
+  "UPLOAD_CONTROL": {
+    "capturedOn": "/evidence/your-permanent-resident-card",
+    "fileInput": { "id": "desktop-drop", "name": "", "multiple": true },
+    "accept": "image/jpg,image/jpeg,application/pdf,image/tif,image/tiff",
+    "chooseButton": "Choose",
+    "PNG_IS_NOT_ACCEPTED": "The accept list is JPG / JPEG / PDF / TIF / TIFF. There is NO image/png. Our document set includes photos, and the I-539 run uploaded 'photos' successfully — but if any N-400 photo or scan is a PNG, this input will reject it. The backend should either convert or refuse it up front with a clear message, the same way too_big_for_uscis already does for the 12MB cap. Do not discover this on a live filing.",
+    "multiple_true": "Batch upload via a single DataTransfer works, consistent with the existing doc-uploader.",
+    "id_note": "The input has an id (desktop-drop) and NO name attribute. Any selector keyed on name will miss it."
+  },
+
+  "crime_table": {
+    "reveal_chain": "moralCharacter.crimesAndOffenses.committedCrime=true AND .arrested=true, COMMITTED with Next -> two new pages appear",
+    "newPages": [
+      "/moral-character/crimes-and-offenses/crimes-and-offenses-page-2",
+      "/moral-character/crimes-and-offenses/crimes-and-offenses-page-3"
+    ],
+    "page2_is_the_table": {
+      "rendersNoFieldsUntilAdd": true,
+      "addButtonText": "Add",
+      "rowCommitButton": "Save",
+      "namePrefix": "moralCharacter.crimesAndOffensesPage2",
+      "rowFields": [
+        "moralCharacter.crimesAndOffensesPage2.{i}.crimeOrOffense",
+        "moralCharacter.crimesAndOffensesPage2.{i}.dateOfCrimeOrOffense",
+        "moralCharacter.crimesAndOffensesPage2.{i}.dateOfConvictionOrGuiltyPlea",
+        "moralCharacter.crimesAndOffensesPage2.{i}.placeOfCrimeOrOffense.country",
+        "moralCharacter.crimesAndOffensesPage2.{i}.placeOfCrimeOrOffense.city",
+        "moralCharacter.crimesAndOffensesPage2.{i}.placeOfCrimeOrOffense.state",
+        "moralCharacter.crimesAndOffensesPage2.{i}.resultOfArrest",
+        "moralCharacter.crimesAndOffensesPage2.{i}.whatWasYourSentence"
+      ],
+      "autocompletes": ["placeOfCrimeOrOffense.country", "placeOfCrimeOrOffense.state"],
+      "SOF_1066": "This is the online counterpart of PDF Part 9 Item 15, which SOF-1066 wires from applicant.mc_crime_incidents as 5 rows x 6 columns. Online it is EIGHT fields per row because 'place' splits into country/city/state. Worth checking whether mc_crime_incidents holds all eight, or whether the online form needs data the paper table never asked for.",
+      "page3_still_uncaptured": true
+    },
+    "why_it_was_invisible_before": "Answering both radios Yes WITHOUT committing revealed nothing in-page — the previous pass concluded 'not in-page, needs a commit', which was right. The table is a separate page, not an in-page block."
+  },
+
+  "interpreter_page": {
+    "slug": "/getting-started/interpreter",
+    "revealedBy": "formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.helper.hasInterpreter = true",
+    "fields": [
+      "gettingStarted.interpreter.name.firstName",
+      "gettingStarted.interpreter.name.lastName",
+      "formikFactoryUIMeta.gettingStarted.interpreter.noBusiness",
+      "gettingStarted.interpreter.business",
+      "gettingStarted.interpreter.contact.daytimePhone",
+      "formikFactoryUIMeta.gettingStarted.interpreter.contact.noMobilePhone",
+      "gettingStarted.interpreter.contact.mobilePhone",
+      "formikFactoryUIMeta.gettingStarted.interpreter.contact.noEmailAddress",
+      "gettingStarted.interpreter.contact.emailAddress",
+      "gettingStarted.interpreter.language"
+    ],
+    "note": "Mirrors the preparer page field for field, plus gettingStarted.interpreter.language. Same shape as the I-539's interpreter block."
+  },
+
+  "ROW_COMMIT_BUTTONS_ALL_DIFFER": {
+    "warning": "Four distinct labels found across five repeaters. The I-539 was already bitten once by matching advance controls on literal text ('Save Entry' did not match). Do NOT use one regex.",
+    "observed": {
+      "/about-you/where-you-have-lived": "Save entry",
+      "/about-you/schools-and-employment": "Save entry",
+      "/about-you/travel-outside-the-us": "Save entry",
+      "/your-family/children": "Save child",
+      "/moral-character/crimes-and-offenses/crimes-and-offenses-page-2": "Save"
+    },
+    "add_labels": {
+      "/about-you/where-you-have-lived": "Add an address",
+      "/about-you/schools-and-employment": "Add entry",
+      "/about-you/travel-outside-the-us": "Add trip",
+      "/your-family/children": "Add a child",
+      "/moral-character/crimes-and-offenses/crimes-and-offenses-page-2": "Add",
+      "/about-you/your-name": "Add another name",
+      "/additional-information/additional-information": "Add a response"
+    },
+    "note": "A bare 'Add' (the crime table) is the dangerous one — a loose substring matcher for 'add' will match it from other pages, and 'Add an address' also contains 'add'. The I-539 note already records 'Change your client's address' matching a naive 'add' search."
+  },
+
+  "walk_mechanics_learned": [
+    "Next COMMITS THE WHOLE FORM STATE, not just the current page. Toggles set on an earlier page persisted once any later Next fired.",
+    "Most pages advance with Next even when left BLANK — very few fields are hard-required. So a walk can traverse the form without a full seed, but it will not REVEAL the conditional pages, which is the whole point.",
+    "A walker MUST wait for render before filling. Without a settle wait it fills and Nexts an empty shell and reports 0 fields — I hit this and pages silently went unanswered (marital-status among them).",
+    "Refusing Next on /review-and-submit/* by PATH is the correct guard. The review Next is byte-identical to every other page's, so no text rule can protect it."
+  ],
+
+  "STILL_OPEN": [
+    "/moral-character/crimes-and-offenses/crimes-and-offenses-page-3 — never dumped.",
+    "The 11 other evidence pages' upload controls — only your-permanent-resident-card was inspected. Assume the same shape, verify before relying on it.",
+    "The definitive evidence set for a married applicant (child-and-spousal-support was only seen uncommitted).",
+    "Current-spouse detail block and prior-marriage rows — marital status was never committed as Married in this run.",
+    "/moral-character/oath-of-allegiance — still never reached.",
+    "The three uncaptured schools-and-employment row shapes (self-employment, unemployment, school).",
+    "The 5 race checkbox codes on /about-you/describe-yourself.",
+    "Autocomplete option lists (height, eyeColor, hairColor, country, state, occupation) — must be compared byte for byte per the I-539 picker lesson.",
+    "/additional-information/additional-information row field names."
+  ]
+}

@@ -11,7 +11,7 @@
 // repeater pages, it counts how many indexed rows the payload supplies, clicks
 // "Add" to render each, then fills the indexed names.
 
-import { setValue, findByName } from "../engine/value-setter";
+import { setValue, findByName, locateElement } from "../engine/value-setter";
 import { FieldSpec, SetResult } from "../engine/types";
 import { dbg } from "../engine/logger";
 import { DescriptorField, FormConfig, FormPage, RepeaterSpec, RevealSpec } from "./types";
@@ -32,6 +32,12 @@ export interface PlannedField {
    * must wait for the revealed block to render after this is set.
    */
   reveals?: boolean;
+  /**
+   * This field is a repeater's VARIANT DISCRIMINATOR — the answer that decides
+   * which row shape renders. Nothing else in the row exists until it is set, so
+   * it outranks every other ordering rule.
+   */
+  isDiscriminator?: boolean;
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -98,6 +104,11 @@ function revealDepth(p: PlannedField, byName: Map<string, PlannedField>): number
  */
 function orderFields(planned: PlannedField[]): PlannedField[] {
   const rank = (p: PlannedField): number => {
+    // A variant discriminator decides whether the rest of the row EXISTS, so it
+    // leads unconditionally. It is a `search` field on the N-400, which would
+    // otherwise rank last and be driven after the inputs it creates — the same
+    // shape of mistake as attempting the premium radio before its revealer.
+    if (p.isDiscriminator) return -1;
     if (p.spec.kind === "radio") return 0;
     const n = p.spec.name.toLowerCase();
     if (n.includes("country")) return 1;
@@ -115,6 +126,54 @@ function orderFields(planned: PlannedField[]): PlannedField[] {
       (depth.get(a.spec.name) ?? 0) - (depth.get(b.spec.name) ?? 0) ||
       rank(a) - rank(b),
   );
+}
+
+/**
+ * Upper bound on items in a NESTED list (a repeater inside a repeater row).
+ * Matches the 50-row cap on outer rows: a backstop against a malformed payload
+ * spinning forever, not a real limit anyone should hit.
+ */
+const MAX_NESTED_ITEMS = 50;
+
+/**
+ * The part of a repeater field name AFTER the row index — e.g.
+ * "employmentInfo.workName" from "applicant.schoolsAndEmployment.{i}.employmentInfo.workName".
+ * This is the key a `variants` shape list is written in, so shapes stay readable
+ * instead of repeating the full 60-character prefix on every entry.
+ */
+function rowFieldSuffix(templateName: string): string {
+  const parts = templateName.split("{i}.");
+  return parts.length > 1 ? parts[1] : templateName;
+}
+
+/**
+ * The field suffixes that actually render for one row of a polymorphic repeater,
+ * or null when every field should be planned.
+ *
+ * Null (plan everything) is deliberate for both unknown cases — no discriminator
+ * value, and a discriminator value we have no shape for. USCIS can rename an
+ * option, and dropping the row silently would be the worst outcome: the fields are
+ * declared `cond(...)`, so ones that turn out not to exist skip quietly rather
+ * than failing. Guessing is worse than deferring to the DOM here.
+ */
+function activeRowShape(
+  repeater: RepeaterSpec,
+  rowIndex: number,
+  fieldValues: Record<string, string>,
+): string[] | null {
+  const variants = repeater.variants;
+  if (!variants) return null;
+  const chosen = fieldValues[variants.discriminator.replace(/\{i\}/g, String(rowIndex))];
+  if (chosen === undefined || chosen === "") return null;
+  const shape = variants.shapes[chosen];
+  if (!shape) {
+    dbg(
+      `fill: row ${rowIndex} type "${chosen}" is not a known shape — ` +
+        `planning every field and letting the page decide`,
+    );
+    return null;
+  }
+  return shape;
 }
 
 /**
@@ -150,8 +209,13 @@ export function planPageFill(
 ): PlannedField[] {
   const out: PlannedField[] = [];
 
-  const collect = (field: DescriptorField, rowIndex: number): void => {
-    const name = field.name.replace(/\{i\}/g, String(rowIndex));
+  const collect = (
+    field: DescriptorField,
+    rowIndex: number,
+    opts: { nestedIndex?: number; isDiscriminator?: boolean } = {},
+  ): void => {
+    let name = field.name.replace(/\{i\}/g, String(rowIndex));
+    if (opts.nestedIndex !== undefined) name = name.replace(/\{j\}/g, String(opts.nestedIndex));
     const value = fieldValues[name];
     if (value === undefined) return;
     // Empty string fills nothing except a checkbox (where "" => leave unchecked,
@@ -165,11 +229,17 @@ export function planPageFill(
       return;
     }
     out.push({
-      spec: { name, kind: field.kind, optionValue: field.options ? value : undefined },
+      spec: {
+        name,
+        kind: field.kind,
+        optionValue: field.options ? value : undefined,
+        ...(field.locate ? { locate: field.locate } : {}),
+      },
       value,
       rowIndex,
       conditional: field.conditional,
       revealedBy: field.revealedBy,
+      ...(opts.isDiscriminator ? { isDiscriminator: true } : {}),
     });
   };
 
@@ -180,13 +250,36 @@ export function planPageFill(
     // the {i} fields per row. Counting rows from the {i} fields alone keeps a
     // non-repeater field (which matches every index) from inflating the count.
     // For a pure repeater page plainFields is empty, so behaviour is unchanged.
+    const repeater = page.repeater;
     const repeaterFields = page.fields.filter((f) => f.name.includes("{i}"));
     for (const field of page.fields) {
       if (!field.name.includes("{i}")) collect(field, 0);
     }
-    const rows = repeaterRowCount(page.repeater, repeaterFields, fieldValues);
+    const rows = repeaterRowCount(repeater, repeaterFields, fieldValues);
     for (let i = 0; i < rows; i++) {
-      for (const field of repeaterFields) collect(field, i);
+      const discName = repeater.variants?.discriminator.replace(/\{i\}/g, String(i));
+      const shape = activeRowShape(repeater, i, fieldValues);
+      for (const field of repeaterFields) {
+        const resolved = field.name.replace(/\{i\}/g, String(i));
+        const isDiscriminator = discName !== undefined && resolved === discName;
+        // Variant filtering: on a polymorphic repeater, only the chosen shape's
+        // inputs exist. Attempting the others produces phantom failures for
+        // fields myUSCIS was never going to render for this row.
+        if (!isDiscriminator && shape && !shape.includes(rowFieldSuffix(field.name))) continue;
+        if (field.name.includes("{j}")) {
+          // NESTED list inside this row (the travel page's per-trip countries).
+          // Expand until the payload runs out; a literal {j} reaching a plan can
+          // only fail to match an input, so it must never survive.
+          for (let j = 0; j < MAX_NESTED_ITEMS; j++) {
+            const nested = resolved.replace(/\{j\}/g, String(j));
+            const v = fieldValues[nested];
+            if (v === undefined || v === "") break;
+            collect(field, i, { nestedIndex: j });
+          }
+          continue;
+        }
+        collect(field, i, { isDiscriminator });
+      }
     }
   } else {
     for (const field of page.fields) collect(field, 0);
@@ -242,7 +335,7 @@ function shortName(name: string): string {
 async function waitForRevealed(spec: FieldSpec, timeoutMs = REVEAL_RENDER_TIMEOUT_MS): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
-    if (findByName(spec.name, spec.optionValue) !== null) return true;
+    if (locateElement(spec) !== null) return true;
     if (Date.now() >= deadline) return false;
     await sleep(150);
   }
@@ -307,7 +400,7 @@ export async function fillPage(
             `the reveal is wrong or the form changed`,
         );
       }
-    } else if (p.conditional && findByName(p.spec.name, p.spec.optionValue) === null) {
+    } else if (p.conditional && locateElement(p.spec) === null) {
       // Conditional with NO declared reveal: all we can do is look. Absent means a
       // legitimate non-reveal (this branch hides the block), so skip it quietly
       // instead of counting a failure. Probed AFTER the radio-settle above so a
@@ -516,12 +609,29 @@ export function findNextButton(doc: Document = document): HTMLButtonElement | nu
  * global nav/sidebar/header (which carries the form-wide "Save and exit") is
  * excluded so we never click out of the form.
  */
-export function findSaveButton(doc: Document = document): HTMLElement | null {
+export function findSaveButton(
+  doc: Document = document,
+  preferredLabel?: string,
+): HTMLElement | null {
   // "Save and exit/close", "Save draft", "Save for later" all LEAVE the form.
   const LEAVE = /save\s+(and|&)\s+(exit|close)|save\s+draft|save\s+for\s+later/;
   const candidates = Array.from(
     doc.querySelectorAll<HTMLElement>('button, [role="button"]'),
   ).filter((b) => !b.closest('nav, aside, header, [role="navigation"]'));
+  // 0. The descriptor's captured label, when it has one, matched EXACTLY.
+  //
+  // The N-400 uses four different labels across its repeaters ("Save entry",
+  // "Save child", "Save", "Save response"), and a bare "Save" is a substring of
+  // the other three — so the generic passes below can resolve ambiguously on a
+  // page that renders more than one. Preferring the label we actually captured
+  // removes the guess. Exact rather than substring for the same reason.
+  if (preferredLabel) {
+    const want = preferredLabel.trim().toLowerCase();
+    for (const b of candidates) {
+      if ((b.textContent || "").trim().toLowerCase() === want && !LEAVE.test(want)) return b;
+    }
+    dbg(`nav: declared commit button "${preferredLabel}" not found — falling back to a generic match`);
+  }
   // 1. Explicit commit phrases: "Save Entry", "Save and continue", "Save & continue".
   for (const b of candidates) {
     const t = (b.textContent || "").trim().toLowerCase();
@@ -607,7 +717,9 @@ export async function waitForPageReady(
     }
     // Pure repeater page: rows render only after Add, so its presence = page up.
     if (page.repeater && findAddButton(page.repeater.addButtonText)) return true;
-    return plan.some((p) => findByName(p.spec.name, p.spec.optionValue) !== null);
+    // locateElement, not findByName: a page whose fields are all LOCATED (no
+    // usable name attribute) would otherwise read as "not this page".
+    return plan.some((p) => locateElement(p.spec) !== null);
   };
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -897,7 +1009,9 @@ export async function fillAll(
         // Next/Continue until the just-entered row is COMMITTED via a "Save
         // Entry" button; clicking it surfaces the page's Next. Try that
         // save-then-next sequence before giving up.
-        const saveBtn = findSaveButton();
+        // Prefer the label the capture recorded for THIS page's repeater; the
+        // generic passes are the fallback.
+        const saveBtn = findSaveButton(document, page?.repeater?.rowCommitButtonText);
         if (!saveBtn) {
           dbg("fillAll: no Next button, stopping");
           break;

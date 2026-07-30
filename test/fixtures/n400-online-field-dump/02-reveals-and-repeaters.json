@@ -1,0 +1,213 @@
+{
+  "_doc": "CONDITIONAL REVEALS and REPEATER ROW SHAPES for the guided online N-400. Captured live on draft 13370795, 2026-07-30, by setting gate answers with a React-safe value setter and re-reading the DOM. Companion to n400-online-field-dump.json (which holds the unconditional shape). Answers were NOT committed with Next, so anything that only appears after a commit is marked as such.",
+  "_captured": "2026-07-30",
+
+  "THE_BIG_RULE": {
+    "rule": "Every moral-character field whose name ends in '.question' has a SIBLING '<same-path>.additionalExplanation' TEXTAREA that is revealed by answering the radio Yes (true). A field WITHOUT the '.question' suffix has NO explain sibling.",
+    "proven_on": [
+      "moralCharacter.taxInformation.oweTaxes.question -> .oweTaxes.additionalExplanation",
+      "moralCharacter.taxInformation.calledNonResidentOnTaxReturn.question -> .additionalExplanation",
+      "moralCharacter.goodMoralCharacter.involvedInTorture.question -> .additionalExplanation",
+      "moralCharacter.hereditaryOrInheritedTitles.titleOfNobility.question -> .additionalExplanation"
+    ],
+    "negative_control": "Setting involvedInTorture.question=true revealed ONLY its own additionalExplanation — genocide/killing/intentionallyHarming stayed collapsed. So the reveal is strictly per-question, not per-page.",
+    "no_suffix_no_explain": [
+      "moralCharacter.crimesAndOffenses.committedCrime",
+      "moralCharacter.crimesAndOffenses.arrested",
+      "moralCharacter.militaryService.servedUSArmedForces",
+      "moralCharacter.militaryService.currentlyMemberOfUSArmedForces",
+      "moralCharacter.selectiveService.maleBetween18and26",
+      "moralCharacter.attachmentToTheUsConstitution.supportTheConstitutionOfUS"
+    ],
+    "why_it_matters": "This covers roughly 35 moral-character explain fields MECHANICALLY — the map and descriptor can DERIVE them instead of capturing each one. It is also where SOF-1066's 28 orphaned Good Moral Character explain answers belong ONLINE: each goes to its own '<x>.additionalExplanation', NOT to a Part 14 continuation sheet (that is a paper-only construct).",
+    "descriptor_note": "Each additionalExplanation should be declared cond(area(...), {by: '<x>.question', is: 'true'}) so the chain drives the radio first and can tell a legitimate non-reveal from a real failure."
+  },
+
+  "evidence_pages_are_CONDITIONAL": {
+    "finding": "The /evidence/* page set is NOT fixed — it changes with the answers, the same way the I-539's evidence pages vary by target status. Three different sets were observed live.",
+    "observed": [
+      { "when": "blank draft", "pages": ["/evidence/current-marriage-certificate-and-previous-marriage-documents", "/evidence/additional-evidence"] },
+      { "when": "eligibilityCode=192 (Spouse of a U.S. citizen)", "adds": ["/evidence/your-current-spouse-us-citizenship", "/evidence/evidence-about-your-marriage"] },
+      { "when": "maritalStatus.status=2 (Married)", "adds": ["/evidence/child-and-spousal-support"] }
+    ],
+    "known_slugs_so_far": [
+      "/evidence/current-marriage-certificate-and-previous-marriage-documents",
+      "/evidence/your-current-spouse-us-citizenship",
+      "/evidence/evidence-about-your-marriage",
+      "/evidence/child-and-spousal-support",
+      "/evidence/additional-evidence"
+    ],
+    "maps_onto_our_doc_requirements": {
+      "/evidence/your-current-spouse-us-citizenship": "the spouse_citizenship group (us_birth_certificate / us_passport / naturalization_certificate / fs240) — already gated on applicant.eligibility_basis == spouse_3yr in document_requirements.json, which is EXACTLY the condition that reveals this page",
+      "/evidence/evidence-about-your-marriage": "the spouse_bona_fide group (joint_lease_mortgage / joint_bank_statement / joint_tax_return), same gate",
+      "/evidence/additional-evidence": "server-side catch_all for everything with no dedicated slot — green_card, tax_transcript, passport, drivers_license, arrest_record, etc."
+    },
+    "implication": "The backend upload_pages for N-400 needs a conditional filter like the I-539's 'targets', but keyed on applicant.eligibility_basis (and possibly marital status) rather than a target status code. Reuse the SOF-1009 mechanism in forms/resolvers.py myuscis_documents.",
+    "CAVEAT": "Uncommitted answers REVERT on navigation — myUSCIS only persists on Next. So this list is what the sidebar OFFERS transiently, and the definitive per-scenario set still needs a Next-committed walk. Not yet done. Upload controls on these pages are also unconfirmed: all of them BOUNCE on a URL deep-link.",
+    "not_yet_seen": "No dedicated green-card or tax-transcript slot appeared in any of the three variants, which is consistent with them falling to the catch-all."
+  },
+
+  "repeaters": [
+    {
+      "page": "/about-you/where-you-have-lived",
+      "addButtonText": "Add an address",
+      "rowCommitButton": "Save entry",
+      "namePrefix": "applicant.whereYouHaveLived",
+      "rowFields": [
+        "applicant.whereYouHaveLived.{i}.address.country",
+        "applicant.whereYouHaveLived.{i}.address.addressLineOne",
+        "applicant.whereYouHaveLived.{i}.address.addressLineTwo",
+        "applicant.whereYouHaveLived.{i}.address.city",
+        "applicant.whereYouHaveLived.{i}.address.state",
+        "applicant.whereYouHaveLived.{i}.address.zipCode",
+        "applicant.whereYouHaveLived.{i}.datesOfResidence.fromDate",
+        "applicant.whereYouHaveLived.{i}.datesOfResidence.toDate"
+      ],
+      "note": "Unlike the CURRENT address block on /about-you/your-contact-information, this row's toDate has a proper Formik name. The UUID-named To field is specific to the current-address block."
+    },
+    {
+      "page": "/about-you/schools-and-employment",
+      "addButtonText": "Add entry",
+      "rowCommitButton": "Save entry",
+      "namePrefix": "applicant.schoolsAndEmployment",
+      "POLYMORPHIC": {
+        "typeField": "applicant.schoolsAndEmployment.{i}.schoolOrEmploymentType",
+        "kind": "MUI Autocomplete (role=combobox, aria-autocomplete=list) — drive as 'search'",
+        "options": ["Select", "Add a period of self-employment", "Add a period of unemployment", "Add a school", "Add an employer"],
+        "note": "ONE repeater with FOUR row shapes. The row renders ONLY the type field until a type is chosen; each type then reveals a different field set. Only the 'Add an employer' shape is captured below — self-employment, unemployment and school shapes are STILL UNCAPTURED."
+      },
+      "rowFields_employer": [
+        "applicant.schoolsAndEmployment.{i}.schoolOrEmploymentType",
+        "applicant.schoolsAndEmployment.{i}.employmentInfo.workName",
+        "applicant.schoolsAndEmployment.{i}.employmentInfo.occupation",
+        "applicant.schoolsAndEmployment.{i}.dates.fromDate",
+        "applicant.schoolsAndEmployment.{i}.dates.toPresent",
+        "applicant.schoolsAndEmployment.{i}.dates.toDate",
+        "applicant.schoolsAndEmployment.{i}.address.country",
+        "applicant.schoolsAndEmployment.{i}.address.city",
+        "applicant.schoolsAndEmployment.{i}.address.state",
+        "applicant.schoolsAndEmployment.{i}.address.zipCode"
+      ],
+      "autocompletes_in_row": ["schoolOrEmploymentType", "employmentInfo.occupation", "address.country", "address.state"],
+      "maps_to_our_facts": "applicant.employment_education_history[i].{name -> employmentInfo.workName, occupation_or_field -> employmentInfo.occupation, from -> dates.fromDate, to -> dates.toDate, city/state/country -> address.*}. Clean fit.",
+      "sof_1066_note": "SOF-1066 records that the PDF has NO 'To' widget on Part 7 row 1, so a to-date on the first row is dropped on paper. ONLINE there IS a proper dates.toDate plus a dates.toPresent checkbox, so the online fill does not have that hole."
+    },
+    {
+      "page": "/about-you/travel-outside-the-us",
+      "gate": { "field": "formikFactoryUIMeta.applicant.travelOutsideTheUs.travelLast5Years", "revealOn": "true" },
+      "addButtonText": "Add trip",
+      "rowCommitButton": "Save entry",
+      "namePrefix": "applicant.travelOutsideTheUs.timeSpentOutsideUS.timeSpentOutsideUSTable",
+      "rowFields": [
+        "applicant.travelOutsideTheUs.timeSpentOutsideUS.timeSpentOutsideUSTable.{i}.dateLeftTheUS",
+        "applicant.travelOutsideTheUs.timeSpentOutsideUS.timeSpentOutsideUSTable.{i}.dateReturnedToUS",
+        "applicant.travelOutsideTheUs.timeSpentOutsideUS.timeSpentOutsideUSTable.{i}.countries.{j}"
+      ],
+      "NESTED_REPEATER": {
+        "innerPrefix": "...timeSpentOutsideUSTable.{i}.countries",
+        "innerAddButtonText": "Add country",
+        "innerFieldIsAutocomplete": true,
+        "WARNING": "This is a TWO-LEVEL repeater — a list of countries inside each trip row. No existing descriptor models this: RepeaterSpec carries a single namePrefix + addButtonText, so the type needs extending (or the inner list needs special-casing) before this page can be driven. First occurrence of a nested repeater in the whole extension."
+      }
+    },
+    {
+      "page": "/your-family/children",
+      "countField": "yourFamily.children.totalNumberOfChildren",
+      "addButtonText": "Add a child",
+      "rowCommitButton": "Save child",
+      "namePrefix": "yourFamily.children.childrenInformation",
+      "rowFields": [
+        "yourFamily.children.childrenInformation.{i}.childInfo.name.firstName",
+        "yourFamily.children.childrenInformation.{i}.childInfo.name.lastName",
+        "yourFamily.children.childrenInformation.{i}.childInfo.dateOfBirth",
+        "yourFamily.children.childrenInformation.{i}.childInfo.residence",
+        "yourFamily.children.childrenInformation.{i}.childInfo.relationship",
+        "yourFamily.children.childrenInformation.{i}.childInfo.supportForChild"
+      ],
+      "rowOptionCodes": {
+        "childInfo.residence": [
+          { "c": "Resides with me", "l": "Resides with me" },
+          { "c": "Does not reside with me", "l": "Does not reside with me" },
+          { "c": "Unknown", "l": "Unknown/Missing" }
+        ],
+        "childInfo.relationship": [
+          { "c": "Biological son or daughter", "l": "Biological son or daughter" },
+          { "c": "Stepchild", "l": "Stepchild" },
+          { "c": "Legally adopted son or daughter", "l": "Legally adopted son or daughter" }
+        ],
+        "childInfo.supportForChild": [ { "c": "true", "l": "Yes" }, { "c": "false", "l": "No" } ]
+      },
+      "sof_1066_note": "Matches SOF-1066's Part 6 children columns exactly: name, residence, relationship, providing-support. The online question text already says 'ALL children under 18 years of age', corroborating the 'of any age' -> 'under 18' relabel."
+    },
+    {
+      "page": "/about-you/your-name",
+      "gate": { "field": "formikFactoryUIMeta.applicant.yourName.additionalNames.hasAdditionalNames", "revealOn": "true" },
+      "addButtonText": "Add another name",
+      "namePrefix": "applicant.yourName.additionalNames.otherNames",
+      "rowFields": [
+        "applicant.yourName.additionalNames.otherNames.{i}.firstName",
+        "applicant.yourName.additionalNames.otherNames.{i}.middleName",
+        "applicant.yourName.additionalNames.otherNames.{i}.lastName"
+      ],
+      "note": "Same name and shape as the I-130's applicant.yourName.additionalNames.otherNames repeater — that map block transfers."
+    },
+    {
+      "page": "/additional-information/additional-information",
+      "addButtonText": "Add a response",
+      "note": "Add label is IDENTICAL to the I-539's. Row field names not yet captured (Add not clicked). The I-539 uses additionalInformationArray; confirm whether the N-400 does too before assuming."
+    }
+  ],
+
+  "in_page_reveals": [
+    {
+      "page": "/about-you/your-name",
+      "gate": "applicant.yourName.nameChangedName.hasNameChanged = true",
+      "reveals": [
+        "applicant.yourName.nameChangedName.nameChange.firstName",
+        "applicant.yourName.nameChangedName.nameChange.middleName",
+        "applicant.yourName.nameChangedName.nameChange.lastName"
+      ],
+      "note": "This is the legal-name-change block. Pairs with the name_change_document doc requirement."
+    },
+    {
+      "page": "/about-you/your-immigration-information/your-immigration-information-page-2",
+      "gate": "applicant.yourImmigrationInformationPage2.wantSocialSecurityCard = true",
+      "reveals": ["applicant.yourImmigrationInformationPage2.consentForDisclosure"],
+      "SOF_1066": "THIS IS PDF PART 2 ITEM 12.c — the SSA consent SOF-1066 says must be added because 'a Yes on 12.a with a blank 12.c means no card is issued'. The online field name is consentForDisclosure. It is a radio, revealed by 12.a = Yes."
+    },
+    {
+      "page": "/your-family/marital-status",
+      "gate": "yourFamily.maritalStatus.status = 2 (Married)",
+      "reveals": [
+        "yourFamily.maritalStatus.memberOfArmedForces",
+        "yourFamily.maritalStatus.numberOfTimesMarried"
+      ],
+      "note": "Setting numberOfTimesMarried=2 revealed NOTHING further on this page, so the current-spouse detail block and the prior-marriage rows must live on page(s) that only appear after a Next-commit. NOT captured."
+    },
+    {
+      "page": "/moral-character/hereditary-or-inherited-titles",
+      "gate": "moralCharacter.hereditaryOrInheritedTitles.titleOfNobility.question = true",
+      "reveals": [
+        "moralCharacter.hereditaryOrInheritedTitles.titleOfNobility.additionalExplanation",
+        "moralCharacter.hereditaryOrInheritedTitles.willingToGiveUpTitle"
+      ],
+      "SOF_1066": "Covers the Part 9 Item 30.a nobility-titles TEXT that SOF-1066 adds. Online it is titleOfNobility.additionalExplanation, plus an extra willingToGiveUpTitle radio that has no PDF counterpart in the ticket's list — worth checking whether the paper form has it."
+    }
+  ],
+
+  "STILL_UNCAPTURED": {
+    "needs_a_next_committed_walk": [
+      "The Part 9 Item 15 CRIME TABLE. Setting committedCrime=true AND arrested=true on /moral-character/crimes-and-offenses revealed NOTHING in-page, so the table is on a page that only appears once the answers are committed. This is the online counterpart of SOF-1066's applicant.mc_crime_incidents work and it is still unknown.",
+      "The current-spouse detail block and prior-marriage rows (see marital-status note).",
+      "The three bouncing pages: /moral-character/oath-of-allegiance and both original /evidence/* pages.",
+      "Upload controls and accepted file behaviour on every /evidence/* page.",
+      "The definitive per-scenario evidence page set."
+    ],
+    "needs_more_reveal_probing": [
+      "The three uncaptured schools-and-employment row shapes (self-employment, unemployment, school).",
+      "The 5 race checkbox codes on /about-you/describe-yourself — bare numeric names 1,2,3,5,6 whose individual labels were never resolved because they share one form-control wrapper.",
+      "Option lists for the Autocompletes: height.feet, height.inches, eyeColor, hairColor, country, state, occupation. Per the I-539 picker lesson these must be compared BYTE FOR BYTE against whatever we store.",
+      "Row field names for the /additional-information/additional-information repeater."
+    ]
+  }
+}

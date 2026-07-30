@@ -6,6 +6,7 @@
 
 import { I130_PAGES } from "../i130/form-descriptor";
 import { I539_PAGES } from "../i539/form-descriptor";
+import { N400_PAGES } from "../n400/form-descriptor";
 import { FormConfig } from "./types";
 
 export const I130_CONFIG: FormConfig = {
@@ -22,7 +23,14 @@ export const I539_CONFIG: FormConfig = {
   pages: I539_PAGES,
 };
 
-export const FORM_CONFIGS: FormConfig[] = [I130_CONFIG, I539_CONFIG];
+export const N400_CONFIG: FormConfig = {
+  formType: "N-400",
+  hostPath: "/forms/application-for-naturalization/",
+  label: "ParaLeagle N-400",
+  pages: N400_PAGES,
+};
+
+export const FORM_CONFIGS: FormConfig[] = [I130_CONFIG, I539_CONFIG, N400_CONFIG];
 
 /**
  * Pick the config for a myUSCIS path, or null when the path is not one of our
