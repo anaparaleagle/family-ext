@@ -38,6 +38,14 @@ export interface PlannedField {
    * it outranks every other ordering rule.
    */
   isDiscriminator?: boolean;
+  /**
+   * A single-instance field sharing a page with a repeater.
+   *
+   * Ordering, not bookkeeping: clicking a repeater Add COVERS the plain inputs, so
+   * a plain field filled after a row is unreachable. A live run reported exactly
+   * that — "FAIL yourFamily.children.totalNumberOfChildren - element not on page".
+   */
+  plain?: boolean;
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -122,6 +130,8 @@ function orderFields(planned: PlannedField[]): PlannedField[] {
   // still lead.
   return [...planned].sort(
     (a, b) =>
+      // Plain single-instance fields lead — a repeater Add hides them.
+      Number(!!b.plain) - Number(!!a.plain) ||
       a.rowIndex - b.rowIndex ||
       (depth.get(a.spec.name) ?? 0) - (depth.get(b.spec.name) ?? 0) ||
       rank(a) - rank(b),
@@ -212,7 +222,7 @@ export function planPageFill(
   const collect = (
     field: DescriptorField,
     rowIndex: number,
-    opts: { nestedIndex?: number; isDiscriminator?: boolean } = {},
+    opts: { nestedIndex?: number; isDiscriminator?: boolean; plain?: boolean } = {},
   ): void => {
     let name = field.name.replace(/\{i\}/g, String(rowIndex));
     if (opts.nestedIndex !== undefined) name = name.replace(/\{j\}/g, String(opts.nestedIndex));
@@ -240,6 +250,7 @@ export function planPageFill(
       conditional: field.conditional,
       revealedBy: field.revealedBy,
       ...(opts.isDiscriminator ? { isDiscriminator: true } : {}),
+      ...(opts.plain ? { plain: true } : {}),
     });
   };
 
@@ -253,7 +264,7 @@ export function planPageFill(
     const repeater = page.repeater;
     const repeaterFields = page.fields.filter((f) => f.name.includes("{i}"));
     for (const field of page.fields) {
-      if (!field.name.includes("{i}")) collect(field, 0);
+      if (!field.name.includes("{i}")) collect(field, 0, { plain: true });
     }
     const rows = repeaterRowCount(repeater, repeaterFields, fieldValues);
     for (let i = 0; i < rows; i++) {
@@ -367,8 +378,15 @@ export async function fillPage(
     dbg(`  no value from the backend for: ${unsent.map(shortName).join(", ")}`);
   }
 
-  if (page.repeater) {
-    // Render each repeater row before filling it. Count rows from the {i} fields
+  // Rows render LAZILY — immediately before the first ROW field, never up front.
+  // Clicking a repeater Add COVERS the page's plain inputs, which is why
+  // /your-family/children reported its count field missing on a live run. The plan
+  // is already sorted plain-first, so deferring Add is all that is needed.
+  let rowsRendered = false;
+  const renderRowsOnce = async (): Promise<void> => {
+    if (rowsRendered || !page.repeater) return;
+    rowsRendered = true;
+    // Count rows from the {i} fields
     // only (so single-instance fields on a mixed page don't inflate the count).
     // Row 0 usually renders after one Add click; the dump shows repeaters render
     // no inputs until Add (on a mixed page row 0 may already be present).
@@ -377,11 +395,12 @@ export async function fillPage(
     for (let i = 0; i < rows; i++) {
       await ensureRepeaterRow(page.repeater, i);
     }
-  }
+  };
 
   let lastWasRadio = false;
   let skipped = 0;
   for (const p of plan) {
+    if (!p.plain) await renderRowsOnce();
     if (lastWasRadio && p.spec.kind !== "radio") {
       // A radio may have revealed conditional fields; let React settle.
       await sleep(800);
@@ -429,6 +448,10 @@ export async function fillPage(
       await sleep(1200);
     }
   }
+
+  // A page whose row fields were ALL dropped from the plan still gets its rows
+  // rendered, so the walk's Save/Next logic sees the real page, not a collapsed one.
+  await renderRowsOnce();
 
   const filled = results.filter((r) => r.success).length;
   return {
@@ -840,7 +863,9 @@ export function onLoginPage(doc: Document = document): boolean {
 export async function fillAll(
   config: FormConfig,
   fieldValues: Record<string, string>,
-  onUploadPage: (page: FormPage) => Promise<void>,
+  // Reports how many files it attached, so the advance logic can tell "myUSCIS is
+  // still processing an upload" from "there was no upload".
+  onUploadPage: (page: FormPage) => Promise<number | void>,
 ): Promise<PageFillResult[]> {
   const summaries: PageFillResult[] = [];
   const uploadsSeen: string[] = [];
@@ -870,6 +895,8 @@ export async function fillAll(
     }
     const page = detectCurrentPage(config.pages);
     let isUploadPage = false;
+    // null = the callback did not say, so assume something may be processing.
+    let attachedHere: number | null = null;
     // Set by the upload branch, which does its own click-and-retry advance.
     let advanced = false;
     if (!page) {
@@ -904,7 +931,7 @@ export async function fillAll(
           // the exact failure that hid the doc-upload CORS bug.
           try {
             uploadsSeen.push(page.slug);
-            await onUploadPage(page);
+            attachedHere = (await onUploadPage(page)) ?? null;
           } catch (err) {
             dbg(
               `fillAll: No file attached to ${page.slug} — upload step errored ` +
@@ -932,7 +959,11 @@ export async function fillAll(
       // server-side. Let any spinner clear, then give Next a much longer window
       // to enable before clicking. The robust signal is Next becoming enabled —
       // if it never does, stop rather than click a dead button forever.
-      await waitForUploadToSettle();
+      // NOTHING attached means nothing is uploading, so there is no settle to wait
+      // for and no reason to give Next the long upload window. Skipping both is
+      // what turns a minute of "still processing the upload" into one click.
+      const nothingAttached = attachedHere === 0;
+      if (!nothingAttached) await waitForUploadToSettle();
       // If uploads are STILL running, do not touch Next. myUSCIS answers a
       // navigation attempt with "Your files will not upload if you leave this
       // page", whose only ways out are "Stay" or "Leave this page" — and Leave
@@ -953,11 +984,14 @@ export async function fillAll(
         );
         break;
       }
+      const nextWindow = nothingAttached ? DEFAULT_NEXT_TIMEOUT_MS : UPLOAD_NEXT_TIMEOUT_MS;
       dbg(
-        `fillAll: uploads settled on ${page?.slug ?? "this page"} — waiting for Next ` +
-          `to enable (up to ${Math.round(UPLOAD_NEXT_TIMEOUT_MS / 1000)}s)`,
+        nothingAttached
+          ? `fillAll: nothing attached on ${page?.slug ?? "this page"} — not waiting on an upload`
+          : `fillAll: uploads settled on ${page?.slug ?? "this page"} — waiting for Next ` +
+              `to enable (up to ${Math.round(nextWindow / 1000)}s)`,
       );
-      const next = await waitForNextEnabled(UPLOAD_NEXT_TIMEOUT_MS);
+      const next = await waitForNextEnabled(nextWindow);
       if (!next || next.disabled) {
         dbg(
           "fillAll: Next never enabled on this upload page — either no file was " +
@@ -979,16 +1013,22 @@ export async function fillAll(
       // page did not move, the click was too early — wait and click again. That is
       // exactly what a second Fill all was doing by hand.
       advanced = false;
-      for (let attempt = 1; attempt <= UPLOAD_ADVANCE_ATTEMPTS; attempt++) {
+      // With NOTHING attached there is no server-side processing to wait for, so
+      // the retry loop would spend a minute insisting myUSCIS was busy. One click.
+      const attempts = attachedHere === 0 ? 1 : UPLOAD_ADVANCE_ATTEMPTS;
+      if (attachedHere === 0) {
+        dbg("fillAll: nothing attached here — advancing once instead of retrying");
+      }
+      for (let attempt = 1; attempt <= attempts; attempt++) {
         const btn = findNextButton() ?? next;
         btn.click();
         if (await waitForPageChange(prevUrl, UPLOAD_ADVANCE_WAIT_MS)) {
           advanced = true;
           break;
         }
-        if (attempt < UPLOAD_ADVANCE_ATTEMPTS) {
+        if (attempt < attempts) {
           dbg(
-            `fillAll: Next did not move the page (attempt ${attempt}/${UPLOAD_ADVANCE_ATTEMPTS}) — ` +
+            `fillAll: Next did not move the page (attempt ${attempt}/${attempts}) — ` +
               `myUSCIS is still processing the upload; waiting and clicking again`,
           );
           await sleep(UPLOAD_ADVANCE_RETRY_MS);
@@ -1003,6 +1043,17 @@ export async function fillAll(
         break;
       }
     } else {
+      // A repeater page shows only its COMMIT button until the row is saved; there
+      // is no Next at all. Waiting the full window first cost 12s on three separate
+      // pages of a live run. The descriptor carries the exact label, so use it.
+      if (page?.repeater?.rowCommitButtonText && !findNextButton()) {
+        const commit = findSaveButton(document, page.repeater.rowCommitButtonText);
+        if (commit) {
+          dbg(`fillAll: committing the row with "${page.repeater.rowCommitButtonText}" before looking for Next`);
+          commit.click();
+          await sleep(600);
+        }
+      }
       let next = await waitForNextEnabled();
       if (!next) {
         // Repeater pages (e.g. /other-information/other-petitions) expose NO

@@ -82,13 +82,20 @@ async function loadPayloadFor(config: FormConfig): Promise<LoadedPayload | null>
  * doc-upload CORS failure hid: the debug log simply stopped after the last filled
  * page. Anything unexpected in here is logged and reported, not thrown.
  */
-async function handleUploadPage(page: FormPage, payload: LoadedPayload): Promise<void> {
+/**
+ * Attach whatever this evidence page needs, and report HOW MANY files landed.
+ *
+ * The count matters to the walk: with nothing attached there is no server-side
+ * processing to wait for, so the advance logic can click Next once instead of
+ * spending a minute insisting myUSCIS is still busy.
+ */
+async function handleUploadPage(page: FormPage, payload: LoadedPayload): Promise<number> {
   // ALL descriptors for this page, not just the first — one evidence slot can be
   // fed by several document types (see fillUploadPageAll).
   const descriptors = descriptorsForPath(page.slug, payload.uploadPages);
   if (descriptors.length === 0) {
     dbg(`upload: no descriptor for ${page.slug}, skipping`);
-    return;
+    return 0;
   }
   try {
     const result = await fillUploadPageAll(descriptors, {
@@ -103,10 +110,15 @@ async function handleUploadPage(page: FormPage, payload: LoadedPayload): Promise
       : "";
     setStatus(`Upload ${page.slug}: ${result.attached} attached${skipped}`);
     for (const w of result.warnings) dbg(`upload: ${w}`);
+    // Files ALREADY attached count as present: a correct re-run has nothing new to
+    // send but still must wait for myUSCIS, so it is not the "nothing here" case.
+    return result.attached + result.alreadyAttached;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     setStatus(`Upload ${page.slug}: failed`);
     dbg(`upload: No file attached to ${page.slug} — unexpected error: ${message}`);
+    // An ERROR is not proof nothing is uploading, so do not claim zero.
+    return 1;
   }
 }
 
