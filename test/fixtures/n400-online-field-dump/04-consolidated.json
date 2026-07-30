@@ -1,0 +1,166 @@
+{
+  "_doc": "FINAL consolidation of the online N-400 capture. Draft 13370795, 2026-07-30. Supersedes the STILL_OPEN lists in the earlier three files. Read order: n400-online-capture-notes.md (traps + narrative) -> n400-online-field-dump.json (unconditional pages) -> n400-online-reveals.json (in-page reveals, repeater rows) -> n400-online-committed-walk.json (committed-walk page growth, evidence slugs, upload control) -> THIS FILE (everything captured in the final sweep + what genuinely remains). Nothing was Submitted, Signed or Paid at any point; Next is refused by PATH on /review-and-submit/*.",
+  "_captured": "2026-07-30",
+  "_final_page_count": 52,
+
+  "OPTION_CODE_TABLES": {
+    "_warning": "FOUR different code styles coexist in this one form: opaque non-sequential numerics, contiguous numerics, word codes, and full display text. Never infer a style; capture per field.",
+
+    "gettingStarted.changeBasisForEligibility.eligibilityCode": {
+      "style": "opaque non-sequential numeric",
+      "codes": { "191": "General provision", "192": "Spouse of a U.S. citizen", "189": "Spouse, former spouse, or child of a U.S. citizen under the Violence Against Women Act (VAWA)", "193": "Spouse of U.S. citizen in qualified employment outside the United States", "194": "Military service during a period of hostilities", "190": "At least one year of honorable military service at any time", "195": "Other" },
+      "our_fact": "applicant.eligibility_basis -> general_5yr=191, spouse_3yr=192, other=195"
+    },
+    "yourFamily.maritalStatus.status": {
+      "style": "opaque non-sequential numeric",
+      "codes": { "1": "Single, never married", "2": "Married", "3": "Divorced", "4": "Widowed", "7": "Separated", "5": "Marriage annulled" },
+      "trap": "Separated is 7. Code 5 is Marriage annulled. Positional guessing files the wrong status."
+    },
+    "applicant.describeYourself.gender": {
+      "style": "opaque numeric",
+      "codes": { "3": "Male", "1": "Female" },
+      "note": "Same pair already confirmed live on the I-130 (2026-06-26), so it is a myUSCIS-wide convention, not a one-off."
+    },
+    "applicant.describeYourself.ethnicity": {
+      "style": "numeric",
+      "codes": { "1": "Hispanic or Latino", "2": "Not Hispanic or Latino" }
+    },
+    "applicant.describeYourself.race_checkboxes": {
+      "style": "BARE NUMERIC NAMES — each race is its own checkbox whose NAME is the code; there is no Formik path at all",
+      "codes": { "1": "White", "2": "Asian", "3": "Black or African American", "5": "American Indian or Alaska Native", "6": "Native Hawaiian or Other Pacific Islander" },
+      "trap": "There is NO code 4 — the set is non-contiguous. And because the name is just '1'..'6', any selector keyed on a dotted Formik path will never find these. They need label matching."
+    },
+    "yourFamily.children.childrenInformation.{i}.childInfo.residence": {
+      "style": "FULL DISPLAY TEXT as the code",
+      "codes": { "Resides with me": "Resides with me", "Does not reside with me": "Does not reside with me", "Unknown": "Unknown/Missing" },
+      "trap": "For the third option the code ('Unknown') differs from the label ('Unknown/Missing')."
+    },
+    "yourFamily.children.childrenInformation.{i}.childInfo.relationship": {
+      "style": "full display text",
+      "codes": { "Biological son or daughter": "same", "Stepchild": "same", "Legally adopted son or daughter": "same" }
+    },
+    "yourFamily.currentSpouse.currentSpouse2.spouseBecameCitizen": {
+      "style": "WORD codes",
+      "codes": { "byBirth": "By Birth in the United States", "other": "Other" },
+      "reveals": "other -> yourFamily.currentSpouse.currentSpouse2.dateSpouseBecameCitizen"
+    }
+  },
+
+  "AUTOCOMPLETE_OPTION_LISTS": {
+    "_note": "These are MUI Autocompletes: they commit on selecting a listbox option, and they filter by DISPLAY TEXT. Whatever we store must match one of these strings byte for byte — this is the exact lesson the I-539 status pickers taught. Captured live by opening each listbox.",
+    "applicant.describeYourself.height.feet": ["0","1","2","3","4","5","6","7","8"],
+    "applicant.describeYourself.height.inches": ["0","1","2","3","4","5","6","7","8","9","10","11"],
+    "applicant.describeYourself.eyeColor": ["","Black","Blue","Brown","Gray","Green","Hazel","Maroon","Pink","Unknown/Other"],
+    "applicant.describeYourself.hairColor": ["","Bald (no hair)","Black","Blonde","Brown","Gray","Red","Sandy","White","Unknown/Other"],
+    "watch_out": "'Blonde' not 'Blond'. 'Bald (no hair)' carries parentheses. 'Unknown/Other' carries a slash. 'Gray' not 'Grey'. Our applicant.eye_color / applicant.hair_color facts must be normalised to these exact strings or the listbox never commits.",
+    "still_uncaptured": ["country", "state", "employmentInfo.occupation", "placeOfCrimeOrOffense.country/state — all shared widgets, presumably the same lists the I-130 already uses (country_name / state_name transforms)"]
+  },
+
+  "schools_and_employment_ALL_FOUR_ROW_SHAPES": {
+    "typeField": "applicant.schoolsAndEmployment.{i}.schoolOrEmploymentType",
+    "typeOptions": ["Add a period of self-employment", "Add a period of unemployment", "Add a school", "Add an employer"],
+    "shapes": {
+      "Add an employer": ["employmentInfo.workName","employmentInfo.occupation","dates.fromDate","dates.toPresent","dates.toDate","address.country","address.city","address.state","address.zipCode"],
+      "Add a period of self-employment": ["employmentInfo.workName","employmentInfo.occupation","dates.fromDate","dates.toPresent","dates.toDate","address.country","address.city","address.state","address.zipCode"],
+      "Add a period of unemployment": ["employmentInfo.workName","dates.fromDate","dates.toPresent","dates.toDate"],
+      "Add a school": ["schoolInfo.schoolName","schoolInfo.fieldOfStudy","dates.fromDate","dates.toPresent","dates.toDate","address.country","address.city","address.state","address.zipCode"]
+    },
+    "prefix": "all names are applicant.schoolsAndEmployment.{i}.<above>",
+    "notes": [
+      "employer and self-employment are field-for-field IDENTICAL — the type code is the only difference.",
+      "unemployment has NO address block and NO occupation. A descriptor that drives address fields for an unemployment row will report failures for fields that legitimately do not exist.",
+      "school swaps employmentInfo.* for schoolInfo.* (schoolName / fieldOfStudy).",
+      "Our fact applicant.employment_education_history[i] has one flat shape (name / occupation_or_field / from / to / city / state / country). The backend map must choose a TYPE per row and then emit the matching field names — a single static row_map cannot serve all four shapes."
+    ]
+  },
+
+  "newly_captured_pages": {
+    "/your-family/current-spouse": {
+      "revealedBy": "yourFamily.maritalStatus.status=2 (Married), COMMITTED",
+      "fields": ["yourFamily.currentSpouse.currentSpouse1.name.firstName","yourFamily.currentSpouse.currentSpouse1.name.middleName","yourFamily.currentSpouse.currentSpouse1.name.lastName","yourFamily.currentSpouse.currentSpouse1.dateOfBirth","yourFamily.currentSpouse.currentSpouse1.dateOfMarriage","yourFamily.currentSpouse.currentSpouse1.isPhysicalAddressSame"],
+      "conditional": { "isPhysicalAddressSame=false": ["yourFamily.currentSpouse.currentSpouse1.physicalAddress.country","...addressLineOne","...addressLineTwo","...city","...state","...zipCode"] },
+      "GOOD_NEWS": "isPhysicalAddressSame here is a RADIO (true/false), unlike the applicant's own mailing control which is a checkbox. So this one CAN express 'false' — no repeat of the I-130/I-539 checkbox bug on this field."
+    },
+    "/your-family/current-spouse/current-spouse-page-2": {
+      "fields": ["yourFamily.currentSpouse.currentSpouse2.spouseBecameCitizen","yourFamily.currentSpouse.currentSpouse2.dateSpouseBecameCitizen (revealed by spouseBecameCitizen=other)","formikFactoryUIMeta.yourFamily.currentSpouse.currentSpouse2.currentSpouseANumber.none","yourFamily.currentSpouse.currentSpouse2.currentSpouseANumber.number","yourFamily.currentSpouse.currentSpouse2.numberOfTimesMarried"],
+      "NAMING_TRAP": "currentSpouse1 vs currentSpouse2 is the PAGE number, NOT a second spouse. Page 1 fields are all currentSpouse1.*, page 2 fields are all currentSpouse2.*. Reading it as 'spouse 1 / spouse 2' would model the data completely wrong."
+    },
+    "/moral-character/crimes-and-offenses/crimes-and-offenses-page-3": {
+      "fields": ["moralCharacter.crimesAndOffensesPage3.suspendedSentence"],
+      "note": "Single radio. Not a repeater — no Add button."
+    },
+    "/moral-character/oath-of-allegiance": {
+      "fields": ["moralCharacter.oathOfAllegiance.understandOath","moralCharacter.oathOfAllegiance.unableToTakeOath"],
+      "note": "Both plain true/false Yes/No. This was the last of the three originally-bouncing pages; it became reachable once upstream answers were committed.",
+      "legal_flag": "unableToTakeOath=Yes is a substantive N-648-adjacent answer. It should NEVER be auto-filled from a default — only from an explicit firm answer."
+    },
+    "/additional-information/additional-information": {
+      "addButtonText": "Add a response",
+      "rowCommitButton": "Save response",
+      "namePrefix": "additionalInformationTable",
+      "rowFields": ["additionalInformationTable.{i}.section","additionalInformationTable.{i}.page","additionalInformationTable.{i}.question","additionalInformationTable.{i}.response"],
+      "IMPORTANT": "The N-400 uses additionalInformationTable. The I-539 uses additionalInformationArray. The Add LABEL is identical ('Add a response') but the field prefix is NOT — assuming they matched would have produced a map that fills nothing. Checked, not assumed.",
+      "SOF_1066": "section/page/question/response line up with the 'page/part/item boxes' SOF-1066 wants for PDF Part 14. This is also where the online form takes overflow text, in place of a paper continuation sheet."
+    }
+  },
+
+  "REPEATER_BUTTON_MATRIX": {
+    "_warning": "SEVEN repeaters, FIVE distinct row-commit labels, and one bare 'Add'. A single regex cannot drive these, and a loose /add/ matcher hits several at once. The I-539 already lost builds to exactly this.",
+    "rows": [
+      { "page": "/about-you/your-name", "add": "Add another name", "commit": "(inline, no separate commit)", "prefix": "applicant.yourName.additionalNames.otherNames" },
+      { "page": "/about-you/where-you-have-lived", "add": "Add an address", "commit": "Save entry", "prefix": "applicant.whereYouHaveLived" },
+      { "page": "/about-you/schools-and-employment", "add": "Add entry", "commit": "Save entry", "prefix": "applicant.schoolsAndEmployment" },
+      { "page": "/about-you/travel-outside-the-us", "add": "Add trip", "commit": "Save entry", "prefix": "applicant.travelOutsideTheUs.timeSpentOutsideUS.timeSpentOutsideUSTable", "nested": { "add": "Add country", "prefix": "...{i}.countries" } },
+      { "page": "/your-family/children", "add": "Add a child", "commit": "Save child", "prefix": "yourFamily.children.childrenInformation" },
+      { "page": "/moral-character/crimes-and-offenses/crimes-and-offenses-page-2", "add": "Add", "commit": "Save", "prefix": "moralCharacter.crimesAndOffensesPage2" },
+      { "page": "/additional-information/additional-information", "add": "Add a response", "commit": "Save response", "prefix": "additionalInformationTable" }
+    ]
+  },
+
+  "GAP_CLOSURE_PASS": {
+    "_doc": "Final sweep, same session. All three items listed as remaining were closed.",
+
+    "ALL_12_EVIDENCE_PAGES_VERIFIED_IDENTICAL": {
+      "checked": "every one of the twelve, individually — not extrapolated from a sample",
+      "shape": { "fileInputs": 1, "id": "desktop-drop", "name": null, "multiple": true, "accept": "image/jpg,image/jpeg,application/pdf,image/tif,image/tiff", "typedFields": 0, "chooseButton": "Choose" },
+      "conclusion": "One uniform upload control across the whole form. The existing doc-uploader's batch-via-DataTransfer approach applies unchanged, and the descriptor can treat every /evidence/* page the same way.",
+      "SELECTOR_NOTE": "The input has an id and NO name attribute, so any name-keyed selector misses it. Target id=desktop-drop (or the type=file input).",
+      "PNG_STILL_THE_RISK": "No image/png in the accept list on ANY of the twelve. Refuse or convert PNGs backend-side, the way too_big_for_uscis already handles the 12MB cap.",
+      "CASE_TRAP_CONFIRMED": "/evidence/Alternative-sentencing-or-rehabilitative-programs loaded correctly ONLY with the capital A, exactly as recorded. The spelling in these files is verified, not transcribed."
+    },
+
+    "SHARED_AUTOCOMPLETE_LISTS": {
+      "country": { "optionCount": 278, "firstFew": ["", "Afghanistan", "Akrotiri", "Albania", "Algeria", "American Samoa", "Andorra", "Angola"], "spotChecks": { "India": "present, exactly 'India'", "United States": "present, exactly 'United States'" } },
+      "state": { "optionCount": 64, "note": "includes territories and freely-associated states, not just the 50", "firstFew": ["", "Alabama", "Alaska", "American Samoa", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "District Of Columbia", "Federated States Of Micronesia"] },
+      "BYTE_EXACT_TRAP": "The state list Title-Cases EVERY word, including short ones: 'District Of Columbia' and 'Federated States Of Micronesia' have a CAPITAL 'Of'. Standard reference data (and almost certainly our stored state names) uses 'District of Columbia' with a lower-case 'of'. An exact-match pass will MISS it. This is the same class of failure as the I-539 'CODE - Description' picker problem, and it will silently leave the state blank on any DC address.",
+      "action": "Check what the existing state_name transform emits and add a normalisation for these, or rely on a case-insensitive match. Do not assume the I-130's transform already fits — the I-130 was never tested against a DC address either, so this may be a latent bug there too.",
+      "not_captured": "employmentInfo.occupation and placeOfCrimeOrOffense.country/state option lists — the country/state widgets are shared so the lists above apply; occupation remains undumped."
+    },
+
+    "PRIOR_MARRIAGE_QUESTION_RESOLVED": {
+      "finding": "The online N-400 does NOT collect prior-marriage DETAIL as typed fields anywhere.",
+      "evidence": [
+        "Married path (status=2) + applicant numberOfTimesMarried=2 + spouse numberOfTimesMarried=2, all COMMITTED: no new page, no new in-page fields.",
+        "Divorced path (status=3) + numberOfTimesMarried=2, COMMITTED: no new page, no new in-page fields. The two /your-family/current-spouse pages DISAPPEARED and nothing replaced them."
+      ],
+      "conclusion": "Online asks only HOW MANY times you have been married, and takes prior-marriage substance as DOCUMENTS via /evidence/current-marriage-certificate-and-previous-marriage-documents.",
+      "PAPER_VS_ONLINE_DIVERGENCE": "The paper N-400 does carry prior-marriage fields. So this is a real capability gap: facts we hold for the PDF have nowhere to go in the online fill. That is a mapping decision, not a bug to fix in the extension.",
+      "scope_of_the_test": "Verified on Married and Divorced. Widowed (4), Separated (7) and Marriage annulled (5) were NOT tested — the conclusion is inference from two paths, not exhaustive."
+    },
+
+    "PAGES_CAN_DISAPPEAR_TOO": {
+      "finding": "Switching marital status from Married to Divorced REMOVED /your-family/current-spouse and /your-family/current-spouse/current-spouse-page-2, taking the count from 52 back to 50.",
+      "implication": "The page set is not monotonic — it grows AND shrinks with answers. A walk must tolerate a descriptor page being legitimately absent, and must not treat 'declared page never appeared' as a failure. Also: memberOfArmedForces only renders for Married, so it vanished on the Divorced path.",
+      "warning_for_the_guard": "A coverage test asserting 'every descriptor page is reachable' would be wrong. Reachability is per-scenario."
+    }
+  },
+
+  "WHAT_STILL_REMAINS": [
+    "employmentInfo.occupation option list (Autocomplete) — not dumped.",
+    "Page sets for eligibility paths never seeded: military (190/194), VAWA (189), overseas-employment spouse (193), Other (195). Count reached 52 on the spouse path; other paths will differ.",
+    "Widowed / Separated / Marriage-annulled marital paths.",
+    "Nothing else — the unconditional shape, the reveal rules, all seven repeaters, all four employment row shapes, all twelve evidence pages and their upload control, and every multi-option code table are captured."
+  ],
+
+  "DRAFT_STATE_WARNING": "Draft 13370795 now contains COMMITTED placeholder answers across the Getting Started, About You, Your Family and Moral Character sections — including crimes/arrests answered YES and a marital status of Married, none of which are true of anybody. It was never Submitted, Signed or Paid. It must be deleted, and it must never be mistaken for a real application."
+}

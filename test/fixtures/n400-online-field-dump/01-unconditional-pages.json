@@ -1,0 +1,1181 @@
+{
+ "_doc": "LIVE field capture of the guided online Form N-400 on my.uscis.gov. Draft 13370795 (created by Ana), captured 2026-07-30. The draft was BLANK, so this is the UNCONDITIONAL shape of the form only — no conditional reveal is represented here. Pages are in SIDEBAR ORDER (the order the walk visits them), not alphabetical. Field keys: n=Formik name, t=input type, l=visible label (truncated at 95 chars by the capture), req=required, o=option codes (an array of {c,l} pairs, or the string 'yn' meaning exactly true/false labelled Yes/No), auto=renders as a MUI Autocomplete and must be driven as kind 'search' with full display text. upl=count of input[type=file] on the page. btn=visible button labels, which is where repeater Add labels come from.",
+ "_source": "https://my.uscis.gov/forms/application-for-naturalization/13370795/<slug>",
+ "_captured": "2026-07-30",
+ "_totals": {
+  "slugs_in_sidebar": 37,
+  "pages_reached": 34,
+  "pages_unreached": 3,
+  "unconditional_fields": 112,
+  "_note": "pages_reached counts entries in the pages array. Two of them (additional-information, review) render zero inputs. The 3 unreached bounce on a URL deep-link and are listed in _unreached."
+ },
+ "_unreached": {
+  "note": "These THREE bounce on a URL deep-link (the SPA silently redirects back, while the tool still reports a successful navigation). They were later reached via the Next-committed walk - see 03-committed-walk.json and 04-consolidated.json. A guessed slug is worse than a missing one, so nothing here is assumed.",
+  "slugs": [
+   "/moral-character/oath-of-allegiance",
+   "/evidence/current-marriage-certificate-and-previous-marriage-documents",
+   "/evidence/additional-evidence"
+  ]
+ },
+ "_namespaces": {
+  "note": "FOUR top-level Formik namespaces, unlike the I-539 which is almost entirely applicant.*. A map author who assumes applicant.* will miss two thirds of the form.",
+  "gettingStarted.*": "basis of eligibility, preparer/interpreter",
+  "applicant.*": "About You section — name, contact, birth, immigration info, describe yourself",
+  "yourFamily.*": "marital status, children",
+  "moralCharacter.*": "all 18 moral-character pages",
+  "formikFactoryUIMeta.*": "UI-only toggles and gating '.none' checkboxes, same convention as I-130/I-539"
+ },
+ "pages": [
+  {
+   "s": "/getting-started/basis-of-eligibility",
+   "ttl": "Basis of eligibility",
+   "n": 1,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "f": [
+    {
+     "n": "gettingStarted.changeBasisForEligibility.eligibilityCode",
+     "t": "radio",
+     "l": "General provision",
+     "o": [
+      {
+       "c": "191",
+       "l": "General provision"
+      },
+      {
+       "c": "192",
+       "l": "Spouse of a U.S. citizen"
+      },
+      {
+       "c": "189",
+       "l": "Spouse, former spouse, or child of a U.S. citizen under the Violence Against Women Act (VAWA)"
+      },
+      {
+       "c": "193",
+       "l": "Spouse of U.S. citizen in qualified employment outside the United States"
+      },
+      {
+       "c": "194",
+       "l": "Military service during a period of hostilities"
+      },
+      {
+       "c": "190",
+       "l": "At least one year of honorable military service at any time"
+      },
+      {
+       "c": "195",
+       "l": "Other"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "s": "/getting-started/preparer-and-interpreter-information",
+   "ttl": "Preparer and interpreter information",
+   "n": 3,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "f": [
+    {
+     "n": "formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.hasHelper",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.helper.hasPreparer",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.helper.hasInterpreter",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    }
+   ]
+  },
+  {
+   "s": "/getting-started/preparer",
+   "ttl": "Preparer information",
+   "n": 9,
+   "upl": 0,
+   "btn": [],
+   "_note": "IDENTICAL to the I-539 preparer page, field for field. The I-539 backend map entries transfer verbatim, including the SOF-1004 mobilePhone + noMobilePhone pair.",
+   "f": [
+    {
+     "n": "gettingStarted.preparer.name.firstName",
+     "t": "text",
+     "l": "What is your preparer's full name? Given name (first name)",
+     "req": 1
+    },
+    {
+     "n": "gettingStarted.preparer.name.lastName",
+     "t": "text",
+     "l": "What is your preparer's full name? Family name (last name)",
+     "req": 1
+    },
+    {
+     "n": "formikFactoryUIMeta.gettingStarted.preparer.noBusiness",
+     "t": "checkbox",
+     "l": "What is your preparer's business or organization name? My preparer is not part of a business or"
+    },
+    {
+     "n": "gettingStarted.preparer.business",
+     "t": "text",
+     "l": "What is your preparer's business or organization name?"
+    },
+    {
+     "n": "gettingStarted.preparer.contact.daytimePhone",
+     "t": "text",
+     "l": "What is your preparer's contact information? Daytime telephone number"
+    },
+    {
+     "n": "formikFactoryUIMeta.gettingStarted.preparer.contact.noMobilePhone",
+     "t": "checkbox",
+     "l": "What is your preparer's contact information? Mobile telephone number. My preparer does not have"
+    },
+    {
+     "n": "gettingStarted.preparer.contact.mobilePhone",
+     "t": "text",
+     "l": "What is your preparer's contact information? Mobile telephone number"
+    },
+    {
+     "n": "formikFactoryUIMeta.gettingStarted.preparer.contact.noEmailAddress",
+     "t": "checkbox",
+     "l": "What is your preparer's contact information? Email address. My preparer does not have an email "
+    },
+    {
+     "n": "gettingStarted.preparer.contact.emailAddress",
+     "t": "text",
+     "l": "What is your preparer's contact information? Email address"
+    }
+   ]
+  },
+  {
+   "s": "/about-you/your-name",
+   "ttl": "Your name",
+   "n": 5,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "f": [
+    {
+     "n": "applicant.yourName.name.firstName",
+     "t": "text",
+     "l": "What is your current legal name? Given name (first name)"
+    },
+    {
+     "n": "applicant.yourName.name.middleName",
+     "t": "text",
+     "l": "What is your current legal name? Middle name"
+    },
+    {
+     "n": "applicant.yourName.name.lastName",
+     "t": "text",
+     "l": "What is your current legal name? Family name (last name)",
+     "req": 1
+    },
+    {
+     "n": "formikFactoryUIMeta.applicant.yourName.additionalNames.hasAdditionalNames",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "applicant.yourName.nameChangedName.hasNameChanged",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    }
+   ]
+  },
+  {
+   "s": "/about-you/your-contact-information",
+   "ttl": "Your contact information",
+   "n": 21,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "_note": "TWO address blocks: physicalAddress.* and mailingAddress.address.*. Directly relevant to SOF-1066, which is fixing the PDF map for mixing these up. Note isMailingSameAsPhysical is a CHECKBOX (see the trap note in n400-online-capture-notes.md) and the physical To-date has a UUID name.",
+   "f": [
+    {
+     "n": "applicant.yourContactInformation.contactInformation.daytimePhone",
+     "t": "text",
+     "l": "How can we contact you? Daytime telephone number"
+    },
+    {
+     "n": "formikFactoryUIMeta.applicant.yourContactInformation.contactInformation.sameAsDaytimePhone",
+     "t": "checkbox",
+     "l": "How can we contact you? Mobile telephone number (if any). Selecting this checkbox will disable "
+    },
+    {
+     "n": "applicant.yourContactInformation.contactInformation.mobilePhone",
+     "t": "text",
+     "l": "How can we contact you? Mobile telephone number (if any)"
+    },
+    {
+     "n": "applicant.yourContactInformation.contactInformation.emailAddress",
+     "t": "text",
+     "l": "How can we contact you? Email address (if any)"
+    },
+    {
+     "n": "applicant.yourContactInformation.physicalAddress.inCareOfName",
+     "t": "text",
+     "l": "What is your current physical address? In care of name (if any)"
+    },
+    {
+     "n": "applicant.yourContactInformation.physicalAddress.country",
+     "t": "text",
+     "l": "What is your current physical address? Country *",
+     "req": 1,
+     "auto": 1
+    },
+    {
+     "n": "applicant.yourContactInformation.physicalAddress.addressLineOne",
+     "t": "text",
+     "l": "What is your current physical address? Address line 1",
+     "req": 1
+    },
+    {
+     "n": "applicant.yourContactInformation.physicalAddress.addressLineTwo",
+     "t": "text",
+     "l": "What is your current physical address? Address line 2"
+    },
+    {
+     "n": "applicant.yourContactInformation.physicalAddress.city",
+     "t": "text",
+     "l": "What is your current physical address? City or town",
+     "req": 1
+    },
+    {
+     "n": "applicant.yourContactInformation.physicalAddress.state",
+     "t": "text",
+     "l": "What is your current physical address? State *",
+     "req": 1,
+     "auto": 1
+    },
+    {
+     "n": "applicant.yourContactInformation.physicalAddress.zipCode",
+     "t": "text",
+     "l": "What is your current physical address? ZIP code",
+     "req": 1
+    },
+    {
+     "n": "applicant.yourContactInformation.physicalAddress.datesOfResidence.fromDate",
+     "t": "text",
+     "l": "What is your current physical address?: From: MM/DD/YYYY"
+    },
+    {
+     "n": "8742c00f-044a-46a1-ab32-60d2a2611150",
+     "t": "text",
+     "l": "To (MM/DD/YYYY) Present",
+     "_UNSTABLE_NAME": "This name is a RANDOM UUID, not a Formik path. It cannot be hardcoded — match it by label instead. See trap 6 in the notes file."
+    },
+    {
+     "n": "applicant.yourContactInformation.mailingAddress.isMailingSameAsPhysical",
+     "t": "checkbox",
+     "l": "What is your current mailing address (Safe Mailing Address, if applicable)? This is the same as"
+    },
+    {
+     "n": "applicant.yourContactInformation.mailingAddress.address.inCareOfName",
+     "t": "text",
+     "l": "What is your current mailing address (Safe Mailing Address, if applicable)? We will use your cu"
+    },
+    {
+     "n": "applicant.yourContactInformation.mailingAddress.address.country",
+     "t": "text",
+     "l": "What is your current mailing address (Safe Mailing Address, if applicable)? Country",
+     "auto": 1
+    },
+    {
+     "n": "applicant.yourContactInformation.mailingAddress.address.addressLineOne",
+     "t": "text",
+     "l": "What is your current mailing address (Safe Mailing Address, if applicable)? We will use your cu"
+    },
+    {
+     "n": "applicant.yourContactInformation.mailingAddress.address.addressLineTwo",
+     "t": "text",
+     "l": "What is your current mailing address (Safe Mailing Address, if applicable)? We will use your cu"
+    },
+    {
+     "n": "applicant.yourContactInformation.mailingAddress.address.city",
+     "t": "text",
+     "l": "What is your current mailing address (Safe Mailing Address, if applicable)? We will use your cu"
+    },
+    {
+     "n": "applicant.yourContactInformation.mailingAddress.address.state",
+     "t": "text",
+     "l": "What is your current mailing address (Safe Mailing Address, if applicable)? State",
+     "auto": 1
+    },
+    {
+     "n": "applicant.yourContactInformation.mailingAddress.address.zipCode",
+     "t": "text",
+     "l": "What is your current mailing address (Safe Mailing Address, if applicable)? We will use your cu"
+    }
+   ]
+  },
+  {
+   "s": "/about-you/where-you-have-lived",
+   "ttl": "Where you have lived",
+   "n": 0,
+   "upl": 0,
+   "btn": [
+    "Add an address",
+    "Back",
+    "Next"
+   ],
+   "_repeater": {
+    "addButtonText": "add an address",
+    "note": "Renders NO inputs until Add is clicked. Indexed field names unknown — needs a capture with one row open."
+   },
+   "f": []
+  },
+  {
+   "s": "/about-you/requests-for-accommodations",
+   "ttl": "Requests for accommodations",
+   "n": 1,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "_note": "SOF-1066 relabels PDF Part 2 Item 11 as the N-648 DISABILITY trigger, not 'do you need an accommodation'. The online field name here confirms the distinction: this page's single field is disabilityPreventingKnowingEnglish, which is the N-648/English-exemption question. Any actual accommodation request is a DIFFERENT question and was not on this blank draft.",
+   "f": [
+    {
+     "n": "applicant.requestsForAccommodations.disabilityPreventingKnowingEnglish",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    }
+   ]
+  },
+  {
+   "s": "/about-you/when-and-where-you-were-born",
+   "ttl": "When and where you were born",
+   "n": 3,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "f": [
+    {
+     "n": "applicant.whenAndWhereYouWereBorn.dateOfBirth",
+     "t": "text",
+     "l": "What is your date of birth?: MM/DD/YYYY",
+     "req": 1
+    },
+    {
+     "n": "applicant.whenAndWhereYouWereBorn.parentUSCitizen",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "applicant.whenAndWhereYouWereBorn.countryOfBirth",
+     "t": "text",
+     "l": "What is your country of birth? *",
+     "req": 1,
+     "auto": 1
+    }
+   ]
+  },
+  {
+   "s": "/about-you/your-immigration-information",
+   "ttl": "Your immigration information",
+   "n": 4,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "f": [
+    {
+     "n": "applicant.yourImmigrationInformation.countryOfCitizenship",
+     "t": "text",
+     "l": "What is your country of citizenship or nationality?",
+     "auto": 1
+    },
+    {
+     "n": "formikFactoryUIMeta.applicant.yourImmigrationInformation.datePermResident.none",
+     "t": "checkbox",
+     "l": "If you are a lawful permanent resident, when did you become a lawful permanent reside"
+    },
+    {
+     "n": "applicant.yourImmigrationInformation.datePermResident.date",
+     "t": "text",
+     "l": "If you are a lawful permanent resident, when did you become a lawful permanent reside"
+    },
+    {
+     "n": "applicant.yourImmigrationInformation.alienNumber.number",
+     "t": "text",
+     "l": "What is your A-Number? Enter with the first numeric character of your A-Number.",
+     "req": 1
+    }
+   ]
+  },
+  {
+   "s": "/about-you/your-immigration-information/your-immigration-information-page-2",
+   "ttl": "Your immigration information page 2",
+   "n": 5,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "_note": "wantSocialSecurityCard is PDF Part 2 Item 12.a. SOF-1066 adds Item 12.c (SSA consent) — no 12.c control on this blank draft, so it is a conditional reveal off 12.a=Yes and still needs capture.",
+   "f": [
+    {
+     "n": "applicant.yourImmigrationInformationPage2.wantSocialSecurityCard",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "formikFactoryUIMeta.applicant.yourImmigrationInformationPage2.socialSecurityNumber.socialSecurityNumber.none",
+     "t": "checkbox",
+     "l": "What is your U.S. Social Security number (SSN)? I do not have or know my U.S. Social "
+    },
+    {
+     "n": "applicant.yourImmigrationInformationPage2.socialSecurityNumber.socialSecurityNumber.number",
+     "t": "text",
+     "l": "What is your U.S. Social Security number (SSN)?"
+    },
+    {
+     "n": "formikFactoryUIMeta.applicant.yourImmigrationInformationPage2.uscisAccountNumber.none",
+     "t": "checkbox",
+     "l": "What is your USCIS Online Account Number? I do not have or know my USCIS Online Accou"
+    },
+    {
+     "n": "applicant.yourImmigrationInformationPage2.uscisAccountNumber.number",
+     "t": "text",
+     "l": "What is your USCIS Online Account Number?"
+    }
+   ]
+  },
+  {
+   "s": "/about-you/describe-yourself",
+   "ttl": "Describe yourself",
+   "n": 12,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "_note": "Gender codes 3=Male / 1=Female — the SAME non-obvious pair already confirmed live on the I-130 (2026-06-26). The five RACE checkboxes have BARE NUMERIC names (1,2,3,5,6) with no Formik path at all; the capture could not resolve their individual labels because they share one form-control wrapper, so each code's meaning still needs pairing. height.feet/inches, eyeColor and hairColor all render as Autocompletes.",
+   "f": [
+    {
+     "n": "applicant.describeYourself.gender",
+     "t": "radio",
+     "l": "Male",
+     "o": [
+      {
+       "c": "3",
+       "l": "Male"
+      },
+      {
+       "c": "1",
+       "l": "Female"
+      }
+     ]
+    },
+    {
+     "n": "applicant.describeYourself.ethnicity",
+     "t": "radio",
+     "l": "Hispanic or Latino",
+     "o": [
+      {
+       "c": "1",
+       "l": "Hispanic or Latino"
+      },
+      {
+       "c": "2",
+       "l": "Not Hispanic or Latino"
+      }
+     ]
+    },
+    {
+     "n": "5",
+     "t": "checkbox",
+     "l": "(race — label unresolved)",
+     "_UNSTABLE_NAME": "bare numeric name, no Formik path"
+    },
+    {
+     "n": "2",
+     "t": "checkbox",
+     "l": "(race — label unresolved)",
+     "_UNSTABLE_NAME": "bare numeric name, no Formik path"
+    },
+    {
+     "n": "3",
+     "t": "checkbox",
+     "l": "(race — label unresolved)",
+     "_UNSTABLE_NAME": "bare numeric name, no Formik path"
+    },
+    {
+     "n": "6",
+     "t": "checkbox",
+     "l": "(race — label unresolved)",
+     "_UNSTABLE_NAME": "bare numeric name, no Formik path"
+    },
+    {
+     "n": "1",
+     "t": "checkbox",
+     "l": "(race — label unresolved)",
+     "_UNSTABLE_NAME": "bare numeric name, no Formik path"
+    },
+    {
+     "n": "applicant.describeYourself.height.feet",
+     "t": "text",
+     "l": "What is your height? Feet",
+     "auto": 1
+    },
+    {
+     "n": "applicant.describeYourself.height.inches",
+     "t": "text",
+     "l": "What is your height? Inches",
+     "auto": 1
+    },
+    {
+     "n": "applicant.describeYourself.weight",
+     "t": "text",
+     "l": "What is your weight? Pounds"
+    },
+    {
+     "n": "applicant.describeYourself.eyeColor",
+     "t": "text",
+     "l": "What is the color of your eyes?",
+     "auto": 1
+    },
+    {
+     "n": "applicant.describeYourself.hairColor",
+     "t": "text",
+     "l": "What is the color of your hair?",
+     "auto": 1
+    }
+   ]
+  },
+  {
+   "s": "/about-you/schools-and-employment",
+   "ttl": "Schools and employment",
+   "n": 0,
+   "upl": 0,
+   "btn": [
+    "Add entry",
+    "Back",
+    "Next"
+   ],
+   "_repeater": {
+    "addButtonText": "add entry",
+    "note": "Feeds PDF Part 7. Renders no inputs until Add. Indexed names unknown."
+   },
+   "f": []
+  },
+  {
+   "s": "/about-you/travel-outside-the-us",
+   "ttl": "Travel outside the U.S.",
+   "n": 1,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "_note": "Gate radio only on a blank draft. The trip rows are revealed by answering Yes, and no Add button is present until then.",
+   "f": [
+    {
+     "n": "formikFactoryUIMeta.applicant.travelOutsideTheUs.travelLast5Years",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    }
+   ]
+  },
+  {
+   "s": "/your-family/marital-status",
+   "ttl": "Marital status",
+   "n": 1,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "_note": "OPAQUE NON-SEQUENTIAL CODES. Separated is 7, NOT 5 — 5 is Marriage annulled. Naive ordering would file the wrong marital status.",
+   "f": [
+    {
+     "n": "yourFamily.maritalStatus.status",
+     "t": "radio",
+     "l": "Single, never married",
+     "o": [
+      {
+       "c": "1",
+       "l": "Single, never married"
+      },
+      {
+       "c": "2",
+       "l": "Married"
+      },
+      {
+       "c": "3",
+       "l": "Divorced"
+      },
+      {
+       "c": "4",
+       "l": "Widowed"
+      },
+      {
+       "c": "7",
+       "l": "Separated"
+      },
+      {
+       "c": "5",
+       "l": "Marriage annulled"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "s": "/your-family/children",
+   "ttl": "Children",
+   "n": 1,
+   "upl": 0,
+   "btn": [
+    "Add a child",
+    "Back",
+    "Next"
+   ],
+   "_repeater": {
+    "addButtonText": "add a child",
+    "note": "SOF-1066 adds the PDF Part 6 children table (name, residence, relationship, providing-support, 3 rows) and changes the question from 'of any age' to 'under 18'. The ONLINE label already says 'ALL children under 18 years of age', which corroborates that change."
+   },
+   "f": [
+    {
+     "n": "yourFamily.children.totalNumberOfChildren",
+     "t": "text",
+     "l": "How many children do you have? You must indicate ALL children under 18 years of age, "
+    }
+   ]
+  },
+  {
+   "s": "/moral-character/citizenship-claims-and-voting",
+   "ttl": "Citizenship claims and voting",
+   "n": 2,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "f": [
+    {
+     "n": "moralCharacter.citizenshipClaimsAndVoting.claimedUSCitizenship.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.citizenshipClaimsAndVoting.registeredToVote.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    }
+   ]
+  },
+  {
+   "s": "/moral-character/hereditary-or-inherited-titles",
+   "ttl": "Hereditary or inherited titles",
+   "n": 1,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "_note": "PDF Part 9 Item 30.a. SOF-1066 adds the nobility-TITLES TEXT field; online that text is a conditional reveal off this radio and is not yet captured.",
+   "f": [
+    {
+     "n": "moralCharacter.hereditaryOrInheritedTitles.titleOfNobility.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    }
+   ]
+  },
+  {
+   "s": "/moral-character/tax-information",
+   "ttl": "Tax information",
+   "n": 2,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "f": [
+    {
+     "n": "moralCharacter.taxInformation.oweTaxes.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.taxInformation.calledNonResidentOnTaxReturn.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    }
+   ]
+  },
+  {
+   "s": "/moral-character/party-or-group-affiliations",
+   "ttl": "Party or group affiliations",
+   "n": 2,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "f": [
+    {
+     "n": "moralCharacter.partyOrGroupAffiliations.communistGroup.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.partyOrGroupAffiliations.advocatedOverthrow.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    }
+   ]
+  },
+  {
+   "s": "/moral-character/party-or-group-affiliations/party-or-group-affiliations-page-2",
+   "ttl": "Party or group affiliations page 2",
+   "n": 3,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "f": [
+    {
+     "n": "moralCharacter.partyOrGroupAffiliationsPage2.usedWeaponAgainstPerson.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.partyOrGroupAffiliationsPage2.engagedInKidnapping.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.partyOrGroupAffiliationsPage2.helpGroupThreatenToUseWeapon.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    }
+   ]
+  },
+  {
+   "s": "/moral-character/good-moral-character",
+   "ttl": "Good moral character",
+   "n": 4,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "_note": "Torture and genocide are SEPARATE radios here. The I-539 needed an 'any_true' OR-entry because it had one combined radio; the N-400 does not, and matches our separately-held facts directly.",
+   "f": [
+    {
+     "n": "moralCharacter.goodMoralCharacter.involvedInTorture.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.goodMoralCharacter.involvedInGenocide.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.goodMoralCharacter.involvedInKilling.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.goodMoralCharacter.involvedInIntentionallyHarming.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    }
+   ]
+  },
+  {
+   "s": "/moral-character/good-moral-character/good-moral-character-page-2",
+   "ttl": "Good moral character page 2",
+   "n": 3,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "_note": "invovledInForcingSexRelations is MISSPELLED in the USCIS field name (invovled, not involved). Reproduce it exactly — a corrected spelling matches nothing.",
+   "f": [
+    {
+     "n": "moralCharacter.goodMoralCharacterPage2.invovledInForcingSexRelations.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.goodMoralCharacterPage2.involvedInStoppingPracticeOfReligion.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.goodMoralCharacterPage2.persecuted.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    }
+   ]
+  },
+  {
+   "s": "/moral-character/paramilitary-police-and-prison-service",
+   "ttl": "Paramilitary, police, and prison service",
+   "n": 3,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "f": [
+    {
+     "n": "moralCharacter.paramilitaryPoliceAndPrisonService.partOfPoliceUnit.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.paramilitaryPoliceAndPrisonService.partOfSelfDefenseUnit.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.paramilitaryPoliceAndPrisonService.workedAtDetentionFacility.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    }
+   ]
+  },
+  {
+   "s": "/moral-character/weapon-use-and-training",
+   "ttl": "Weapon use and training",
+   "n": 3,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "f": [
+    {
+     "n": "moralCharacter.weaponUseAndTraining.threatenedToUseWeaponAgainstPerson.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.weaponUseAndTraining.everSoldWeapon.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.weaponUseAndTraining.receivedMilitaryOrWeaponTraining.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    }
+   ]
+  },
+  {
+   "s": "/moral-character/recruitment-information",
+   "ttl": "Recruitment information",
+   "n": 2,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "f": [
+    {
+     "n": "moralCharacter.recruitmentInformation.everHelpedArmedGroup.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.recruitmentInformation.forcedChildToSupportArmedCombat.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    }
+   ]
+  },
+  {
+   "s": "/moral-character/crimes-and-offenses",
+   "ttl": "Crimes and offenses",
+   "n": 2,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "_note": "PDF Part 9 Item 15 is the 5-row/6-column crime table SOF-1066 wires from applicant.mc_crime_incidents. Online, only the two gate radios exist on a blank draft — the table is a conditional reveal and still needs capture.",
+   "f": [
+    {
+     "n": "moralCharacter.crimesAndOffenses.committedCrime",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.crimesAndOffenses.arrested",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    }
+   ]
+  },
+  {
+   "s": "/moral-character/illegal-activity",
+   "ttl": "Illegal activity",
+   "n": 5,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "f": [
+    {
+     "n": "moralCharacter.illegalActivity.engagePrositution.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn",
+     "_note": "engagePrositution is misspelled by USCIS (Prositution). Reproduce exactly."
+    },
+    {
+     "n": "moralCharacter.illegalActivity.soldOrSmuggledDrugs.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.illegalActivity.marriedMoreThanOnce.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.illegalActivity.marriedToObtainImmigrantBenfits.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn",
+     "_note": "Benfits is misspelled by USCIS. Reproduce exactly."
+    },
+    {
+     "n": "moralCharacter.illegalActivity.helpedIllegallyEnter.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    }
+   ]
+  },
+  {
+   "s": "/moral-character/illegal-activity/illegal-activity-page-2",
+   "ttl": "Illegal activity page 2",
+   "n": 5,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "f": [
+    {
+     "n": "moralCharacter.illegalActivityPage2.gambledIllegally.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.illegalActivityPage2.failedToPayAlimony.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.illegalActivityPage2.misrepresentationToAcquireBenefit.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.illegalActivityPage2.givenFalseInfoWhileApplying.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.illegalActivityPage2.liedToGainAdmission.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    }
+   ]
+  },
+  {
+   "s": "/moral-character/immigration-proceedings",
+   "ttl": "Immigration proceedings",
+   "n": 2,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "f": [
+    {
+     "n": "moralCharacter.immigrationProceedings.placedInRemoval.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.immigrationProceedings.everDeported.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    }
+   ]
+  },
+  {
+   "s": "/moral-character/selective-service",
+   "ttl": "Selective service",
+   "n": 1,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "f": [
+    {
+     "n": "moralCharacter.selectiveService.maleBetween18and26",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    }
+   ]
+  },
+  {
+   "s": "/moral-character/military-service",
+   "ttl": "Military service",
+   "n": 4,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "f": [
+    {
+     "n": "moralCharacter.militaryService.avoidedDraft.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.militaryService.appliedForMilitaryExemption.question",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.militaryService.servedUSArmedForces",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    },
+    {
+     "n": "moralCharacter.militaryService.currentlyMemberOfUSArmedForces",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    }
+   ]
+  },
+  {
+   "s": "/moral-character/attachment-to-the-us-constitution",
+   "ttl": "Attachment to the U.S. constitution",
+   "n": 1,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "f": [
+    {
+     "n": "moralCharacter.attachmentToTheUsConstitution.supportTheConstitutionOfUS",
+     "t": "radio",
+     "l": "Yes",
+     "o": "yn"
+    }
+   ]
+  },
+  {
+   "s": "/additional-information/additional-information",
+   "ttl": "Additional information",
+   "n": 0,
+   "upl": 0,
+   "btn": [
+    "Add a response",
+    "Back",
+    "Next"
+   ],
+   "kind": "repeater",
+   "_note": "Renders no inputs until 'Add a response' is clicked. Row fields are in 02-reveals-and-repeaters.json under additionalInformationTable - note that prefix, NOT the I-539's additionalInformationArray.",
+   "f": []
+  },
+  {
+   "s": "/review-and-submit/review-your-application",
+   "ttl": "Review your application",
+   "n": 0,
+   "upl": 0,
+   "btn": [
+    "Back",
+    "Next"
+   ],
+   "kind": "review",
+   "_note": "TERMINAL. Renders no inputs. Its advance control is a plain Next (id=button-button, data-testid=next-button), byte-identical to every other page. It is disabled only while the application is incomplete, which means a successful autofill is exactly what enables it. The stop must be by PATH (/review-and-submit/*), never by button text. onTerminalPath() in fill-chain.ts already covers this parent path, inherited from the I-539.",
+   "f": []
+  }
+ ]
+}

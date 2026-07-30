@@ -60,6 +60,53 @@ export interface DescriptorField {
   revealedBy?: RevealSpec;
 }
 
+/**
+ * A repeater nested INSIDE each row of another repeater.
+ *
+ * The N-400's travel history is the first of these: each trip row carries its own
+ * list of countries visited (`...timeSpentOutsideUSTable.{i}.countries.{j}`) with
+ * its own "Add country" button. A single namePrefix + addButtonText cannot express
+ * that, so a nested list gets its own spec rather than being crammed into the
+ * parent's.
+ */
+export interface NestedRepeaterSpec {
+  /**
+   * Field-name prefix of the inner list, RELATIVE to the parent row and still
+   * containing the parent's `{i}` — e.g.
+   * "applicant.travelOutsideTheUs.timeSpentOutsideUS.timeSpentOutsideUSTable.{i}.countries".
+   * Inner items are `${namePrefix}.${j}`.
+   */
+  namePrefix: string;
+  /** Visible text on the inner "Add ..." control (e.g. "Add country"). */
+  addButtonText: string;
+}
+
+/**
+ * A repeater whose ROW SHAPE is chosen by a discriminator field.
+ *
+ * The N-400's schools-and-employment repeater is one repeater with FOUR row
+ * shapes — employer, self-employment, unemployment, school — selected by an
+ * autocomplete. The shapes are not supersets of each other: an unemployment row
+ * has no address block and no occupation, and a school row swaps
+ * `employmentInfo.*` for `schoolInfo.*`. So a single flat row field list would
+ * make the chain hunt for inputs that legitimately do not exist and report them
+ * as failures.
+ */
+export interface RowVariantSpec {
+  /**
+   * The field whose value picks the shape, relative to the row and containing
+   * `{i}` — e.g. "applicant.schoolsAndEmployment.{i}.schoolOrEmploymentType".
+   * Must be driven FIRST; the rest of the row does not render until it is set.
+   */
+  discriminator: string;
+  /**
+   * Discriminator value -> the field names that row shape renders. Keys are the
+   * exact option text the widget commits (these are autocompletes, so the text
+   * must match byte for byte).
+   */
+  shapes: Record<string, string[]>;
+}
+
 export interface RepeaterSpec {
   /**
    * Index-0 field-name prefix used to detect whether a row is rendered, e.g.
@@ -71,6 +118,21 @@ export interface RepeaterSpec {
    * substring match). Clicking it renders the next indexed row.
    */
   addButtonText: string;
+  /**
+   * Visible text on the control that COMMITS a row, when the row is committed
+   * separately from the page.
+   *
+   * This is NOT cosmetic and NOT guessable. Across the N-400's repeaters the
+   * label is "Save entry", "Save child", "Save" or "Save response" depending on
+   * the page, and the I-539 already lost a build to matching advance controls by
+   * literal text ("Save Entry" did not match). Omit when the row needs no
+   * separate commit; supply the exact captured string when it does.
+   */
+  rowCommitButtonText?: string;
+  /** Present when each row contains its own nested list. */
+  nested?: NestedRepeaterSpec;
+  /** Present when the row shape depends on a discriminator answer. */
+  variants?: RowVariantSpec;
 }
 
 export type PageKind = "form" | "upload" | "review";
@@ -145,7 +207,10 @@ export function fieldNamesOf(pages: FormPage[]): string[] {
   const names = new Set<string>();
   for (const page of pages) {
     for (const f of page.fields) {
-      names.add(f.name.replace(/\{i\}/g, "0"));
+      // `{j}` is the inner index of a NESTED repeater (the N-400 travel page's
+      // per-trip country list). Resolved alongside `{i}` so a nested field
+      // accounts for itself in coverage instead of looking like an unmapped name.
+      names.add(f.name.replace(/\{i\}/g, "0").replace(/\{j\}/g, "0"));
     }
   }
   return [...names];
