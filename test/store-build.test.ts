@@ -17,8 +17,9 @@
 // it either.
 
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "fs";
-import { resolve } from "path";
+import { readFileSync, readdirSync } from "fs";
+import { resolve, join } from "path";
+import * as esbuild from "esbuild";
 import {
   DEFAULT_API_URL,
   PROD_API_URL,
@@ -28,10 +29,15 @@ import {
   allowedApiOrigins,
 } from "../src/engine/api-config";
 
-const MANIFEST = resolve(__dirname, "../manifest.json");
+const REPO = resolve(__dirname, "..");
+const MANIFEST = join(REPO, "manifest.json");
 
 function manifestHostPermissions(): string[] {
   return JSON.parse(readFileSync(MANIFEST, "utf-8")).host_permissions as string[];
+}
+
+function manifestPermissions(): string[] {
+  return (JSON.parse(readFileSync(MANIFEST, "utf-8")).permissions as string[]) ?? [];
 }
 
 /** What `npm run watch` produces: the store manifest plus the dev origin. */
@@ -97,6 +103,99 @@ describe("resolveApiBaseUrl", () => {
     expect(resolveApiBaseUrl(LEGACY_PROD_API_URL, manifestHostPermissions())).toBe(PROD_API_URL);
     expect(resolveApiBaseUrl(LEGACY_PROD_API_URL, DEV_HOST_PERMISSIONS)).toBe(PROD_API_URL);
   });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// The two things that got the H-1B extension (paraleagle-ext) rejected on
+// 2026-08-13, routing FZSL. Both apply here unchanged, so both are guarded
+// here before this extension is ever submitted.
+// ─────────────────────────────────────────────────────────────────────────
+
+// Keep in step with `entries` in esbuild.config.mjs.
+const BUNDLE_ENTRIES = [
+  "src/popup/popup.ts",
+  "src/runner/content.ts",
+  "src/engine/formik-bridge.ts",
+  "src/engine/download-proxy.ts",
+];
+
+async function bundle(entry: string): Promise<string> {
+  const result = await esbuild.build({
+    entryPoints: [entry],
+    absWorkingDir: REPO,
+    bundle: true,
+    write: false,
+    minify: true,
+    target: "chrome120",
+    format: "iife",
+    drop: ["console"],
+  });
+  return result.outputFiles.map((f) => f.text).join("\n");
+}
+
+// Violation "Blue Argon": including remotely-hosted code in a Manifest V3 item.
+//
+// What made this bite on the H-1B extension is that the URLs were not in our
+// source at all — the plain `firebase/auth` entry point bundles script loaders
+// for apis.google.com and the two reCAPTCHA scripts, serving phone auth and
+// OAuth popup flows neither extension calls. Grepping src/ would have found
+// nothing. So this asserts against the BUILT bundle, which is what a reviewer
+// actually scans. The fix is to import from `firebase/auth/web-extension`.
+describe("no remotely-hosted code in any bundle (MV3)", () => {
+  const REMOTE_JS = /https?:\/\/[^\s"'`<>]+?\.js(?:\?[^\s"'`<>]*)?/g;
+
+  for (const entry of BUNDLE_ENTRIES) {
+    it(`${entry} pulls in no remote script URL`, async () => {
+      const code = await bundle(entry);
+      expect([...new Set(code.match(REMOTE_JS) ?? [])]).toEqual([]);
+    }, 60_000);
+  }
+});
+
+// Violation "Purple Potassium": requesting but not using a permission.
+//
+// activeTab grants nothing by itself — it only widens what the tabs and
+// scripting APIs may reach — so declaring it without calling either is exactly
+// what the store flags.
+describe("every declared permission is actually used", () => {
+  const PERMISSION_APIS: Record<string, string[]> = {
+    storage: ["chrome.storage"],
+    activeTab: ["chrome.tabs", "chrome.scripting"],
+    tabs: ["chrome.tabs"],
+    scripting: ["chrome.scripting"],
+    downloads: ["chrome.downloads"],
+    cookies: ["chrome.cookies"],
+    alarms: ["chrome.alarms"],
+    notifications: ["chrome.notifications"],
+    offscreen: ["chrome.offscreen"],
+    unlimitedStorage: ["chrome.storage"],
+  };
+
+  function sourceText(): string {
+    const out: string[] = [];
+    const walk = (dir: string) => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const p = join(dir, e.name);
+        if (e.isDirectory()) walk(p);
+        else if (e.name.endsWith(".ts")) out.push(readFileSync(p, "utf-8"));
+      }
+    };
+    walk(join(REPO, "src"));
+    return out.join("\n");
+  }
+
+  const src = sourceText();
+
+  for (const perm of manifestPermissions()) {
+    it(`"${perm}" has a matching chrome.* call`, () => {
+      const apis = PERMISSION_APIS[perm];
+      expect(apis, `no usage rule for permission "${perm}" — add one`).toBeDefined();
+      expect(
+        apis.some((api) => src.includes(api)),
+        `manifest declares "${perm}" but nothing in src/ calls ${apis.join(" or ")}`,
+      ).toBe(true);
+    });
+  }
 });
 
 describe("allowedApiOrigins", () => {
