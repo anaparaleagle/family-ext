@@ -47,10 +47,10 @@
     <footer>
       <label class="env">
         Backend
-        <select id="api-env">
-          <option value="http://localhost:8001/api/v1">Local (8001)</option>
-          <option value="https://family-api.paraleagle.io/api/v1">Production</option>
-        </select>
+        <!-- Options are rendered from the manifest's host_permissions, the same
+             way the form picker is rendered from the registry: a build only
+             offers a backend it actually has permission to fetch. -->
+        <select id="api-env"></select>
       </label>
     </footer>
 

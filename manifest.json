@@ -10,7 +10,6 @@
   "host_permissions": [
     "https://my.uscis.gov/*",
     "https://family-api.paraleagle.io/*",
-    "http://localhost:8001/*",
     "https://*.s3.amazonaws.com/*",
     "https://s3.amazonaws.com/*",
     "https://*.s3.us-east-1.amazonaws.com/*",

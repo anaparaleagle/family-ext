@@ -5,7 +5,7 @@ import {
   LEGACY_PROD_API_URL,
   ALLOWED_API_ORIGINS,
   migrateApiBaseUrl,
-} from "../src/popup/api-config";
+} from "../src/engine/api-config";
 
 describe("migrateApiBaseUrl", () => {
   it("rewrites the retired prod host to the live one", () => {

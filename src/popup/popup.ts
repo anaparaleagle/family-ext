@@ -6,10 +6,18 @@ import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebas
 import { auth } from "../engine/firebase";
 import { STORAGE_KEYS, MyuscisPayload } from "../runner/payload";
 import { FORM_CONFIGS } from "../runner/registry";
-import { ALLOWED_API_ORIGINS, migrateApiBaseUrl } from "./api-config";
+import { apiEnvOptions, allowedApiOrigins, resolveApiBaseUrl } from "../engine/api-config";
 
 /** Shown whenever the backend rejects our Firebase token. */
 const SESSION_EXPIRED = "Session expired — reopen the popup and Load case.";
+
+/**
+ * What this build is permitted to fetch. Read once from the manifest, and the
+ * single input to every backend-choice decision below — so the popup can never
+ * offer, store or request an origin the build has no permission for. A store
+ * build has no localhost entry; `npm run watch` puts one back.
+ */
+const HOST_PERMISSIONS = chrome.runtime.getManifest().host_permissions ?? [];
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -43,9 +51,10 @@ function setStatus(msg: string): void {
 
 async function getApiUrl(): Promise<string> {
   const stored = await chrome.storage.local.get(STORAGE_KEYS.apiBaseUrl);
-  // Heal a stale persisted value (the retired prod host) so requests always
-  // resolve to the live backend, even if storage still holds the dead one.
-  return migrateApiBaseUrl(stored[STORAGE_KEYS.apiBaseUrl] as string | undefined);
+  // Heal a stale persisted value — the retired prod host, or a localhost host
+  // this build can no longer reach — so requests always resolve to a backend we
+  // actually have permission to fetch.
+  return resolveApiBaseUrl(stored[STORAGE_KEYS.apiBaseUrl] as string | undefined, HOST_PERMISSIONS);
 }
 
 /**
@@ -68,7 +77,7 @@ async function getToken(forceRefresh = false): Promise<string | null> {
 async function apiRequest(path: string, forceRefresh = false): Promise<Response> {
   const baseUrl = await getApiUrl();
   const url = `${baseUrl}${path}`;
-  if (!ALLOWED_API_ORIGINS.some((o) => url.startsWith(o))) {
+  if (!allowedApiOrigins(HOST_PERMISSIONS).some((o) => url.startsWith(o))) {
     throw new Error("API URL not in allowlist");
   }
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -286,6 +295,24 @@ formTypeSelect.addEventListener("change", () => {
 
 // ── Init ────────────────────────────────────────────────────────────────
 
+/**
+ * Populate the Backend picker from the manifest — the backends we can actually
+ * fetch. A published build offers one, so the control is disabled: it still says
+ * which backend is in use, without inviting a click that can change nothing.
+ */
+function renderApiEnvs(selected: string): void {
+  const options = apiEnvOptions(HOST_PERMISSIONS);
+  apiEnvSelect.innerHTML = "";
+  for (const option of options) {
+    const opt = document.createElement("option");
+    opt.value = option.url;
+    opt.textContent = option.label;
+    apiEnvSelect.appendChild(opt);
+  }
+  apiEnvSelect.value = selected;
+  apiEnvSelect.disabled = options.length < 2;
+}
+
 /** Populate the form picker from the registry — the forms we can actually drive. */
 function renderFormTypes(selected: string): void {
   formTypeSelect.innerHTML = "";
@@ -307,16 +334,16 @@ async function init(): Promise<void> {
     STORAGE_KEYS.formType,
     STORAGE_KEYS.loadedAt,
   ]);
-  // Migrate a stale persisted host (the retired prod URL) up front: persist the
-  // healed value and select it in the dropdown, so a tester who previously chose
-  // Production sees "Production" rather than a blank <select> pointing at a dead
-  // host.
+  // Resolve the persisted host up front — a retired URL, or a localhost one this
+  // build no longer has permission for — then persist the healed value and select
+  // it, so the dropdown shows the backend actually in use rather than sitting
+  // blank on a host we cannot fetch.
   const storedApi = stored[STORAGE_KEYS.apiBaseUrl] as string | undefined;
-  const migratedApi = migrateApiBaseUrl(storedApi);
-  if (migratedApi !== storedApi) {
-    await chrome.storage.local.set({ [STORAGE_KEYS.apiBaseUrl]: migratedApi });
+  const resolvedApi = resolveApiBaseUrl(storedApi, HOST_PERMISSIONS);
+  if (resolvedApi !== storedApi) {
+    await chrome.storage.local.set({ [STORAGE_KEYS.apiBaseUrl]: resolvedApi });
   }
-  apiEnvSelect.value = migratedApi;
+  renderApiEnvs(resolvedApi);
   renderFormTypes((stored[STORAGE_KEYS.formType] as string) || FORM_CONFIGS[0].formType);
 
   onAuthStateChanged(auth, (user) => {
