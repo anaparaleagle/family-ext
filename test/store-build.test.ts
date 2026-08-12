@@ -26,7 +26,7 @@ import {
   apiEnvOptions,
   resolveApiBaseUrl,
   allowedApiOrigins,
-} from "../src/popup/api-config";
+} from "../src/engine/api-config";
 
 const MANIFEST = resolve(__dirname, "../manifest.json");
 

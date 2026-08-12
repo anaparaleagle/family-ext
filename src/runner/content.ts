@@ -8,6 +8,7 @@
 // all DOM-setting in the engine. This file is glue + UI only.
 
 import { dbg, debugLog, resetDebugLog, hydrateDebugLog, renderDebugLogInto } from "../engine/logger";
+import { resolveApiBaseUrl } from "../engine/api-config";
 import { detectCurrentPage } from "./section-detector";
 import { fillAll, fillPage, onLoginPage } from "./fill-chain";
 import { auditPage, summarizeAudit } from "./audit";
@@ -47,7 +48,14 @@ async function loadPayload(): Promise<LoadedPayload | null> {
     caseId: (s[STORAGE_KEYS.caseId] as string) ?? "",
     formType: (s[STORAGE_KEYS.formType] as string) ?? "",
     accessToken: (s[STORAGE_KEYS.accessToken] as string) ?? "",
-    apiBaseUrl: (s[STORAGE_KEYS.apiBaseUrl] as string) ?? "http://localhost:8001/api/v1",
+    // Resolved, not hardcoded. The popup writes this key on open, so in practice
+    // it is set by the time a payload exists — but the fallback must still be a
+    // host THIS build can reach. It used to be localhost:8001 unconditionally,
+    // which in a published build is a backend on the paralegal's own machine.
+    apiBaseUrl: resolveApiBaseUrl(
+      s[STORAGE_KEYS.apiBaseUrl] as string | undefined,
+      chrome.runtime.getManifest().host_permissions ?? [],
+    ),
   };
 }
 

@@ -6,7 +6,7 @@ import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebas
 import { auth } from "../engine/firebase";
 import { STORAGE_KEYS, MyuscisPayload } from "../runner/payload";
 import { FORM_CONFIGS } from "../runner/registry";
-import { apiEnvOptions, allowedApiOrigins, resolveApiBaseUrl } from "./api-config";
+import { apiEnvOptions, allowedApiOrigins, resolveApiBaseUrl } from "../engine/api-config";
 
 /** Shown whenever the backend rejects our Firebase token. */
 const SESSION_EXPIRED = "Session expired — reopen the popup and Load case.";
