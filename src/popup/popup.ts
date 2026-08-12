@@ -2,7 +2,8 @@
 // family backend, and "Load case" -> GET /forms/myuscis-preview/ -> stored
 // payload. Single-path: there is no manual-paste / dual-shape duality here.
 
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
+// /web-extension entry point — see the note in ../engine/firebase.ts.
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth/web-extension";
 import { auth } from "../engine/firebase";
 import { STORAGE_KEYS, MyuscisPayload } from "../runner/payload";
 import { FORM_CONFIGS } from "../runner/registry";
