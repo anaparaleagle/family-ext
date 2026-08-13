@@ -99,9 +99,22 @@ export const N400_PAGES: FormPage[] = [
     title: "Basis of eligibility",
     kind: "form",
     fields: [
-      // OPAQUE, NON-SEQUENTIAL codes — 189 sits THIRD on screen. Our
-      // applicant.eligibility_basis maps general_5yr=191, spouse_3yr=192,
-      // other=195; the rest are bases our product does not model.
+      // OPAQUE, NON-SEQUENTIAL codes — 189 sits THIRD on screen, so this list is
+      // in render order, not numeric order.
+      //
+      // These are option VALUES, not a translation table. Which basis of
+      // eligibility becomes which code is the BACKEND's vocabulary, and lives in
+      // exactly one place: `_N400_ELIGIBILITY` in
+      // paraleagle-family-backend/family_visa/forms/transforms.py, applied via
+      // "transform": "n400_eligibility_code" in
+      // family_visa/visa_config/bundles/form_myuscis_definitions.json. By the
+      // time a value arrives here it is ALREADY the code; `radio()` only clicks
+      // the input whose value matches, and never translates.
+      //
+      // So do not restate that mapping here — a second copy can drift from the
+      // backend's, and nothing would notice until an application is filed on the
+      // wrong basis. test/n400-eligibility-codes.test.ts fails if it reappears,
+      // and pins this list against the live capture.
       radio("gettingStarted.changeBasisForEligibility.eligibilityCode", [
         "191", "192", "189", "193", "194", "190", "195",
       ]),
