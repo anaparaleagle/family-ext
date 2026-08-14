@@ -295,7 +295,7 @@ describe("I-539 planPageFill (pure)", () => {
   });
 
   it("plans the moral-character page as five true/false radios", () => {
-    const plan = planPageFill(page("/moral-character/party-and-group-affiliations"), {
+    const plan = planPageFill(page("/moral-character/party-and-group-affiliations/party-and-group-affiliations-page-1"), {
       "moralCharacter.partyAndGroupAffiliations.partyAndGroupAffiliationsPage1.hasParticipatedInTortureOrGenocide.question":
         "false",
       "moralCharacter.partyAndGroupAffiliations.partyAndGroupAffiliationsPage1.hasParticipatedInKillingAnyPerson.question":
@@ -428,7 +428,7 @@ describe("I-539 conditional reveals", () => {
   it("accepts any of several revealing answers", () => {
     // The principal's-petition block opens on EITHER yes-variant, and stays shut
     // on "no". One reveal, three answers.
-    const infoRequest = page("/your-application/information-about-request");
+    const infoRequest = page("/your-application/information-about-request/information-about-request-page-1");
     const SEPARATE =
       "yourApplication.informationAboutRequest.informationAboutRequestPage1.basedOnSeparateFamilyPetition";
     const RECEIPT =
@@ -446,7 +446,7 @@ describe("I-539 conditional reveals", () => {
   // question that opens the block. The page reported 0/4 filled. It must now
   // report nothing attempted, not four failures.
   it("plans nothing from the principal-petition block when the question is unanswered", () => {
-    const plan = planPageFill(page("/your-application/information-about-request"), {
+    const plan = planPageFill(page("/your-application/information-about-request/information-about-request-page-1"), {
       "yourApplication.informationAboutRequest.informationAboutRequestPage1.separatePetitionReceiptNumber.receiptNumber":
         "EAC1234567890",
       "yourApplication.informationAboutRequest.informationAboutRequestPage1.fullName.firstName": "Ravi",
