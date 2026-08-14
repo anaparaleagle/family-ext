@@ -14,6 +14,7 @@ import { beforeAll, describe, it, expect } from "vitest";
 import { existsSync, readdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { I539_PAGES, I539_SKIP } from "../src/i539/form-descriptor";
+import { pageForUrl } from "../src/runner/section-detector";
 import { fieldNamesOf } from "../src/runner/types";
 
 // VENDORED into the repo (test/fixtures/) rather than read from a sibling of the
@@ -135,19 +136,46 @@ const HAVE_BACKEND_MAP = existsSync(BACKEND_MAP);
  * (resolved the way visa_config/loader.py resolves them), but the union is taken
  * rather than assumed so a group that ever gets its own map is still covered.
  */
-function loadBackendI539(): { mapped: string[]; uploadPaths: string[] } {
+function loadBackendI539(): {
+  mapped: string[];
+  uploadPaths: string[];
+  emitted: string[];
+  backendSkip: string[];
+} {
   const json = JSON.parse(readFileSync(BACKEND_MAP, "utf-8"));
   const mapped = new Set<string>();
   const uploadPaths = new Set<string>();
+  // Every name the backend can put a value against, INDEXED REPEATER ROWS
+  // INCLUDED. `mapped` stays the flat field map alone (what the three
+  // backend->descriptor guards below compare); `emitted` adds the repeater
+  // row_map names, normalized `{i}`/`{j}` -> `0` exactly the way fieldNamesOf
+  // does, so the descriptor->backend guard compares like with like instead of
+  // reporting every repeater cell as unmapped.
+  const emitted = new Set<string>();
+  const backendSkip = new Set<string>();
   for (const key of Object.keys(json)) {
     if (!key.startsWith("I-539")) continue;
     const entry = json[key].definitions_from ? json[json[key].definitions_from] : json[key];
     const def = entry?.definitions?.["I-539"];
     if (!def) continue;
-    for (const name of Object.keys(def.field_to_factkey_map ?? {})) mapped.add(name);
+    for (const name of Object.keys(def.field_to_factkey_map ?? {})) {
+      mapped.add(name);
+      emitted.add(name);
+    }
     for (const page of def.upload_pages ?? []) uploadPaths.add(page.page_path);
+    for (const block of Object.values(def.repeaters ?? {}) as { row_map?: object }[]) {
+      for (const name of Object.keys(block.row_map ?? {})) {
+        emitted.add(name.replace(/\{i\}/g, "0").replace(/\{j\}/g, "0"));
+      }
+    }
+    for (const name of (def.skip ?? []) as string[]) backendSkip.add(name);
   }
-  return { mapped: [...mapped], uploadPaths: [...uploadPaths] };
+  return {
+    mapped: [...mapped],
+    uploadPaths: [...uploadPaths],
+    emitted: [...emitted],
+    backendSkip: [...backendSkip],
+  };
 }
 
 describe.skipIf(!HAVE_BACKEND_MAP)("I-539 descriptor <-> backend value map", () => {
@@ -155,10 +183,12 @@ describe.skipIf(!HAVE_BACKEND_MAP)("I-539 descriptor <-> backend value map", () 
   const skipped = new Set(I539_SKIP);
   let mapped: string[] = [];
   let uploadPaths: string[] = [];
+  let emitted: string[] = [];
+  let backendSkip: string[] = [];
   // Loaded in beforeAll, not the describe body: skipIf still RUNS the body, so an
   // eager read would throw at collection and take the whole file down.
   beforeAll(() => {
-    ({ mapped, uploadPaths } = loadBackendI539());
+    ({ mapped, uploadPaths, emitted, backendSkip } = loadBackendI539());
   });
 
   it("drives every field name the backend can emit", () => {
@@ -175,6 +205,27 @@ describe.skipIf(!HAVE_BACKEND_MAP)("I-539 descriptor <-> backend value map", () 
     expect(
       thrownAway,
       `backend sends these but the descriptor skips them: ${thrownAway.join(", ")}`,
+    ).toEqual([]);
+  });
+
+  it("has a backend entry for every field the descriptor drives", () => {
+    // THE MISSING DIRECTION. The three guards around this one all read
+    // backend -> descriptor. Nothing read descriptor -> backend, so a field the
+    // descriptor faithfully drives could have no map entry at all and the only
+    // symptom was a box that stayed empty on USCIS: resolve_form_myuscis simply
+    // never emits the name, planPageFill finds no value, and no log line says a
+    // word. That is how the "Travel document number" box on
+    // /about-you/your-immigration-information kept being typed by hand
+    // (SOF-1278) — the descriptor has driven it since the form was captured.
+    //
+    // A name may be absent from the map ONLY by appearing in the map's own
+    // `skip` list, which is the backend's on-the-record "no fact backs this".
+    // That keeps the choice a reviewed one instead of an oversight.
+    const covered = new Set([...emitted, ...backendSkip]);
+    const unbacked = [...driven].filter((n) => !covered.has(n));
+    expect(
+      unbacked,
+      `the descriptor drives these but the backend map neither maps nor skips them: ${unbacked.join(", ")}`,
     ).toEqual([]);
   });
 
@@ -195,6 +246,77 @@ describe.skipIf(!HAVE_BACKEND_MAP)("I-539 descriptor <-> backend value map", () 
   });
 });
 
+// ===========================================================================
+// SOF-1278 — THE DESCRIPTOR vs THE FORM'S OWN ROUTE TABLE.
+//
+// The guards above compare the descriptor against the FIELD dump and against the
+// backend map. Both assume the descriptor's SLUGS still point at real pages, and
+// nothing checked that. myUSCIS moved three of them: it split
+// `/about-you/your-immigration-information`,
+// `/moral-character/party-and-group-affiliations` and
+// `/your-application/information-about-request` into `/…-page-1` children,
+// matching the `-page-2` siblings that already sat beside each.
+//
+// pageForUrl is a path-SUFFIX match, so a URL ending `…-page-1` stops matching
+// the bare slug — and pageForHeading cannot cover for it, because every I-539
+// page's <h1> is the same sentence. The walk logged "page not in descriptor",
+// clicked past, and left the page blank. `your-immigration-information-page-1`
+// sits AHEAD of the A-Number page and all four Moral Character pages, which is
+// exactly the run of empty sections the law firm reported.
+//
+// This test reads the form's OWN sidebar, captured live, and asserts the
+// descriptor still knows every route it links to. One direction only: the
+// evidence section is target-dependent (an H-4 draft shows the H-dependent
+// pages and never the F/M ones), so LIVE ⊆ DECLARED is the real invariant.
+// Re-capture by replacing the fixture.
+// ===========================================================================
+const LIVE_SIDEBAR = JSON.parse(
+  readFileSync(resolve(__dirname, "fixtures/i539-live-sidebar-h4-20260814.json"), "utf-8"),
+) as { slugs: string[]; draft_id: string; captured: string };
+
+describe("I-539 descriptor <-> the live myUSCIS route table", () => {
+  it("declares every page the live sidebar links to", () => {
+    const declared = new Set(I539_PAGES.map((p) => p.slug));
+    const undeclared = LIVE_SIDEBAR.slugs.filter((s) => !declared.has(s));
+    expect(
+      undeclared,
+      `myUSCIS serves these pages and the descriptor has no entry, so the walk ` +
+        `skips them in silence: ${undeclared.join(", ")}`,
+    ).toEqual([]);
+  });
+
+  it("matches each live slug by URL, the only signal this form gives us", () => {
+    // Belt-and-braces on the guard above: declaring the slug is worth nothing if
+    // pageForUrl still resolves it to the WRONG page. Suffix matching makes that
+    // a live risk — `/…/your-immigration-information-page-2` ends with neither
+    // `-page-1` nor the bare slug, but a careless entry could make two pages
+    // shadow each other. Assert the resolved page is the one whose slug it is.
+    const base = `https://my.uscis.gov/forms/application-to-extend-change-nonimmigrant-status/${LIVE_SIDEBAR.draft_id}`;
+    const wrong = LIVE_SIDEBAR.slugs
+      .map((slug) => ({ slug, got: pageForUrl(I539_PAGES, `${base}${slug}`)?.slug ?? null }))
+      .filter(({ slug, got }) => got !== slug);
+    expect(
+      wrong,
+      `these live URLs resolve to the wrong descriptor page: ${JSON.stringify(wrong)}`,
+    ).toEqual([]);
+  });
+
+  it("declares the two H-dependent evidence pages as upload-only", () => {
+    // Same shape as the /evidence/form-I-20 bug (SOF-1009): an evidence page the
+    // descriptor does not know is a document that never reaches USCIS. These two
+    // are the H-4/L-2 slots and they appear on every worker-dependent draft.
+    const uploads = new Set(
+      I539_PAGES.filter((p) => p.kind === "upload").map((p) => p.slug),
+    );
+    for (const slug of [
+      "/evidence/proof-of-relationship-to-h-temporary-worker",
+      "/evidence/additional-evidence-for-dependents-of-h-temporary-worker",
+    ]) {
+      expect(uploads, `${slug} must be an upload page`).toContain(slug);
+    }
+  });
+});
+
 describe("I-539 descriptor shape", () => {
   it("marks every evidence page as upload-only, in sidebar order", () => {
     const uploads = I539_PAGES.filter((p) => p.kind === "upload");
@@ -207,6 +329,13 @@ describe("I-539 descriptor shape", () => {
       // walk hit it as an unknown page and stalled there.
       "/evidence/proof-of-ability-to-pay",
       "/evidence/written-statement",
+      // SOF-1278: the two H-dependent slots, read off a live H-4 sidebar. The
+      // evidence section is TARGET-dependent, so no single order matches every
+      // draft — F/M, B and H each see their own subset. What this list is really
+      // pinning is that Additional evidence stays LAST, because it is the
+      // catch-all and sits last on every sidebar we have seen.
+      "/evidence/proof-of-relationship-to-h-temporary-worker",
+      "/evidence/additional-evidence-for-dependents-of-h-temporary-worker",
       "/evidence/additional-evidence",
     ]);
     for (const p of uploads) expect(p.fields.length).toBe(0);

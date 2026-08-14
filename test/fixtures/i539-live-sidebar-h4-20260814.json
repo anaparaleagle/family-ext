@@ -1,0 +1,35 @@
+{
+  "_doc": "The I-539 sidebar as myUSCIS ACTUALLY served it on 2026-08-14, read off live draft 13192080 (an F-1 -> H-4 change of status, i.e. a WORKER-DEP dependent). Captured by reading every anchor under the draft base path, so this is the form's own route table for that case, not a transcription.\n\nWHY A SECOND CAPTURE EXISTS. i539-online-field-dump/ was taken 2026-07-15 off an F-1 change-of-status draft and recorded three of these pages WITHOUT the '/...-page-1' child segment. USCIS has since split them, matching the '-page-2' pattern that already existed beside each one. Page detection is a path-SUFFIX match, so the descriptor's older bare slugs stopped matching anything and the walk skipped those pages in silence — which is SOF-1278: 'Your immigration information', the A-Number and every Moral Character answer left blank on a filled questionnaire.\n\nThe FIELD NAMES on those pages did not change; only the routes did. That is why this fixture records slugs alone and the field-level dump stays where it is.\n\nTHIS IS AN H-4 SIDEBAR, so it carries the H-dependent evidence pages and NOT the F/M ones (form-I-20, proof-of-ability-to-pay, written-statement) — the evidence section is target-dependent. The guard that reads this file therefore asserts LIVE is a SUBSET of what the descriptor declares, never the reverse.",
+  "captured": "2026-08-14",
+  "draft_id": "13192080",
+  "case_shape": "F-1 -> H-4 change of status (worker's dependent)",
+  "slugs": [
+    "/getting-started/basis-of-eligibility",
+    "/getting-started/reason-for-request",
+    "/getting-started/preparer-and-interpreter-information",
+    "/getting-started/preparer",
+    "/about-you/your-name",
+    "/about-you/your-contact-information",
+    "/about-you/when-and-where-you-were-born",
+    "/about-you/your-immigration-information/your-immigration-information-page-1",
+    "/about-you/your-immigration-information/your-immigration-information-page-2",
+    "/about-you/other-information",
+    "/moral-character/party-and-group-affiliations/party-and-group-affiliations-page-1",
+    "/moral-character/party-and-group-affiliations/party-and-group-affiliations-page-2",
+    "/moral-character/immigration-proceedings",
+    "/moral-character/crimes-and-offenses",
+    "/your-application/information-about-request/information-about-request-page-1",
+    "/your-application/information-about-request/information-about-request-page-2",
+    "/evidence/form-i-94",
+    "/evidence/proof-of-relationship-to-h-temporary-worker",
+    "/evidence/additional-evidence-for-dependents-of-h-temporary-worker",
+    "/evidence/additional-evidence",
+    "/additional-information/additional-information",
+    "/review-and-submit/review-your-application"
+  ],
+  "_h1_note": "Every page's <h1> is the same string, 'I-539, Application To Extend/Change Nonimmigrant Status' (confirmed live on four separate pages). So pageForHeading CANNOT rescue a slug that stops matching — the URL is the only signal this form gives us, which is why a stale slug fails silently instead of degrading.",
+  "_evidence_notes": {
+    "/evidence/proof-of-relationship-to-h-temporary-worker": "Heading 'Evidence Of Your Relationship With The H Temporary Worker'. A single dropzone, accept=image/jpg,image/jpeg,application/pdf,image/tif,image/tiff.",
+    "/evidence/additional-evidence-for-dependents-of-h-temporary-worker": "Heading 'Additional Evidence For Dependents Of An H Temporary Worker'. Same dropzone and accept list."
+  }
+}

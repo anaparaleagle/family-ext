@@ -354,8 +354,22 @@ export const I539_PAGES: FormPage[] = [
   },
   {
     // f1-cos/10. Most-recent-entry block. The passport/travel-document number
-    // inputs are gated by their "I do not have …" UI-meta checkboxes (skipped).
-    slug: "/about-you/your-immigration-information",
+    // inputs are gated by their "I do not have …" UI-meta checkboxes.
+    //
+    // SOF-1278 — THE SLUG MOVED, AND THIS IS THE BUG THE LAW FIRM REPORTED.
+    // The 2026-07-15 capture recorded "/about-you/your-immigration-information".
+    // myUSCIS has since split it into a "-page-1" child, matching the "-page-2"
+    // sibling that already sat beside it. pageForUrl is a path SUFFIX match, so
+    // the old slug matched nothing, and pageForHeading cannot cover for it —
+    // every I-539 page's <h1> is the same sentence. The walk logged "page not in
+    // descriptor", clicked past, and left the page blank.
+    //
+    // This is the FIRST of the three pages that moved, and it sits ahead of the
+    // A-Number page and all four Moral Character pages — which is why one stale
+    // slug read as "several whole sections come up empty on a filled
+    // questionnaire". Verified live 2026-08-14 on draft 13192080; the field names
+    // below were re-read on that page and are unchanged.
+    slug: "/about-you/your-immigration-information/your-immigration-information-page-1",
     title: "Your immigration information",
     kind: "form",
     fields: [
@@ -426,7 +440,10 @@ export const I539_PAGES: FormPage[] = [
   // leaf. A "true" answer on any of these is a serious disclosure; the backend
   // map decides the values (our elig_q* facts) — the extension only types them.
   {
-    slug: "/moral-character/party-and-group-affiliations",
+    // SOF-1278: same "-page-1" split as the immigration-information page above —
+    // the bare slug the 2026-07-15 capture recorded no longer matches anything.
+    // Confirmed live 2026-08-14; the five field names are unchanged.
+    slug: "/moral-character/party-and-group-affiliations/party-and-group-affiliations-page-1",
     title: "Party and group affiliations",
     kind: "form",
     fields: [
@@ -503,7 +520,12 @@ export const I539_PAGES: FormPage[] = [
     // answering basedOnSeparateFamilyPetition with anything but "no" reveals the
     // form type / receipt number / principal's name / filing date. Note it is a
     // THREE-option radio using word codes, not a yes/no.
-    slug: "/your-application/information-about-request",
+    // SOF-1278: the third "-page-1" split. Confirmed live 2026-08-14 — the page
+    // rendered isBasedOnGrantedFamilyPetition, basedOnSeparateFamilyPetition,
+    // selectedFormType and the receipt number, so the field names hold. (The
+    // principal's name and filing date were not in the DOM on that draft, which
+    // is the conditional reveal already declared below doing its job.)
+    slug: "/your-application/information-about-request/information-about-request-page-1",
     title: "Information about request",
     kind: "form",
     fields: [
@@ -653,8 +675,42 @@ export const I539_PAGES: FormPage[] = [
     kind: "upload",
     fields: [],
   },
+  // ── The H-dependent evidence slots (SOF-1278) ────────────────────────────
+  // Read off the live sidebar of an H-4 draft on 2026-08-14 (13192080), the
+  // deliberate way — not by waiting for a "page not in descriptor" line the way
+  // the I-20 and proof-of-ability-to-pay pages were found.
+  //
+  // The evidence section is TARGET-DEPENDENT: an H-4 draft shows these two and
+  // never the F/M pages above, and vice versa. One descriptor serves every
+  // target, so both sets are declared and the backend's `targets` routing
+  // decides which ones a case is actually offered documents for. A page that is
+  // declared but not served simply never matches a URL.
+  {
+    // Heading: "Evidence Of Your Relationship With The H Temporary Worker".
+    // The marriage certificate (spouse) or birth certificate (child) — the proof
+    // the whole dependent filing rests on, which until now had no slot at all
+    // and so reached USCIS on no H-4 case.
+    slug: "/evidence/proof-of-relationship-to-h-temporary-worker",
+    title: "Proof of relationship to H temporary worker",
+    kind: "upload",
+    fields: [],
+  },
+  {
+    // Heading: "Additional Evidence For Dependents Of An H Temporary Worker".
+    // Carries the PRINCIPAL's I-797 — a petitioner-slot document, which is why
+    // the backend entry for it is the first in the feed scoped to PETITIONER.
+    slug: "/evidence/additional-evidence-for-dependents-of-h-temporary-worker",
+    title: "Additional evidence for dependents of H temporary worker",
+    kind: "upload",
+    fields: [],
+  },
   {
     // OPTIONAL — Next is enabled with nothing attached.
+    //
+    // NOTE the suffix trap: this slug is a suffix of nothing, but
+    // "/evidence/additional-evidence-for-dependents-of-h-temporary-worker" ends
+    // with "worker", not with this path, so the two cannot shadow each other.
+    // pageForUrl also sorts longest-slug-first, which settles it regardless.
     slug: "/evidence/additional-evidence",
     title: "Additional evidence",
     kind: "upload",
