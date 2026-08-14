@@ -329,6 +329,13 @@ describe("I-539 descriptor shape", () => {
       // walk hit it as an unknown page and stalled there.
       "/evidence/proof-of-ability-to-pay",
       "/evidence/written-statement",
+      // SOF-1278: the two H-dependent slots, read off a live H-4 sidebar. The
+      // evidence section is TARGET-dependent, so no single order matches every
+      // draft — F/M, B and H each see their own subset. What this list is really
+      // pinning is that Additional evidence stays LAST, because it is the
+      // catch-all and sits last on every sidebar we have seen.
+      "/evidence/proof-of-relationship-to-h-temporary-worker",
+      "/evidence/additional-evidence-for-dependents-of-h-temporary-worker",
       "/evidence/additional-evidence",
     ]);
     for (const p of uploads) expect(p.fields.length).toBe(0);
