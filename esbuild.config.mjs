@@ -7,16 +7,24 @@ mkdirSync("dist", { recursive: true });
 
 // Copy + (in watch) widen the manifest for local dev.
 //
-// The committed manifest is the STORE manifest: it asks for no localhost origin,
-// because a published build has no business reaching one. Dev needs one, and this
-// is where it comes from — a match pattern has no port component, so this single
-// entry covers the backend on :8001. The popup reads host_permissions back at
-// runtime to decide whether to OFFER Local (src/popup/api-config.ts), so this
-// line is what makes the Local option appear on a laptop and not in the store
-// build. Guarded by test/store-build.test.ts.
+// The committed manifest is the STORE manifest: it asks for no localhost or
+// staging origin, because a published build has no business reaching either. Dev
+// needs both, and this is where they come from — a match pattern has no port
+// component, so the localhost entry covers the backend on :8001. The popup reads
+// host_permissions back at runtime to decide whether to OFFER Local and Staging
+// (src/engine/api-config.ts), so these entries are what make those options appear
+// on a laptop and not in the store build. Keep in step with DEV_ONLY_OPTIONS —
+// guarded by test/store-build.test.ts.
+const DEV_HOST_PERMISSIONS = [
+  "http://localhost/*",
+  "https://paraleagle-family-backend-demo.onrender.com/*",
+];
+
 const manifest = JSON.parse(readFileSync("manifest.json", "utf-8"));
-if (isWatch && !manifest.host_permissions.includes("http://localhost/*")) {
-  manifest.host_permissions.push("http://localhost/*");
+if (isWatch) {
+  for (const perm of DEV_HOST_PERMISSIONS) {
+    if (!manifest.host_permissions.includes(perm)) manifest.host_permissions.push(perm);
+  }
 }
 writeFileSync("dist/manifest.json", JSON.stringify(manifest, null, 2));
 cpSync("src/popup/popup.html", "dist/popup.html");

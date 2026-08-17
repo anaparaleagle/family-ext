@@ -6,6 +6,9 @@
 /** Local dev backend — the default when nothing is persisted. */
 export const DEFAULT_API_URL = "http://localhost:8001/api/v1";
 
+/** Shared staging family backend — where the shared case data lives. */
+export const STAGING_API_URL = "https://paraleagle-family-backend-demo.onrender.com/api/v1";
+
 /** Live production family backend. */
 export const PROD_API_URL = "https://family-api.paraleagle.io/api/v1";
 
@@ -22,7 +25,15 @@ export interface ApiEnvOption {
 }
 
 const LOCAL_OPTION: ApiEnvOption = { label: "Local (8001)", url: DEFAULT_API_URL };
+const STAGING_OPTION: ApiEnvOption = { label: "Staging", url: STAGING_API_URL };
 const PROD_OPTION: ApiEnvOption = { label: "Production", url: PROD_API_URL };
+
+/**
+ * The options only a developer build offers, in dropdown order. Each one's host
+ * is added to host_permissions by `npm run watch` (esbuild.config.mjs) and is
+ * absent from the checked-in store manifest.
+ */
+export const DEV_ONLY_OPTIONS: ApiEnvOption[] = [LOCAL_OPTION, STAGING_OPTION];
 
 /**
  * Every origin ANY build may offer. The subset a PARTICULAR build may offer is
@@ -31,27 +42,31 @@ const PROD_OPTION: ApiEnvOption = { label: "Production", url: PROD_API_URL };
  * PROD_API_URL before it is ever checked, so dropping the dead origin strands
  * no one.
  */
-export const ALLOWED_API_ORIGINS = [PROD_OPTION, LOCAL_OPTION].map((o) => new URL(o.url).origin);
+export const ALLOWED_API_ORIGINS = [PROD_OPTION, ...DEV_ONLY_OPTIONS].map(
+  (o) => new URL(o.url).origin,
+);
 
 /**
- * Does this build hold a localhost host permission?
+ * Does this build hold a host permission for this option's host?
  *
- * The checked-in manifest is the STORE manifest and has none; `npm run watch`
- * adds `http://localhost/*` back (esbuild.config.mjs). A Chrome match pattern
- * has no port component, so that one entry covers :8001 as well.
+ * The checked-in manifest is the STORE manifest and holds none of the dev hosts;
+ * `npm run watch` adds them back (esbuild.config.mjs). A Chrome match pattern has
+ * no port component, so `http://localhost/*` covers :8001 as well.
  */
-function grantsLocalhost(hostPermissions: string[]): boolean {
-  return hostPermissions.some((p) => p.includes("://localhost"));
+function grantsHost(hostPermissions: string[], option: ApiEnvOption): boolean {
+  const host = new URL(option.url).hostname;
+  return hostPermissions.some((p) => p.includes(`://${host}`));
 }
 
 /**
  * The Backend choices to offer, derived from the manifest the popup is running
  * under. This is the whole point of deriving rather than hardcoding: a published
- * build cannot fetch localhost, so it must not offer it — offering it produces an
- * opaque connection error instead of an explanation.
+ * build cannot fetch localhost or staging, so it must not offer them — offering
+ * one produces an opaque connection error instead of an explanation.
  */
 export function apiEnvOptions(hostPermissions: string[]): ApiEnvOption[] {
-  return grantsLocalhost(hostPermissions) ? [LOCAL_OPTION, PROD_OPTION] : [PROD_OPTION];
+  const offered = DEV_ONLY_OPTIONS.filter((o) => grantsHost(hostPermissions, o));
+  return [...offered, PROD_OPTION];
 }
 
 /** The origins a request may target in THIS build. */

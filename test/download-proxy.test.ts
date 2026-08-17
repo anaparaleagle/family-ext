@@ -38,9 +38,21 @@ describe("download-proxy: origin classification", () => {
   it("recognizes the family API origins and nothing else", () => {
     expect(isApiUrl("https://family-api.paraleagle.io/api/v1/documents/")).toBe(true);
     expect(isApiUrl("http://localhost:8001/api/v1/documents/")).toBe(true);
+    expect(isApiUrl("https://paraleagle-family-backend-demo.onrender.com/api/v1/documents/")).toBe(
+      true,
+    );
     // The retired host must NOT be treated as ours.
     expect(isApiUrl("https://api.family.paraleagle.ai/api/v1/documents/")).toBe(false);
     expect(isApiUrl("https://family-api.paraleagle.io.evil.example/")).toBe(false);
+  });
+
+  // The worker keeps its own allowlist, so a backend the popup can offer but the
+  // worker rejects would load a case and then fail every fill-time read.
+  it("accepts every backend the popup can offer", async () => {
+    const { ALLOWED_API_ORIGINS } = await import("../src/engine/api-config");
+    for (const origin of ALLOWED_API_ORIGINS) {
+      expect(isApiUrl(`${origin}/api/v1/documents/`), origin).toBe(true);
+    }
   });
 
   it("recognizes S3 media hosts without matching lookalikes", () => {
