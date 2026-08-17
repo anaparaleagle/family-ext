@@ -32,6 +32,34 @@ export function isFlagForm(formType: string): boolean {
   return FLAG_CONFIGS.some((c) => c.formType === formType);
 }
 
+/**
+ * Case type codes a form applies to, or null when it applies to any of them.
+ *
+ * Null for every myUSCIS form, and that is not an oversight: an I-130 or an
+ * N-400 can legitimately sit on several family case types, and narrowing that
+ * list from here would hide cases a caseworker actually needs. The DOL forms are
+ * the opposite — the ETA-9141 belongs to PERM and nothing else, and the backend
+ * will 400 on anything else, so showing the rest is offering a dead end.
+ */
+export function caseTypesForForm(formType: string): string[] | null {
+  return FLAG_CONFIGS.find((c) => c.formType === formType)?.caseTypes ?? null;
+}
+
+/** Does `caseType` match what `formType` accepts? Unknown/absent type = show it. */
+export function caseTypeMatchesForm(
+  caseType: string | undefined,
+  formType: string,
+): boolean {
+  const allowed = caseTypesForForm(formType);
+  if (!allowed) return true;
+  // A row with no case_type is shown rather than hidden. The list endpoint
+  // always sends one, so this only fires if the contract changes — and a filter
+  // that silently empties the list on a rename is worse than one that shows too
+  // much.
+  if (!caseType) return true;
+  return allowed.includes(caseType);
+}
+
 /** The autofill feed path for a DOL form. */
 export function autofillPath(caseId: string, formType: string): string {
   return (

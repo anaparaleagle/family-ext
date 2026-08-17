@@ -4,7 +4,14 @@
 
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 import { auth } from "../engine/firebase";
-import { FLAG_CONFIGS, FLAG_KEYS, autofillPath, isFlagForm } from "../flag/registry";
+import {
+  FLAG_CONFIGS,
+  FLAG_KEYS,
+  autofillPath,
+  caseTypeMatchesForm,
+  caseTypesForForm,
+  isFlagForm,
+} from "../flag/registry";
 import { STORAGE_KEYS, MyuscisPayload } from "../runner/payload";
 import { FORM_CONFIGS } from "../runner/registry";
 import { ALLOWED_API_ORIGINS, migrateApiBaseUrl } from "./api-config";
@@ -179,9 +186,23 @@ function setEmpty(msg: string): void {
 
 function renderCases(query: string): void {
   const q = query.trim().toLowerCase();
+  const formType = formTypeSelect.value;
   caseList.innerHTML = "";
+
+  // Cases this form can actually be filled for. The ETA-9141 is PERM-only, so
+  // listing the firm's I-130s and I-140s under it offers a choice whose only
+  // outcome is a 400 from the backend — which reads as the extension being
+  // broken rather than as the wrong case.
+  const eligible = cases.filter((c) => caseTypeMatchesForm(c.case_type, formType));
+
+  // A case selected under one form may not exist under the next. Dropping it
+  // here stops Load case firing against a case no longer on screen.
+  if (selectedCaseId && !eligible.some((c) => c.id === selectedCaseId)) {
+    selectedCaseId = "";
+  }
+
   let shown = 0;
-  for (const c of cases) {
+  for (const c of eligible) {
     const label = caseLabel(c);
     if (q && !label.toLowerCase().includes(q)) continue;
     shown++;
@@ -191,8 +212,15 @@ function renderCases(query: string): void {
     row.textContent = label;
     caseList.appendChild(row);
   }
+
+  if (shown > 0) return;
+  const allowed = caseTypesForForm(formType);
   if (cases.length === 0) setEmpty("No cases");
-  else if (shown === 0) setEmpty("No matching cases");
+  else if (eligible.length === 0 && allowed) {
+    // Say WHICH type is missing. "No matching cases" under a form the firm has
+    // no cases for looks like a broken search box.
+    setEmpty(`No ${allowed.join("/")} cases — ${formType} is filed on ${allowed.join("/")} cases only.`);
+  } else setEmpty("No matching cases");
 }
 
 async function loadCases(): Promise<void> {
@@ -333,6 +361,10 @@ formTypeSelect.addEventListener("change", () => {
   // The stored payload belongs to the previously chosen form; loading is what
   // makes the new choice real, so nudge rather than silently disagree.
   hideError();
+  // Re-filter: which cases the list may offer depends on the form (the ETA-9141
+  // is PERM-only). Without this the list still shows the previous form's cases
+  // and the first click is on one the new form cannot fill.
+  renderCases(caseSearch.value || "");
   setStatus(`Load the case to fill ${formTypeSelect.value}.`);
 });
 

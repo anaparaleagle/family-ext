@@ -256,6 +256,10 @@ export const ETA9141_CONFIG: FlagFormConfig = {
   formType: "ETA-9141",
   urlPattern: /\/dashboard\/application\/9141\//,
   label: "ParaLeagle ETA-9141",
+  // PERM only, and deliberately NOT EB-2-PERM: that is a separate case type the
+  // backend's ETA endpoints reject by name, so offering one here would produce a
+  // 400 that reads as the extension being broken.
+  caseTypes: ["PERM"],
   sections: ETA9141_SECTIONS,
   forbidden: ETA9141_FORBIDDEN,
 };

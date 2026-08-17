@@ -85,6 +85,15 @@ export interface FlagFormConfig {
   urlPattern: RegExp;
   /** Toolbar label. */
   label: string;
+  /**
+   * Case type codes this form belongs to, used to filter the popup's case list.
+   *
+   * EXACT codes, never a prefix or substring match. `EB-2-PERM` is a separate,
+   * pre-existing case type that the backend's ETA endpoints reject by name — so
+   * a "contains PERM" filter would offer cases that can only ever answer 400,
+   * and the caseworker would read that as the extension being broken.
+   */
+  caseTypes: string[];
   sections: FlagSection[];
   forbidden: ForbiddenControl[];
 }
