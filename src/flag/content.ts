@@ -49,12 +49,36 @@ interface Loaded {
  * length in runner/api-transport, and reusing it is the whole reason this file has
  * no fetch of its own.
  */
-async function loadFromApi(config: FlagFormConfig): Promise<Loaded | null> {
+async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
   const stored = await chrome.storage.local.get([
+    KEYS.fieldValues,
+    KEYS.formType,
     KEYS.caseId,
     KEYS.accessToken,
     KEYS.apiBaseUrl,
   ]);
+
+  // What the popup already loaded wins.
+  //
+  // The popup is where a caseworker chooses the case and reads the report of
+  // what will NOT be filled, so re-fetching here would let the two disagree —
+  // fill one set of values while the popup showed another. It also means the fill
+  // can be exercised without a login at all, by writing flagFieldValues straight
+  // into storage, which is how this gets tested against a live FLAG draft before
+  // the backend branch is deployed anywhere.
+  const cached = stored[KEYS.fieldValues] as Record<string, string> | undefined;
+  const cachedForm = stored[KEYS.formType] as string | undefined;
+  if (cached && Object.keys(cached).length) {
+    if (cachedForm && cachedForm !== config.formType) {
+      setStatus(
+        `Loaded data is for ${cachedForm}, but this is the ${config.formType}. ` +
+          `Open the popup and load a case for ${config.formType}.`,
+      );
+      return null;
+    }
+    return { fieldValues: cached, report: {} };
+  }
+
   const caseId = stored[KEYS.caseId] as string | undefined;
   const accessToken = (stored[KEYS.accessToken] as string) ?? "";
   const apiBaseUrl = (stored[KEYS.apiBaseUrl] as string) ?? "http://localhost:8001/api/v1";
@@ -180,7 +204,7 @@ function summarise(report: WalkReport): string {
 async function onFillSection(config: FlagFormConfig): Promise<void> {
   await withLock("Fill section", async () => {
     resetDebugLog();
-    const loaded = await loadFromApi(config);
+    const loaded = await loadValues(config);
     if (!loaded) return;
     const outcome = await fillCurrentSection(config, loaded.fieldValues);
     if (!outcome) {
@@ -200,7 +224,7 @@ async function onFillSection(config: FlagFormConfig): Promise<void> {
 async function onFillAll(config: FlagFormConfig): Promise<void> {
   await withLock("Fill all", async () => {
     resetDebugLog();
-    const loaded = await loadFromApi(config);
+    const loaded = await loadValues(config);
     if (!loaded) return;
     setStatus("Filling…");
     const report = await fillAll(config, loaded.fieldValues);
