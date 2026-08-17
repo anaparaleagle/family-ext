@@ -39,18 +39,54 @@
   const SETTLE_MS = 450; // how long to let React re-render after an answer
   const NAV_SETTLE_MS = 1200; // section switches fetch, so they need longer
   const MAX_PROBES_PER_SECTION = 40; // runaway guard
+  // A select with more options than this is a lookup list (state, country, class
+  // of admission), not a branch. Walking one costs minutes and reveals nothing.
+  const SELECT_GATE_MAX_OPTIONS = 12;
 
   // Any control matching this is never clicked, never set. Non-negotiable.
   const FORBIDDEN =
     /\b(submit|sign|certify|declare|delete|withdraw|cancel|pay|payment|final)\b/i;
 
-  // The box-number prefix every FLAG label carries: "B.1.", "F.e.5.",
-  // "APX A.11.". This is the join key to the backend's ETA maps — the maps key
-  // on exactly these, which is why the label is captured raw as well.
-  const BOX_RE = /^((?:APX\s*)?[A-Z](?:\.[a-z])?\.\d+[a-z]?)\./;
+  // The box-number prefix every FLAG label carries: "B.1.", "E.3b.", "F.e.5.",
+  // "F.b.1.a.", "F.a.8.a.".
+  //
+  // The trailing sub-item is NOT optional decoration. "F.b.1.a." and "F.b.1.b."
+  // are two different boxes ("specify the other degree" and "indicate the
+  // major"), and a pattern that stops at the digit collapses them into one — the
+  // second silently overwrites the first in the table. Same for the 9089's
+  // "F.a.8." vs "F.a.8.a." (MSA area code vs area title).
+  const BOX_RE = /^((?:APX\s*)?[A-Z](?:\.[a-zA-Z])?\.\d+(?:\.?[a-z])?)\./;
+
+  // A nav section that RESTARTS the numbering: "APX A.A Appendix A.A - Foreign
+  // Worker Contact Information".
+  //
+  // This is the single most important line in the file. The ETA-9089 numbers
+  // Section A (Employer Information) A.1-A.17 and Appendix A.A (Foreign Worker
+  // Contact Information) A.1-A.15 — the same box numbers, different boxes. The
+  // backend's first attempt at this table keyed on the bare box number, every
+  // key still resolved to a real map entry so nothing looked wrong, and A.1
+  // pointed at the foreign worker's last-name input: the employer's legal
+  // business name would have been typed into the beneficiary's name box on a
+  // federal form. Capture the qualifier or the capture is a trap.
+  const APX_RE = /^APX\s*([A-Z](?:\.[A-Z])?)/;
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const norm = (s) => (s || "").replace(/\s+/g, " ").trim();
+  /**
+   * The backend's map-entry-id shape: "A1", "Fa8a", "APXAA1".
+   *
+   * Inside an appendix the box's own leading letter DUPLICATES the appendix
+   * letter — Appendix A.A prints its first box as "A.1." — so the letter is
+   * dropped and the appendix code supplies it. Without that, "APX A.A" + "A.1"
+   * spells APXAAA1, which is not what anyone would write by hand and would not
+   * match a map entry added later.
+   */
+  const idOf = (box, sectionName) => {
+    const apx = APX_RE.exec(sectionName || "");
+    if (!apx) return box.replace(/[^A-Za-z0-9]/g, "");
+    const item = box.replace(/^[A-Z](\.[a-zA-Z])?\./, ""); // "A.1" -> "1"
+    return `APX${apx[1]}${item}`.replace(/[^A-Za-z0-9]/g, "");
+  };
 
   // ── element identity ─────────────────────────────────────────────────────
 
@@ -117,7 +153,7 @@
    * is for a <b>professional occupation</b>...`). Selecting by id is therefore
    * not an option; the descriptor must select by name+value.
    */
-  function snapshot() {
+  function snapshot(sectionName) {
     const fields = new Map();
     const radioGroups = new Map();
 
@@ -172,6 +208,10 @@
         id: el.id || null,
         required: el.required || el.getAttribute("aria-required") === "true",
         disabled: el.disabled,
+        // Recorded so a select gate can be put back after probing, and so a
+        // draft that turns out NOT to be blank is visible in the capture rather
+        // than being mistaken for the form's default state.
+        current: el.tagName === "SELECT" ? el.value : undefined,
         options:
           el.tagName === "SELECT"
             ? [...el.options].map((o) => ({ value: o.value, label: norm(o.text) }))
@@ -181,10 +221,19 @@
 
     for (const group of radioGroups.values()) fields.set(group.key, group);
 
-    // Attach the box number, which is what joins a field to the backend map.
+    // Attach the box number and the map-entry id it joins to.
+    //
+    // A radio's box number lives on the FIELDSET LEGEND, not on the per-option
+    // label — which is exactly why the earlier capture produced no box number
+    // for a single radio on either form, and why every radio is still missing
+    // from the backend table. `group.label` above is the legend, so this is the
+    // pass that fixes that.
     for (const f of fields.values()) {
       const m = BOX_RE.exec(f.label);
-      if (m) f.box = m[1].replace(/\s+/g, "");
+      if (m) {
+        f.box = m[1].replace(/\s+/g, "");
+        f.mapId = idOf(f.box, sectionName);
+      }
     }
     return fields;
   }
@@ -224,6 +273,43 @@
     return true;
   }
 
+  function findSelect(nameOrId) {
+    return (
+      document.querySelector(`select[name="${CSS.escape(nameOrId)}"]`) ||
+      document.querySelector(`select#${CSS.escape(nameOrId)}`)
+    );
+  }
+
+  /** Drive one gate to one value. Returns false when the control is unreachable. */
+  function answer(gate, value) {
+    if (gate.kind === "radio" || gate.kind === "checkbox") {
+      return clickRadio(gate.key, value);
+    }
+    const el = findSelect(gate.key);
+    if (!el || !visible(el)) return false;
+    setNative(el, value);
+    return true;
+  }
+
+  /**
+   * The answers worth trying on one gate.
+   *
+   * Radios: every option. Selects: every real option, but only for a SHORT list
+   * — a 218-option country select is not a gate, and walking it would add twenty
+   * minutes per section for nothing. The placeholder is skipped because
+   * selecting it is what "unanswered" already means.
+   */
+  function answersFor(gate) {
+    const options = (gate.options || []).filter(
+      (o) => o.value && !/^-?\s*select\s*-?$/i.test(o.value),
+    );
+    if (gate.kind === "radio") return options;
+    if (gate.kind !== "select") return [];
+    return options.length >= 2 && options.length <= SELECT_GATE_MAX_OPTIONS
+      ? options
+      : [];
+  }
+
   // ── the reveal probe ─────────────────────────────────────────────────────
 
   /**
@@ -236,16 +322,16 @@
    * capture showed that a negative control is what makes a derived rule
    * trustworthy.
    */
-  async function probeGate(gate, baseline) {
+  async function probeGate(gate, baseline, sectionName) {
     const results = [];
-    const original = gate.checked;
+    const original = gate.kind === "select" ? gate.current : gate.checked;
 
-    for (const opt of gate.options) {
+    for (const opt of answersFor(gate)) {
       if (FORBIDDEN.test(opt.label)) continue;
-      if (!clickRadio(gate.key, opt.value)) continue;
+      if (!answer(gate, opt.value)) continue;
       await sleep(SETTLE_MS);
 
-      const after = snapshot();
+      const after = snapshot(sectionName);
       const revealed = [...after.keys()].filter((k) => !baseline.has(k));
       results.push({
         value: opt.value,
@@ -259,9 +345,11 @@
     }
 
     // Put it back, so the next gate is probed against the same baseline and the
-    // draft is left roughly as found.
-    if (original != null) {
-      clickRadio(gate.key, original);
+    // draft is left roughly as found. An UNANSWERED radio cannot be un-answered
+    // — there is no "none" to click — which is one of the reasons a section can
+    // fail the baseline check below.
+    if (original != null && original !== "") {
+      answer(gate, original);
       await sleep(SETTLE_MS);
     }
     return results;
@@ -308,19 +396,16 @@
 
   async function captureSection(sectionName) {
     console.log(`  capturing "${sectionName}"`);
-    const baseline = snapshot();
+    const baseline = snapshot(sectionName);
     const section = {
       name: sectionName,
       fields: [...baseline.values()],
       reveals: [],
     };
 
-    // Gating questions = radio groups. Selects can gate too, but on these two
-    // forms every observed reveal hangs off a Yes/No, and driving 200-option
-    // country selects to find out otherwise is not worth the run time.
-    const gates = [...baseline.values()].filter(
-      (f) => f.kind === "radio" && f.options.length > 1,
-    );
+    // Gating questions: every radio group, plus any select short enough to be a
+    // real branch rather than a lookup list (see answersFor).
+    const gates = [...baseline.values()].filter((f) => answersFor(f).length >= 2);
     if (gates.length > MAX_PROBES_PER_SECTION) {
       capture.warnings.push(
         `"${sectionName}" has ${gates.length} radio groups; probed only the first ${MAX_PROBES_PER_SECTION}.`,
@@ -328,10 +413,28 @@
     }
 
     for (const gate of gates.slice(0, MAX_PROBES_PER_SECTION)) {
-      const answers = await probeGate(gate, baseline);
+      const answers = await probeGate(gate, baseline, sectionName);
       if (answers.some((a) => a.revealed.length)) {
         section.reveals.push({ gate: gate.key, gateLabel: gate.label, answers });
       }
+    }
+
+    // Did restoring each gate actually restore the page?
+    //
+    // Every reveal in this section was diffed against ONE baseline taken at the
+    // top. If a gate failed to go back — FLAG refused the click, or answering it
+    // committed something that cannot be un-answered — then later gates were
+    // diffed against a page that had already moved, and their "revealed" lists
+    // are wrong in a way that reads as a discovery. Cheaper to say so than to
+    // have a descriptor author trust it.
+    const drift = [...snapshot(sectionName).keys()].filter((k) => !baseline.has(k));
+    if (drift.length) {
+      capture.warnings.push(
+        `"${sectionName}" did not return to its baseline — ${drift.length} field(s) ` +
+          `still rendered after restoring every gate (${drift.slice(0, 5).join(", ")}). ` +
+          `Reveal results for the LATER gates in this section may be contaminated; ` +
+          `reload the draft and re-run to confirm them.`,
+      );
     }
     return section;
   }
@@ -362,8 +465,23 @@
         capture.warnings.push(`Nav item "${item.text}" vanished after navigation.`);
         continue;
       }
+      // Did the click actually change the section?
+      //
+      // `findNavItems` is a guess at FLAG's markup, so some of what it returns
+      // will not be a section link at all. A no-op click that still gets
+      // captured produces a duplicate section under the wrong name — and a
+      // duplicate looks like real coverage. Fingerprint the rendered field set
+      // and skip when it did not move.
+      const before = [...snapshot(item.text).keys()].join("|");
       live.el.click();
       await sleep(NAV_SETTLE_MS);
+      const after = [...snapshot(item.text).keys()].join("|");
+      if (before === after && capture.sections.length) {
+        capture.warnings.push(
+          `Nav item "${item.text}" changed nothing on screen — not a section link. Skipped.`,
+        );
+        continue;
+      }
       capture.sections.push(await captureSection(item.text));
     }
 
@@ -385,16 +503,53 @@
     return capture;
   }
 
-  /** Coverage against the box numbers the backend map already knows. */
-  function boxes() {
-    const found = new Set();
+  /** Every field the run saw, unconditional and revealed alike. */
+  function allFields() {
+    const seen = new Map();
     for (const s of capture.sections) {
-      for (const f of s.fields) if (f.box) found.add(f.box);
+      for (const f of s.fields) seen.set(`${s.name}|${f.key}`, f);
       for (const r of s.reveals)
         for (const a of r.answers)
-          for (const f of a.revealedFields || []) if (f.box) found.add(f.box);
+          for (const f of a.revealedFields || []) seen.set(`${s.name}|${f.key}`, f);
     }
-    return [...found].sort();
+    return [...seen.values()];
+  }
+
+  /**
+   * Did this run actually improve on the last one? Print before saving.
+   *
+   * The two numbers that decide it:
+   *
+   *   radiosWithBoxNumber — the whole point of the reveal pass. The previous
+   *     capture got ZERO, so every radio on both forms is still missing from the
+   *     backend table and no Yes/No answer can be autofilled. Anything above 0
+   *     is new ground.
+   *   radiosWithOptionValues — a radio whose `value` attributes we can now read.
+   *     Without these, writing to a FLAG radio is a guess, and a wrong guess is
+   *     ignored silently rather than raised.
+   */
+  function coverage() {
+    const fields = allFields();
+    const radios = fields.filter((f) => f.kind === "radio");
+    const report = {
+      sections: capture.sections.length,
+      fields: fields.length,
+      withMapId: fields.filter((f) => f.mapId).length,
+      radios: radios.length,
+      radiosWithBoxNumber: radios.filter((f) => f.box).length,
+      radiosWithOptionValues: radios.filter((f) =>
+        (f.options || []).some((o) => o.value),
+      ).length,
+      // No name, no id — the SOC/NAICS comboboxes. These need a hand-written
+      // locate strategy in the descriptor, so knowing the count is knowing how
+      // much hand work is left.
+      unaddressable: fields.filter((f) => f.key.startsWith("combobox@")).length,
+      mapIds: [...new Set(fields.filter((f) => f.mapId).map((f) => f.mapId))].sort(),
+      warnings: capture.warnings.length,
+    };
+    console.table([{ ...report, mapIds: `${report.mapIds.length} distinct` }]);
+    if (capture.warnings.length) console.warn(capture.warnings);
+    return report;
   }
 
   function save() {
@@ -407,9 +562,12 @@
     a.click();
   }
 
-  window.__flagCapture = { run, save, capture, boxes, snapshot, findNavItems };
+  window.__flagCapture = { run, save, coverage, capture, allFields, snapshot, findNavItems };
   console.log(
-    "__flagCapture ready. Run: await __flagCapture.run() then __flagCapture.save()\n" +
-      "Coverage check: __flagCapture.boxes()",
+    `__flagCapture ready — form ${capture.form}.\n` +
+      "  1. await __flagCapture.run()      // walks every section, probes every gate\n" +
+      "  2. __flagCapture.coverage()       // did it beat the last capture?\n" +
+      "  3. __flagCapture.save()           // downloads the JSON\n" +
+      "Use a THROWAWAY draft: the reveal pass answers every gating question and FLAG autosaves.",
   );
 })();
