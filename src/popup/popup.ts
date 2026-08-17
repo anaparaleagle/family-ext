@@ -3,7 +3,7 @@
 // payload. Single-path: there is no manual-paste / dual-shape duality here.
 
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
-import { auth } from "../engine/firebase";
+import { authFor, projectForApi } from "../engine/firebase";
 import {
   FLAG_CONFIGS,
   FLAG_KEYS,
@@ -18,6 +18,37 @@ import { ALLOWED_API_ORIGINS, migrateApiBaseUrl } from "./api-config";
 
 /** Shown whenever the backend rejects our Firebase token. */
 const SESSION_EXPIRED = "Session expired — reopen the popup and Load case.";
+
+/**
+ * Auth for the backend currently selected, not for a fixed project.
+ *
+ * The backend only accepts tokens from the one Firebase project it verifies
+ * against, so which project we sign into is a property of which backend is
+ * picked — see engine/firebase. Re-pointed by `useApi`, never read before init()
+ * has set the selector from storage.
+ */
+let auth = authFor(undefined);
+
+/**
+ * Point auth at the project this backend verifies against, and re-render.
+ *
+ * Sessions do NOT carry across projects: a user signed into paraleagle-family is
+ * simply not signed in as far as the dev project is concerned. So the login form
+ * comes back on a switch, which is honest — the alternative is showing a signed-in
+ * email beside a case list that 401s.
+ */
+function useApi(apiBaseUrl: string): void {
+  auth = authFor(apiBaseUrl);
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      showLoggedIn(user.email || "");
+      loadCases();
+    } else {
+      showLogin();
+      setEmpty(`Sign in to ${projectForApi(apiBaseUrl).projectId} for this backend.`);
+    }
+  });
+}
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -355,7 +386,10 @@ caseList.addEventListener("click", (e) => {
 });
 apiEnvSelect.addEventListener("change", async () => {
   await chrome.storage.local.set({ [STORAGE_KEYS.apiBaseUrl]: apiEnvSelect.value });
-  if (auth.currentUser) loadCases();
+  hideError();
+  // Switching backend can switch Firebase project, so re-point auth rather than
+  // reusing a session the new backend would reject on every request.
+  useApi(apiEnvSelect.value);
 });
 formTypeSelect.addEventListener("change", () => {
   // The stored payload belongs to the previously chosen form; loading is what
@@ -421,14 +455,7 @@ async function init(): Promise<void> {
   apiEnvSelect.value = migratedApi;
   renderFormTypes((stored[STORAGE_KEYS.formType] as string) || FORM_CONFIGS[0].formType);
 
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      showLoggedIn(user.email || "");
-      loadCases();
-    } else {
-      showLogin();
-    }
-  });
+  useApi(migratedApi);
 
   // Expire stale loaded data after 30 minutes.
   const loadedAt = stored[STORAGE_KEYS.loadedAt] as number | undefined;
