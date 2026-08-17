@@ -28,11 +28,7 @@ const LOCAL_OPTION: ApiEnvOption = { label: "Local (8001)", url: DEFAULT_API_URL
 const STAGING_OPTION: ApiEnvOption = { label: "Staging", url: STAGING_API_URL };
 const PROD_OPTION: ApiEnvOption = { label: "Production", url: PROD_API_URL };
 
-/**
- * The options only a developer build offers, in dropdown order. Each one's host
- * is added to host_permissions by `npm run watch` (esbuild.config.mjs) and is
- * absent from the checked-in store manifest.
- */
+/** Dev-only options, in dropdown order. `npm run watch` grants their hosts. */
 export const DEV_ONLY_OPTIONS: ApiEnvOption[] = [LOCAL_OPTION, STAGING_OPTION];
 
 /**
@@ -46,23 +42,15 @@ export const ALLOWED_API_ORIGINS = [PROD_OPTION, ...DEV_ONLY_OPTIONS].map(
   (o) => new URL(o.url).origin,
 );
 
-/**
- * Does this build hold a host permission for this option's host?
- *
- * The checked-in manifest is the STORE manifest and holds none of the dev hosts;
- * `npm run watch` adds them back (esbuild.config.mjs). A Chrome match pattern has
- * no port component, so `http://localhost/*` covers :8001 as well.
- */
+// A Chrome match pattern has no port, so `http://localhost/*` covers :8001.
 function grantsHost(hostPermissions: string[], option: ApiEnvOption): boolean {
   const host = new URL(option.url).hostname;
   return hostPermissions.some((p) => p.includes(`://${host}`));
 }
 
 /**
- * The Backend choices to offer, derived from the manifest the popup is running
- * under. This is the whole point of deriving rather than hardcoding: a published
- * build cannot fetch localhost or staging, so it must not offer them — offering
- * one produces an opaque connection error instead of an explanation.
+ * The Backend choices to offer, derived from the running build's manifest: a
+ * build that cannot fetch a host must not offer it, or the picker just errors.
  */
 export function apiEnvOptions(hostPermissions: string[]): ApiEnvOption[] {
   const offered = DEV_ONLY_OPTIONS.filter((o) => grantsHost(hostPermissions, o));

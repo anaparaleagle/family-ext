@@ -27,10 +27,7 @@ import { ALLOWED_API_ORIGINS } from "./api-config";
 
 /**
  * Family API origins. Requests here carry the caller's Firebase bearer token.
- *
- * Deliberately the same list the popup offers as Backend choices (api-config):
- * kept apart, a backend the popup can select but this worker rejects loads a case
- * and then fails every fill-time read.
+ * Same list the popup offers, or a selectable backend rejects every read.
  */
 const API_ORIGINS = ALLOWED_API_ORIGINS;
 

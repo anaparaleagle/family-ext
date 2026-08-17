@@ -46,8 +46,6 @@ describe("download-proxy: origin classification", () => {
     expect(isApiUrl("https://family-api.paraleagle.io.evil.example/")).toBe(false);
   });
 
-  // The worker keeps its own allowlist, so a backend the popup can offer but the
-  // worker rejects would load a case and then fail every fill-time read.
   it("accepts every backend the popup can offer", async () => {
     const { ALLOWED_API_ORIGINS } = await import("../src/engine/api-config");
     for (const origin of ALLOWED_API_ORIGINS) {

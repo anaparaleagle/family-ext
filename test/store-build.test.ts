@@ -42,11 +42,7 @@ function manifestPermissions(): string[] {
   return (JSON.parse(readFileSync(MANIFEST, "utf-8")).permissions as string[]) ?? [];
 }
 
-/**
- * The origins `npm run watch` adds, read from the build script itself rather than
- * restated here — a dev option whose host never made it into the widening would
- * otherwise pass every test and still be unreachable on a laptop.
- */
+/** The origins `npm run watch` adds, read from the build script, not restated. */
 function watchHostPermissions(): string[] {
   const src = readFileSync(join(REPO, "esbuild.config.mjs"), "utf-8");
   const block = src.match(/const DEV_HOST_PERMISSIONS = \[([^\]]*)\]/);
@@ -135,8 +131,6 @@ describe("resolveApiBaseUrl", () => {
     expect(resolveApiBaseUrl(DEFAULT_API_URL, DEV_HOST_PERMISSIONS)).toBe(DEFAULT_API_URL);
   });
 
-  // Same reasoning for Staging: a dev build is where it can be picked, and the
-  // store build must move that choice to Production rather than fail opaquely.
   it("heals a stored staging value in a build that cannot reach it", () => {
     expect(resolveApiBaseUrl(STAGING_API_URL, manifestHostPermissions())).toBe(PROD_API_URL);
   });
