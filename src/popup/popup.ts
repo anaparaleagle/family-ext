@@ -4,6 +4,7 @@
 
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 import { auth } from "../engine/firebase";
+import { FLAG_CONFIGS, FLAG_KEYS, autofillPath, isFlagForm } from "../flag/registry";
 import { STORAGE_KEYS, MyuscisPayload } from "../runner/payload";
 import { FORM_CONFIGS } from "../runner/registry";
 import { ALLOWED_API_ORIGINS, migrateApiBaseUrl } from "./api-config";
@@ -215,6 +216,54 @@ async function loadCases(): Promise<void> {
   }
 }
 
+/**
+ * Load a DOL form's values (ETA-9141) from the eta-autofill feed.
+ *
+ * A separate path from the myUSCIS one because the contract differs in the parts
+ * that matter: the case id is in the URL rather than a query parameter, there are
+ * no upload pages, and the response carries an `autofill_report` saying which
+ * boxes the extension is deliberately NOT filling. That report is the reason to
+ * load from the popup at all rather than only at fill time — a caseworker should
+ * know before they start that, say, eight of the wage-source questions are theirs
+ * to answer.
+ */
+async function loadFlagCase(formType: string): Promise<void> {
+  const res = await apiRequest(autofillPath(selectedCaseId, formType), true);
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    return showError(describeApiError(res.status, data));
+  }
+  const payload = (await res.json()) as {
+    field_values?: Record<string, string>;
+    autofill_report?: {
+      typed_count?: number;
+      deferred_to_reviewer?: string[];
+      refused_fields?: { id: string }[];
+      unmapped_fields?: { id: string }[];
+    };
+  };
+  const fieldValues = payload.field_values;
+  if (!fieldValues || typeof fieldValues !== "object") {
+    return showError(`No field values in the ${formType} response.`);
+  }
+  await chrome.storage.local.set({
+    [FLAG_KEYS.fieldValues]: fieldValues,
+    [FLAG_KEYS.caseId]: selectedCaseId,
+    [FLAG_KEYS.formType]: formType,
+    [FLAG_KEYS.loadedAt]: Date.now(),
+  });
+  const report = payload.autofill_report ?? {};
+  const deferred = report.deferred_to_reviewer?.length ?? 0;
+  const refused = report.refused_fields?.length ?? 0;
+  setStatus(
+    `Loaded ${Object.keys(fieldValues).length} ${formType} fields.` +
+      (deferred ? ` ${deferred} answer(s) left for you to confirm.` : "") +
+      (refused ? ` ${refused} you must tick yourself.` : ""),
+  );
+  loadBtn.textContent = "Loaded!";
+  setTimeout(() => (loadBtn.textContent = "Load case"), 1500);
+}
+
 async function handleLoadCase(): Promise<void> {
   hideError();
   if (!selectedCaseId) return showError("Select a case first.");
@@ -222,6 +271,9 @@ async function handleLoadCase(): Promise<void> {
   loadBtn.textContent = "Loading…";
   loadBtn.disabled = true;
   try {
+    if (isFlagForm(formType)) {
+      return await loadFlagCase(formType);
+    }
     // forceRefresh: this is the token the content script will reuse for doc
     // downloads for the rest of the session — hand it over fresh.
     const res = await apiRequest(
@@ -287,17 +339,35 @@ formTypeSelect.addEventListener("change", () => {
 // ── Init ────────────────────────────────────────────────────────────────
 
 /** Populate the form picker from the registry — the forms we can actually drive. */
+/**
+ * Every form the extension can drive: the myUSCIS ones, then the DOL ones.
+ *
+ * Grouped in the dropdown because the two sets are filled on different websites,
+ * and a caseworker picking "ETA-9141" while sitting on myUSCIS should be able to
+ * see from the list why nothing happens there.
+ */
+const FORM_GROUPS: { label: string; formTypes: string[] }[] = [
+  { label: "myUSCIS (my.uscis.gov)", formTypes: FORM_CONFIGS.map((c) => c.formType) },
+  { label: "DOL FLAG (flag.dol.gov)", formTypes: FLAG_CONFIGS.map((c) => c.formType) },
+];
+
+const ALL_FORM_TYPES = FORM_GROUPS.flatMap((g) => g.formTypes);
+
 function renderFormTypes(selected: string): void {
   formTypeSelect.innerHTML = "";
-  for (const config of FORM_CONFIGS) {
-    const opt = document.createElement("option");
-    opt.value = config.formType;
-    opt.textContent = config.formType;
-    formTypeSelect.appendChild(opt);
+  for (const group of FORM_GROUPS) {
+    if (!group.formTypes.length) continue;
+    const optgroup = document.createElement("optgroup");
+    optgroup.label = group.label;
+    for (const formType of group.formTypes) {
+      const opt = document.createElement("option");
+      opt.value = formType;
+      opt.textContent = formType;
+      optgroup.appendChild(opt);
+    }
+    formTypeSelect.appendChild(optgroup);
   }
-  formTypeSelect.value = FORM_CONFIGS.some((c) => c.formType === selected)
-    ? selected
-    : FORM_CONFIGS[0].formType;
+  formTypeSelect.value = ALL_FORM_TYPES.includes(selected) ? selected : ALL_FORM_TYPES[0];
 }
 
 async function init(): Promise<void> {
