@@ -296,7 +296,7 @@ async function loadFlagCase(formType: string): Promise<void> {
     field_values?: Record<string, string>;
     autofill_report?: {
       typed_count?: number;
-      deferred_to_reviewer?: string[];
+      typed_needs_confirming?: string[];
       refused_fields?: { id: string }[];
       unmapped_fields?: { id: string }[];
     };
@@ -312,11 +312,11 @@ async function loadFlagCase(formType: string): Promise<void> {
     [FLAG_KEYS.loadedAt]: Date.now(),
   });
   const report = payload.autofill_report ?? {};
-  const deferred = report.deferred_to_reviewer?.length ?? 0;
+  const confirm = report.typed_needs_confirming?.length ?? 0;
   const refused = report.refused_fields?.length ?? 0;
   setStatus(
     `Loaded ${Object.keys(fieldValues).length} ${formType} fields.` +
-      (deferred ? ` ${deferred} answer(s) left for you to confirm.` : "") +
+      (confirm ? ` ${confirm} standing answer(s) to check before you save.` : "") +
       (refused ? ` ${refused} you must tick yourself.` : ""),
   );
   loadBtn.textContent = "Loaded!";
