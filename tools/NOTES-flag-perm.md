@@ -110,6 +110,83 @@ diffing the field set before and after each answer instead, and records negative
 results too — the N-400 capture showed that a negative control is what makes a
 derived rule safe to build on.
 
+## Run 2 (2026-08-17): what the live reveal pass settled
+
+Captured from two throwaway drafts — 9141 `6a831a2313a71d001e967db2`, 9089
+`6a831a28e1b3ef001c72d7ab`. Files: `eta9141-reveals-1786977402406.json`,
+`eta9089-reveals-1786977257400.json`.
+
+### THE FINDING: the two forms code Yes/No DIFFERENTLY
+
+Every radio's option values are now readable, and they are not what anyone would
+have guessed:
+
+| | Yes | No | N/A |
+|---|---|---|---|
+| **ETA-9141** | `"1"` | `"No"` | `"2"` |
+| **ETA-9089** | `"Yes"` | `"No"` | `"N/A"` |
+
+The same logical question — "is the employer covered by ACWIA", "is travel
+required" — is `"1"` on one form and `"Yes"` on the other. Writing `"Yes"` to a
+9141 radio is silently ignored: no error, box stays blank on a federal form.
+**Never share a Yes/No coder between the two forms, and never assume either
+spelling.**
+
+Other vocabularies, all captured verbatim:
+
+* `attyRepresentType` / `attyAgRepType` — `Attorney` / `Agent` / `None`
+* `primaryEducationLevel` — `NONE`, `HIGHSCHOOLGED`, `ASSOCIATES`, `BACHELORS`,
+  `MASTERS`, `DOCTORATEPHD`, `OTHERDEGREE`
+* `occupationType` (9089) — `professional_occupation`, `non_professional`,
+  `college_university_teacher`, `schedule_a`, `professional_athlete`
+* `primaryWorksiteType` (9089) — `1` / `2` / `3` / `4`
+* `jobOppWagePer` — `Hour` / `Week` / `Bi-Weekly` / `Month` / `Year`
+
+### Real reveals, with negative controls
+
+* **Attorney block** — `attyRepresentType` = `Attorney` OR `Agent` reveals all
+  15 attorney fields on the 9141 (18 on the 9089, via `attyAgRepType`). `None`
+  reveals nothing. So the radio must be driven before the block, on both forms.
+* **Education** — `primaryEducationLevel` reveals `major` (F.b.1.b) for
+  `ASSOCIATES` and above but **not** for `NONE` or `HIGHSCHOOLGED`, and reveals
+  `otherEducation` (F.b.1.a) **only** for `OTHERDEGREE`. A clean conditional with
+  a working negative control.
+* `occupationType` reveals `supervisedRecruitment` for the first four options,
+  not for `professional_athlete`.
+
+### THE OTHER FINDING: the missing ~100 boxes are not behind Yes/No at all
+
+This is where run 2 disproved the plan it was built on. F.b Additional Worksites,
+H.c Recruitment Information and Appendix A.B Foreign Worker Education each
+rendered **zero inputs** — not hidden ones, none. They are **repeaters**: the
+fields do not exist until a row is added, so no amount of answering radios will
+surface them. Run 2 never clicked an Add button, which is why it found 83 and 127
+fields instead of the ~220 the maps describe.
+
+### Four things run 2 got wrong, all fixed in the script
+
+1. **Radios still had no box number** (0 of 15 on the 9141; the 2 on the 9089
+   were both wrongly put on E.3, which cannot be right for two different boxes).
+   A radio's label is its option text and its fieldset spans several questions.
+   The script now captures the surrounding text plus every box number in it, as
+   *evidence* — the 31 radios get assigned by hand against the maps' own labels,
+   because a cleverer heuristic is the same class of silent mis-assignment that
+   has already bitten this table twice.
+2. **Reveal results were contaminated.** Five F.b/c gates each reported revealing
+   `otherEducation` and `major` on *both* Yes and No — identical results for
+   opposite answers, which is contamination, not a reveal.
+   `primaryEducationLevel` had been probed first, finished on its last option and
+   could not be restored (the draft had never answered it), so those two fields
+   stayed rendered for every later gate. Each answer is now diffed against the
+   state immediately before it, which is correct whether or not restore works.
+3. **Eight real sections were dropped.** The "did the click change anything" guard
+   compared field sets, and for a section that renders nothing both sides were
+   empty — so F.c, H.d, H.e, Appendices A.C, A.D, A.E, B and C were skipped
+   entirely instead of recorded as empty. An absent section reads as "not looked
+   at"; an empty one is a finding.
+4. **It captured our own extension.** `mk-autofill-section` appeared as a field in
+   every section — it is a `<select>` the H-1B extension injects. Now filtered.
+
 ## Run the capture on a throwaway draft
 
 The reveal pass types junk into every gating question and FLAG autosaves. Use a

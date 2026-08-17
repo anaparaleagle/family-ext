@@ -128,6 +128,47 @@
     return norm(el.getAttribute("aria-label") || el.placeholder || "");
   }
 
+  /**
+   * Evidence for which box a RADIO GROUP is, gathered instead of guessed.
+   *
+   * A FLAG radio's own label is its option text ("Yes"), and the enclosing
+   * fieldset spans several questions — so run 2 assigned NO box number to 29 of
+   * 31 radios, and on the two it did assign it put both `jobOppPWDAttached` and
+   * `jobOppWagePer` on E.3, which cannot both be right.
+   *
+   * Rather than a cleverer heuristic — the same class of silent mis-assignment
+   * that has now bitten this table twice — capture the surrounding text and
+   * every box number in it, and let a person assign 31 fields by hand against
+   * the backend map's own labels. The evidence travels with the capture, so the
+   * assignment is reviewable instead of asserted.
+   */
+  function questionEvidence(el) {
+    const group =
+      el.closest("fieldset, .form-group, [class*='question'], [class*='Question']") ||
+      el.parentElement;
+    const text = norm(group?.textContent).slice(0, 400);
+    const boxes = [];
+    for (const m of text.matchAll(
+      /(?:APX\s*)?[A-Z](?:\.[a-zA-Z])?\.\d+(?:\.?[a-z])?\./g,
+    )) {
+      const box = m[0].replace(/\.$/, "").replace(/\s+/g, "");
+      if (!boxes.includes(box)) boxes.push(box);
+    }
+    return { context: text, boxCandidates: boxes };
+  }
+
+  /**
+   * Ours, not FLAG's.
+   *
+   * Run 2 recorded `mk-autofill-section` as a field in every single section: it
+   * is a <select> the H-1B extension injects into the page. Capturing your own
+   * extension's DOM as if it were the form's is how a descriptor ends up
+   * driving a control the government never rendered.
+   */
+  function isOurs(el) {
+    return /^mk-|paraleagle/i.test(el.id || "") || /^mk-|paraleagle/i.test(el.name || "");
+  }
+
   /** Is this element actually on screen? FLAG keeps hidden sections mounted. */
   function visible(el) {
     if (el.type === "hidden") return false;
@@ -162,7 +203,7 @@
     );
 
     for (const el of controls) {
-      if (!visible(el)) continue;
+      if (!visible(el) || isOurs(el)) continue;
       const label = labelOf(el);
 
       if (el.type === "radio" || el.type === "checkbox") {
@@ -175,18 +216,16 @@
             box: null,
             options: [],
             checked: null,
+            ...questionEvidence(el),
           });
         }
         const group = radioGroups.get(groupName);
         group.options.push({ value: el.value, label, id: el.id || null });
         if (el.checked) group.checked = el.value;
-        // The group's own question text is the shortest common ancestor's
-        // legend, not the per-option label ("Yes"). Take the fieldset legend.
-        if (!group.label) {
-          const fs = el.closest("fieldset, .form-group, [class*='question']");
-          const legend = fs?.querySelector("legend, label:not([for]), p, h4, h5");
-          group.label = norm(legend?.textContent) || label;
-        }
+        // The per-option label is all a radio's own label ever gives, so the
+        // group keeps the FIRST option's text only for logging. Which box this
+        // group IS comes from `boxCandidates` and a human — see questionEvidence.
+        if (!group.label) group.label = label;
         continue;
       }
 
@@ -322,17 +361,30 @@
    * capture showed that a negative control is what makes a derived rule
    * trustworthy.
    */
-  async function probeGate(gate, baseline, sectionName) {
+  async function probeGate(gate, sectionName) {
     const results = [];
     const original = gate.kind === "select" ? gate.current : gate.checked;
 
     for (const opt of answersFor(gate)) {
       if (FORBIDDEN.test(opt.label)) continue;
+
+      // A FRESH baseline per answer, not one per section.
+      //
+      // Run 2 diffed every gate against a baseline taken at the top of the
+      // section, and reported that five different F.b/c gates each revealed
+      // `otherEducation` and `major` on BOTH Yes and No — identical results for
+      // opposite answers, which is not a reveal, it is contamination. What had
+      // happened: `primaryEducationLevel` was probed first, finished on its last
+      // option, and could not be put back because the draft had never answered
+      // it — so those two fields stayed rendered and every later gate "revealed"
+      // them. Diffing against the state immediately before THIS answer makes the
+      // result correct whether or not the restore worked.
+      const before = snapshot(sectionName);
       if (!answer(gate, opt.value)) continue;
       await sleep(SETTLE_MS);
 
       const after = snapshot(sectionName);
-      const revealed = [...after.keys()].filter((k) => !baseline.has(k));
+      const revealed = [...after.keys()].filter((k) => !before.has(k));
       results.push({
         value: opt.value,
         label: opt.label,
@@ -353,6 +405,70 @@
       await sleep(SETTLE_MS);
     }
     return results;
+  }
+
+  // ── repeaters ────────────────────────────────────────────────────────────
+  //
+  // WHAT RUN 2 GOT WRONG. It assumed the ~100 unreached boxes were behind Yes/No
+  // reveals. They are not. Run 2 walked every section and found F.b Additional
+  // Worksites, H.c Recruitment Information and Appendix A.B Foreign Worker
+  // Education each holding ZERO inputs — not hidden ones, none at all. Those
+  // sections are REPEATERS: the fields do not exist until a row is added, so no
+  // amount of answering radios will ever surface them.
+  //
+  // Hence this pass. It clicks each "Add ..." control once and captures what
+  // appears, which is the row shape a descriptor needs.
+
+  /** Visible clickable controls, so a section records where its Add buttons are. */
+  function buttonsOnScreen() {
+    const out = [];
+    for (const el of document.querySelectorAll(
+      "button, [role='button'], a.btn, input[type='button']",
+    )) {
+      if (!visible(el) || isOurs(el)) continue;
+      const text = norm(el.textContent || el.value);
+      if (text && !out.includes(text)) out.push(text);
+    }
+    return out;
+  }
+
+  /**
+   * Click every "Add ..." control once and record the row it renders.
+   *
+   * ONLY "Add". Never Save, Next or Continue: those commit and navigate, which
+   * would end the walk mid-section and leave the rest of the form uncaptured.
+   * Once each, because a second click adds a second row and rows on FLAG cannot
+   * always be removed — this is a mutation on a throwaway draft either way,
+   * which is why the file says to use one.
+   */
+  async function probeRepeaters(sectionName) {
+    const rows = [];
+    const addButtons = [...document.querySelectorAll("button, [role='button']")].filter(
+      (el) => visible(el) && !isOurs(el) && /^add\b/i.test(norm(el.textContent)),
+    );
+
+    for (const btn of addButtons) {
+      const text = norm(btn.textContent);
+      if (FORBIDDEN.test(text)) continue;
+      const before = snapshot(sectionName);
+      btn.click();
+      await sleep(NAV_SETTLE_MS);
+      const after = snapshot(sectionName);
+      const added = [...after.keys()].filter((k) => !before.has(k));
+      rows.push({
+        addButtonText: text,
+        added,
+        addedFields: added.map((k) => after.get(k)),
+        // A modal is a different fill strategy from an inline row — it needs its
+        // own commit click — so which one this is must be recorded, not inferred
+        // later from field names.
+        inModal: !!document.querySelector(
+          "[role='dialog']:not([aria-hidden='true']), .modal.show",
+        ),
+      });
+      console.log(`      "${text}" -> +${added.length} field(s)`, added);
+    }
+    return rows;
   }
 
   // ── navigation ───────────────────────────────────────────────────────────
@@ -400,7 +516,11 @@
     const section = {
       name: sectionName,
       fields: [...baseline.values()],
+      // Where the Add controls are. Run 2 did not capture these and so could not
+      // explain why three sections held zero inputs.
+      buttons: buttonsOnScreen(),
       reveals: [],
+      rows: [],
     };
 
     // Gating questions: every radio group, plus any select short enough to be a
@@ -413,28 +533,24 @@
     }
 
     for (const gate of gates.slice(0, MAX_PROBES_PER_SECTION)) {
-      const answers = await probeGate(gate, baseline, sectionName);
+      const answers = await probeGate(gate, sectionName);
       if (answers.some((a) => a.revealed.length)) {
         section.reveals.push({ gate: gate.key, gateLabel: gate.label, answers });
       }
     }
 
-    // Did restoring each gate actually restore the page?
-    //
-    // Every reveal in this section was diffed against ONE baseline taken at the
-    // top. If a gate failed to go back — FLAG refused the click, or answering it
-    // committed something that cannot be un-answered — then later gates were
-    // diffed against a page that had already moved, and their "revealed" lists
-    // are wrong in a way that reads as a discovery. Cheaper to say so than to
-    // have a descriptor author trust it.
+    // Repeaters LAST, so the Add pass runs against a section whose gates have
+    // been answered — on the 9089 the recruitment and appendix rows may not
+    // offer an Add control at all until the occupation type upstream is set.
+    section.rows = await probeRepeaters(sectionName);
+
+    // How far the page moved overall. No longer a correctness problem — each
+    // answer is diffed against the state just before it (see probeGate) — but
+    // still worth recording: it is how much junk this run left in the draft, and
+    // it is why the draft must be a throwaway.
     const drift = [...snapshot(sectionName).keys()].filter((k) => !baseline.has(k));
     if (drift.length) {
-      capture.warnings.push(
-        `"${sectionName}" did not return to its baseline — ${drift.length} field(s) ` +
-          `still rendered after restoring every gate (${drift.slice(0, 5).join(", ")}). ` +
-          `Reveal results for the LATER gates in this section may be contaminated; ` +
-          `reload the draft and re-run to confirm them.`,
-      );
+      section.leftBehind = drift;
     }
     return section;
   }
@@ -467,22 +583,37 @@
       }
       // Did the click actually change the section?
       //
-      // `findNavItems` is a guess at FLAG's markup, so some of what it returns
-      // will not be a section link at all. A no-op click that still gets
-      // captured produces a duplicate section under the wrong name — and a
-      // duplicate looks like real coverage. Fingerprint the rendered field set
-      // and skip when it did not move.
-      const before = [...snapshot(item.text).keys()].join("|");
+      // RUN 2 SKIPPED EIGHT REAL SECTIONS HERE. The old rule was "same field set
+      // before and after => not a section link", which is true for the global
+      // Cases / Profiles / My Network links but catastrophically wrong for a
+      // section that legitimately renders NO inputs: F.c Other Definable
+      // Geographic Areas, H.d, H.e, Appendices A.C, A.D, A.E, B and C all
+      // compared equal because both sides were empty, and all eight were dropped
+      // from the capture entirely rather than recorded as empty. An absent
+      // section reads as "not looked at"; an empty one is a finding.
+      //
+      // So the fingerprint now includes the page's own heading text, and a
+      // no-change result records the section as empty instead of discarding it.
+      const fingerprint = () =>
+        [...snapshot(item.text).keys()].join("|") +
+        "##" +
+        norm(document.querySelector("h1, h2, legend")?.textContent).slice(0, 80);
+      const before = fingerprint();
       live.el.click();
       await sleep(NAV_SETTLE_MS);
-      const after = [...snapshot(item.text).keys()].join("|");
-      if (before === after && capture.sections.length) {
+      const unchanged = fingerprint() === before && capture.sections.length > 0;
+
+      const section = await captureSection(item.text);
+      section.navChanged = !unchanged;
+      if (unchanged && !section.fields.length) {
+        // Genuinely nothing here. Worth one line rather than a whole section.
         capture.warnings.push(
-          `Nav item "${item.text}" changed nothing on screen — not a section link. Skipped.`,
+          `"${item.text}" rendered no inputs and no Add control — either not a ` +
+            `section link, or a section that stays empty until an upstream answer ` +
+            `opens it. Recorded as empty.`,
         );
-        continue;
       }
-      capture.sections.push(await captureSection(item.text));
+      capture.sections.push(section);
     }
 
     const total = capture.sections.reduce((n, s) => n + s.fields.length, 0);
@@ -511,6 +642,8 @@
       for (const r of s.reveals)
         for (const a of r.answers)
           for (const f of a.revealedFields || []) seen.set(`${s.name}|${f.key}`, f);
+      for (const row of s.rows || [])
+        for (const f of row.addedFields || []) seen.set(`${s.name}|${f.key}`, f);
     }
     return [...seen.values()];
   }
@@ -520,34 +653,40 @@
    *
    * The two numbers that decide it:
    *
-   *   radiosWithBoxNumber — the whole point of the reveal pass. The previous
-   *     capture got ZERO, so every radio on both forms is still missing from the
-   *     backend table and no Yes/No answer can be autofilled. Anything above 0
-   *     is new ground.
-   *   radiosWithOptionValues — a radio whose `value` attributes we can now read.
-   *     Without these, writing to a FLAG radio is a guess, and a wrong guess is
-   *     ignored silently rather than raised.
+   *   rowFields — fields that only exist after an Add click. This is what run 2
+   *     missed entirely, and where most of the ~100 unreached boxes live. Run 2
+   *     scored 0 because it never clicked Add.
+   *   radiosWithBoxCandidates — a radio whose surrounding text contains at least
+   *     one box number, i.e. one that CAN be hand-assigned to a map entry. Run 2
+   *     could not assign 29 of 31 radios at all.
+   *   emptySections — sections that render nothing. A finding, not a failure:
+   *     it says "this section is a repeater or is gated further upstream".
    */
   function coverage() {
     const fields = allFields();
     const radios = fields.filter((f) => f.kind === "radio");
+    const rowFields = capture.sections.flatMap((s) =>
+      (s.rows || []).flatMap((r) => r.addedFields || []),
+    );
     const report = {
       sections: capture.sections.length,
+      emptySections: capture.sections.filter((s) => !s.fields.length).length,
       fields: fields.length,
       withMapId: fields.filter((f) => f.mapId).length,
+      rowFields: rowFields.length,
+      addButtons: capture.sections.reduce((n, s) => n + (s.rows || []).length, 0),
       radios: radios.length,
-      radiosWithBoxNumber: radios.filter((f) => f.box).length,
       radiosWithOptionValues: radios.filter((f) =>
         (f.options || []).some((o) => o.value),
       ).length,
+      radiosWithBoxCandidates: radios.filter((f) => (f.boxCandidates || []).length).length,
       // No name, no id — the SOC/NAICS comboboxes. These need a hand-written
       // locate strategy in the descriptor, so knowing the count is knowing how
       // much hand work is left.
       unaddressable: fields.filter((f) => f.key.startsWith("combobox@")).length,
-      mapIds: [...new Set(fields.filter((f) => f.mapId).map((f) => f.mapId))].sort(),
       warnings: capture.warnings.length,
     };
-    console.table([{ ...report, mapIds: `${report.mapIds.length} distinct` }]);
+    console.table([report]);
     if (capture.warnings.length) console.warn(capture.warnings);
     return report;
   }
