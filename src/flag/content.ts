@@ -41,13 +41,33 @@ interface Loaded {
 }
 
 /**
- * Fetch the values for the case the popup selected.
+ * Is this content script still attached to a live extension?
  *
- * Through the service worker, never a direct fetch: a content script runs at the
- * page's origin and under MV3 `host_permissions` do not exempt it from CORS, so a
- * direct call to the family API has its preflight refused. That is documented at
- * length in runner/api-transport, and reusing it is the whole reason this file has
- * no fetch of its own.
+ * Reloading the extension ORPHANS every content script already injected into an
+ * open tab. The `chrome` object survives but its APIs do not: `chrome.storage`
+ * becomes undefined, so the first thing the fill touches dies with
+ * "Cannot read properties of undefined (reading 'local')" — a message that says
+ * nothing about the actual cause and sends you looking at the storage permission,
+ * which is fine. The myUSCIS side already guards this; this one did not, and the
+ * first live run on FLAG hit it immediately.
+ */
+function contextAlive(): boolean {
+  try {
+    // Reading an id on a dead context throws; on a live one it is a string.
+    return typeof chrome.runtime?.id === "string" && !!chrome.storage?.local;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The values for the case the popup selected: what it stored, or a fresh fetch.
+ *
+ * Any fetch goes through the service worker, never a direct one: a content script
+ * runs at the page's origin and under MV3 `host_permissions` do not exempt it from
+ * CORS, so a direct call to the family API has its preflight refused. That is
+ * documented at length in runner/api-transport, and reusing it is the whole reason
+ * this file has no fetch of its own.
  */
 async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
   const stored = await chrome.storage.local.get([
@@ -112,6 +132,7 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
 
 const TOOLBAR_ID = "mk-flag-toolbar";
 const STATUS_ID = "mk-flag-status";
+const STALE_ID = "mk-flag-stale";
 
 function setStatus(msg: string): void {
   const el = document.getElementById(STATUS_ID);
@@ -245,11 +266,47 @@ function boot(): void {
   buildToolbar(config);
 }
 
+/**
+ * Replace the toolbar with an instruction, once the extension has been reloaded
+ * out from under this page.
+ *
+ * The toolbar has to GO, not just stop working. Leaving buttons on screen that
+ * cannot do anything is what produced the first live failure on FLAG: the fill
+ * was clicked, chrome.storage was gone, and the status line read "Cannot read
+ * properties of undefined (reading 'local')" — which points at the storage
+ * permission rather than at the page needing a refresh.
+ */
+function showReloadNotice(): void {
+  document.getElementById(TOOLBAR_ID)?.remove();
+  if (document.getElementById(STALE_ID)) return;
+  const note = document.createElement("div");
+  note.id = STALE_ID;
+  note.setAttribute("role", "alert");
+  note.style.cssText =
+    "position:fixed;right:16px;bottom:16px;z-index:2147483647;max-width:280px;" +
+    "background:#7c2d12;color:#fff;font:13px/1.4 system-ui,sans-serif;" +
+    "padding:10px 12px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.3);";
+  note.textContent =
+    "ParaLeagle autofill was updated. Reload this page (F5) to use the new " +
+    "version — your FLAG draft is saved.";
+  document.body.appendChild(note);
+}
+
 // FLAG is a single-page app: the application id in the path changes without a
 // document load, so the toolbar has to be rebuilt on route change rather than
 // only at document_idle.
 let lastPath = window.location.pathname;
-setInterval(() => {
+let routeTimer: ReturnType<typeof setInterval> | null = setInterval(() => {
+  if (!contextAlive()) {
+    // Stop polling FIRST. Without that the interval keeps firing and every tick
+    // throws again, burying the one message that says what to do.
+    if (routeTimer !== null) {
+      clearInterval(routeTimer);
+      routeTimer = null;
+    }
+    showReloadNotice();
+    return;
+  }
   if (window.location.pathname !== lastPath) {
     lastPath = window.location.pathname;
     document.getElementById(TOOLBAR_ID)?.remove();
