@@ -23,11 +23,13 @@
 // Widening either allowlist is a deliberate surface change. Add only origins we
 // actually fetch from.
 
-/** Family API origins. Requests here carry the caller's Firebase bearer token. */
-const API_ORIGINS = [
-  "https://family-api.paraleagle.io",
-  "http://localhost:8001",
-];
+import { ALLOWED_API_ORIGINS } from "./api-config";
+
+/**
+ * Family API origins. Requests here carry the caller's Firebase bearer token.
+ * Same list the popup offers, or a selectable backend rejects every read.
+ */
+const API_ORIGINS = ALLOWED_API_ORIGINS;
 
 /**
  * S3 media origins, for document/generated-form bytes.

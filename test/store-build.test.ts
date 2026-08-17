@@ -22,8 +22,10 @@ import { resolve, join } from "path";
 import * as esbuild from "esbuild";
 import {
   DEFAULT_API_URL,
+  STAGING_API_URL,
   PROD_API_URL,
   LEGACY_PROD_API_URL,
+  DEV_ONLY_OPTIONS,
   apiEnvOptions,
   resolveApiBaseUrl,
   allowedApiOrigins,
@@ -40,13 +42,37 @@ function manifestPermissions(): string[] {
   return (JSON.parse(readFileSync(MANIFEST, "utf-8")).permissions as string[]) ?? [];
 }
 
-/** What `npm run watch` produces: the store manifest plus the dev origin. */
-const DEV_HOST_PERMISSIONS = [...manifestHostPermissions(), "http://localhost/*"];
+/** The origins `npm run watch` adds, read from the build script, not restated. */
+function watchHostPermissions(): string[] {
+  const src = readFileSync(join(REPO, "esbuild.config.mjs"), "utf-8");
+  const block = src.match(/const DEV_HOST_PERMISSIONS = \[([^\]]*)\]/);
+  return [...(block?.[1] ?? "").matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+}
+
+/** What `npm run watch` produces: the store manifest plus the dev origins. */
+const DEV_HOST_PERMISSIONS = [...manifestHostPermissions(), ...watchHostPermissions()];
 
 describe("the checked-in manifest is the store manifest", () => {
   it("asks for no localhost origin", () => {
     const localhost = manifestHostPermissions().filter((p) => p.includes("localhost"));
     expect(localhost).toEqual([]);
+  });
+
+  it("asks for no staging origin", () => {
+    const staging = manifestHostPermissions().filter((p) =>
+      p.includes(new URL(STAGING_API_URL).hostname),
+    );
+    expect(staging).toEqual([]);
+  });
+
+  it("is widened by the watch build for every dev-only option", () => {
+    for (const option of DEV_ONLY_OPTIONS) {
+      const host = new URL(option.url).hostname;
+      expect(
+        watchHostPermissions().some((p) => p.includes(`://${host}`)),
+        `esbuild.config.mjs never grants "${host}", so "${option.label}" is unreachable in dev`,
+      ).toBe(true);
+    }
   });
 
   it("still asks for the two origins the extension cannot work without", () => {
@@ -65,11 +91,17 @@ describe("apiEnvOptions", () => {
     expect(apiEnvOptions(manifestHostPermissions()).map((o) => o.url)).toEqual([PROD_API_URL]);
   });
 
-  it("offers Local as well, in a build that can", () => {
+  it("offers Local and Staging as well, in a build that can reach them", () => {
     expect(apiEnvOptions(DEV_HOST_PERMISSIONS).map((o) => o.url)).toEqual([
       DEFAULT_API_URL,
+      STAGING_API_URL,
       PROD_API_URL,
     ]);
+  });
+
+  it("offers Staging only where the permission is present", () => {
+    const localOnly = manifestHostPermissions().concat("http://localhost/*");
+    expect(apiEnvOptions(localOnly).map((o) => o.url)).toEqual([DEFAULT_API_URL, PROD_API_URL]);
   });
 
   it("labels every option, so the dropdown is readable", () => {
@@ -97,6 +129,14 @@ describe("resolveApiBaseUrl", () => {
 
   it("keeps a stored localhost value in a build that can reach it", () => {
     expect(resolveApiBaseUrl(DEFAULT_API_URL, DEV_HOST_PERMISSIONS)).toBe(DEFAULT_API_URL);
+  });
+
+  it("heals a stored staging value in a build that cannot reach it", () => {
+    expect(resolveApiBaseUrl(STAGING_API_URL, manifestHostPermissions())).toBe(PROD_API_URL);
+  });
+
+  it("keeps a stored staging value in a build that can reach it", () => {
+    expect(resolveApiBaseUrl(STAGING_API_URL, DEV_HOST_PERMISSIONS)).toBe(STAGING_API_URL);
   });
 
   it("still migrates the retired prod host, in either build", () => {
@@ -203,8 +243,15 @@ describe("allowedApiOrigins", () => {
     expect(allowedApiOrigins(manifestHostPermissions())).toEqual(["https://family-api.paraleagle.io"]);
   });
 
-  it("allows localhost in a dev build", () => {
+  it("does not allow staging in a store build", () => {
+    expect(allowedApiOrigins(manifestHostPermissions())).not.toContain(
+      new URL(STAGING_API_URL).origin,
+    );
+  });
+
+  it("allows localhost and staging in a dev build", () => {
     expect(allowedApiOrigins(DEV_HOST_PERMISSIONS)).toContain("http://localhost:8001");
+    expect(allowedApiOrigins(DEV_HOST_PERMISSIONS)).toContain(new URL(STAGING_API_URL).origin);
   });
 
   it("never allows the retired host", () => {
