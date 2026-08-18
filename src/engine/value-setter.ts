@@ -334,16 +334,46 @@ const OPTION_SELECTORS = [
   '[class*="option"]',
 ];
 
-/** Type `text` into a focused autocomplete, one character at a time (MUI filters
- * per keystroke, so a bulk value assignment renders no options at all). */
+/**
+ * Set an input's value the way React notices.
+ *
+ * The prototype setter is what React's `_valueTracker` watches, and the tracker
+ * is cleared first so an assignment it thinks it already has is not swallowed.
+ */
+function setNativeValue(el: HTMLInputElement, value: string): void {
+  const tracker = (el as unknown as { _valueTracker?: { setValue(v: string): void } })._valueTracker;
+  if (tracker) tracker.setValue("");
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+  if (setter) setter.call(el, value);
+  else el.value = value;
+}
+
+/**
+ * Make `text` the autocomplete's live query.
+ *
+ * Was: select-all, `execCommand("delete")`, then one `insertText` per character
+ * behind a 30ms sleep. Neither half survived the live form.
+ *
+ * A React-controlled input restores its value on every re-render, so the delete
+ * never stuck — the box kept its committed value and each insertText appended one
+ * character the next one overwrote. Sampled live on the N-400 contact page:
+ * "New York" -> "New Yorkl" -> "New Yorki" -> "New Yorkn". MUI therefore filtered
+ * against the OLD value and never offered the target, so a field that had to
+ * CHANGE silently kept the wrong answer while the run reported 15/17 filled. A
+ * wrong value nothing surfaces is worse than a blank one.
+ *
+ * The per-character sleep was the other half. Chrome clamps timers in a hidden tab
+ * to roughly one per second, so a 13-character country took 13 seconds and one
+ * page took 121 — and a paralegal switching tabs during a 40-page walk is the
+ * normal thing to do, not an edge case.
+ *
+ * One native write plus one input event fixes both: it is a real change React
+ * cannot restore over, and it costs no per-character timer.
+ */
 async function typeInto(el: HTMLInputElement, text: string): Promise<void> {
   el.focus();
-  el.select();
-  safeExec("delete");
-  for (const char of text) {
-    safeExec("insertText", char);
-    await sleep(30);
-  }
+  el.dispatchEvent(new FocusEvent("focus", { bubbles: true }));
+  setNativeValue(el, text);
   el.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
@@ -523,6 +553,10 @@ function typingProbes(value: string): string[] {
 }
 
 async function setSearch(el: HTMLInputElement, value: string): Promise<boolean> {
+  // What the client already had. Nothing is committed until an option is CLICKED,
+  // so on every failure path below the box is still holding our query text and
+  // that has to be put back — see the restore at the end.
+  const committed = el.value;
   await typeInto(el, value);
   await sleep(1500);
   if (await selectRenderedOption(value)) return true;
@@ -540,6 +574,15 @@ async function setSearch(el: HTMLInputElement, value: string): Promise<boolean> 
 
   dbg(`value-setter: no autocomplete option matched "${value}" for "${el.getAttribute("name")}"`);
   await diagnoseAutocompleteMiss(el, value);
+  // Diagnosed FIRST (it reads the options our query rendered), then undone. Typing
+  // a query is not an answer, so a miss must leave the field exactly as the client
+  // left it rather than holding a half-typed probe — clearing the box to reach the
+  // full option list must never become a way to lose an answer.
+  if (el.value !== committed) {
+    setNativeValue(el, committed);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+  }
   return false;
 }
 
