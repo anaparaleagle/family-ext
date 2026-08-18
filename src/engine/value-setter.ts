@@ -373,7 +373,21 @@ function setNativeValue(el: HTMLInputElement, value: string): void {
 async function typeInto(el: HTMLInputElement, text: string): Promise<void> {
   el.focus();
   el.dispatchEvent(new FocusEvent("focus", { bubbles: true }));
-  setNativeValue(el, text);
+  // CLEAR, as its own step and its own input event. This is the half that select-all
+  // + execCommand("delete") never achieved on a controlled input.
+  setNativeValue(el, "");
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  // Then TYPE. Real per-character edits are what make the widget re-filter from
+  // scratch; one bulk assignment left it filtering from wherever it already was, and
+  // that is how the height pickers rendered 0 options for "5" — a value that IS in
+  // their list, and one character long, so every probe equals it and there is nothing
+  // shorter to fall back to. No sleep between characters: it bought nothing, and a
+  // hidden tab clamps each one to about a second.
+  el.select();
+  for (const char of text) safeExec("insertText", char);
+  // execCommand is not guaranteed (and is inert in the test DOM), so fall back rather
+  // than leaving the box empty — an empty query is worse than a bulk one.
+  if (el.value !== text) setNativeValue(el, text);
   el.dispatchEvent(new Event("input", { bubbles: true }));
 }
 

@@ -413,3 +413,35 @@ describe("value-setter: search on a field that already has a value", () => {
     expect(el.value, "a failed match must not blank the field").toBe("New York");
   });
 });
+
+// The height pickers failed live on values that ARE valid captured options:
+//   we typed: "5" (1 chars) / options rendered after typing that: 0
+// `applicant.describeYourself.height.feet` offers exactly "0".."8", so "5" is there.
+//
+// What changed is HOW the value arrives. One bulk assignment leaves the widget
+// filtering from wherever it already was; the old code typed, which is what made it
+// re-filter from scratch, and it only broke because its select-all + delete never
+// cleared a controlled input. A 1-character value cannot recover through the probe
+// path either — every probe of "5" IS "5", so they are all dropped as equal to the
+// value and there is nothing shorter to fall back to.
+//
+// So the box must be CLEARED as its own visible step before the query goes in.
+describe("value-setter: search clears before it queries", () => {
+  beforeEach(() => setBody(""));
+
+  it("empties the box first, so nothing can filter on the old value", async () => {
+    setBody(
+      `<input type="text" name="h.feet" id="h.feet" value="7" />` +
+        `<ul role="listbox"><li role="option">5</li></ul>`,
+    );
+    const el = document.querySelector<HTMLInputElement>('[name="h.feet"]')!;
+    const seen: string[] = [];
+    el.addEventListener("input", () => seen.push(el.value));
+
+    await setValue({ name: "h.feet", kind: "search" }, "5");
+
+    expect(seen.length, "no input event reached the widget at all").toBeGreaterThan(0);
+    expect(seen[0], "the query was written over the old value instead of replacing it").toBe("");
+    expect(seen[seen.length - 1]).toBe("5");
+  }, 20000);
+});
