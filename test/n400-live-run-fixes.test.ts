@@ -22,7 +22,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fillAll, planPageFill } from "../src/runner/fill-chain";
 import { t } from "../src/runner/types";
 import type { FormConfig, FormPage } from "../src/runner/types";
-import { setBody } from "./fixtures/dom";
+import { N400_PAGES } from "../src/n400/form-descriptor";
+import { radioGroup, setBody } from "./fixtures/dom";
 
 const BASE = "https://my.uscis.gov/forms/application-for-naturalization/13375119";
 
@@ -110,6 +111,73 @@ describe("fillPage — DOM order on a mixed page", () => {
     // All three attempted, none reported "element not on page".
     expect(res.failed, JSON.stringify(res.results.filter((r) => !r.success))).toBe(0);
     expect(res.filled).toBe(3);
+  });
+});
+
+// WHOLE PAGES LEFT BLANK. A firm's Fill-all typed nothing on several sections
+// whose values the backend did send: myUSCIS had nested each page under itself as
+// a `-page-1` child, the bare slug stopped matching by suffix, and the walk logged
+// "page not in descriptor" and clicked past. Runs the REAL descriptor, because the
+// firm was looking at the whole walk, not the matcher.
+// Kept ahead of the not-awaited walk below, so no other run is in flight.
+describe("fillAll — a page myUSCIS nested under itself still gets filled", () => {
+  const GMC = "moralCharacter.goodMoralCharacter";
+  const QUESTIONS = [
+    `${GMC}.involvedInTorture.question`,
+    `${GMC}.involvedInGenocide.question`,
+    `${GMC}.involvedInKilling.question`,
+    `${GMC}.involvedInIntentionallyHarming.question`,
+  ];
+
+  it("types on the page-1 route instead of skipping it as unknown", async () => {
+    goTo("/moral-character/good-moral-character/good-moral-character-page-1");
+    setBody(
+      QUESTIONS.map((n) =>
+        radioGroup(n, [
+          { value: "true", label: "Yes" },
+          { value: "false", label: "No" },
+        ]),
+      ).join("") + `<button data-testid="next-button">Next</button>`,
+    );
+    const config: FormConfig = {
+      formType: "N-400",
+      hostPath: "/forms/application-for-naturalization/",
+      label: "N-400",
+      pages: N400_PAGES,
+    };
+    const values = Object.fromEntries(QUESTIONS.map((n) => [n, "false"]));
+
+    const summaries = await fillAll(config, values, async () => 0);
+
+    expect(
+      summaries.map((s) => s.slug),
+      "the page-1 route was not recognised — nothing was typed",
+    ).toEqual(["/moral-character/good-moral-character"]);
+    expect(summaries[0].filled).toBe(4);
+    for (const n of QUESTIONS) {
+      const no = document.querySelector<HTMLInputElement>(`input[name="${n}"][value="false"]`);
+      expect(no?.checked, n).toBe(true);
+    }
+  }, 40000);
+
+  it("still stops dead on the review section, page-1 route included", async () => {
+    // onTerminalPath is checked before detection, so the alias must not give the
+    // walk a reason to click through the statement and signature pages.
+    goTo("/review-and-submit/review-your-application/review-your-application-page-1");
+    setBody(`<button data-testid="next-button">Next</button>`);
+    let clicked = false;
+    document.querySelector("button")!.addEventListener("click", () => (clicked = true));
+    const config: FormConfig = {
+      formType: "N-400",
+      hostPath: "/forms/application-for-naturalization/",
+      label: "N-400",
+      pages: N400_PAGES,
+    };
+
+    const summaries = await fillAll(config, {}, async () => 0);
+
+    expect(summaries).toEqual([]);
+    expect(clicked, "the walk clicked Next on the review section").toBe(false);
   });
 });
 

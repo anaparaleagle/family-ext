@@ -7,6 +7,17 @@
 
 import { FormPage } from "./types";
 
+/**
+ * The route myUSCIS serves once a page gains a sibling: the bare page becomes a
+ * `-page-1` CHILD of itself, beside the `-page-2` that appeared next to it. So
+ * `/a/good-moral-character` also has to answer to
+ * `/a/good-moral-character/good-moral-character-page-1`.
+ */
+export function pageOneAlias(slug: string): string {
+  const lastSegment = slug.slice(slug.lastIndexOf("/") + 1);
+  return `${slug}/${lastSegment}-page-1`;
+}
+
 /** Find the descriptor page whose slug the URL path ends with. */
 export function pageForUrl(pages: FormPage[], url: string): FormPage | null {
   let path: string;
@@ -18,8 +29,13 @@ export function pageForUrl(pages: FormPage[], url: string): FormPage | null {
   // Longest slug first so nested slugs (…/your-parents/your-parents) win over
   // their prefixes (…/your-parents).
   const byLength = [...pages].sort((a, b) => b.slug.length - a.slug.length);
+  // Two passes, exact first: a slug declared as it is served — an explicit
+  // `-page-2`, or a `-page-1` already written out — outranks every alias.
   for (const page of byLength) {
     if (path.endsWith(page.slug)) return page;
+  }
+  for (const page of byLength) {
+    if (path.endsWith(pageOneAlias(page.slug))) return page;
   }
   return null;
 }

@@ -29,6 +29,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { pageForUrl } from "../src/runner/section-detector";
+import { onTerminalPath } from "../src/runner/fill-chain";
 import type { FormPage } from "../src/runner/types";
 
 const DUMP_DIR = resolve(__dirname, "fixtures/n400-online-field-dump");
@@ -406,6 +407,107 @@ describe.skipIf(!HAVE_DESCRIPTOR)("N-400 descriptor <-> live dump", () => {
     expect(mismatches, `pages that do not detect as themselves: ${mismatches.join(", ")}`).toEqual([]);
     // Non-vacuous by construction: it asserted once per page.
     expect(pages.length).toBeGreaterThan(40);
+  });
+
+  // ── THE PAGES THAT CAME UP BLANK ON THE LIVE RUN ──────────────────────────
+  // Same defect as the I-539's (SOF-1278, fixed there by rewriting three slugs):
+  // myUSCIS nests a page under itself once it gains a sibling, so the bare route
+  // this capture recorded is served as a `-page-1` CHILD beside the `-page-2`.
+  // pageForUrl matches by suffix, so the bare slug matched nothing; every page's
+  // <h1> is identical, so the heading fallback could not cover for it; and the
+  // walk logged "page not in descriptor" and clicked past whole sections.
+  //
+  // Fixed as a RULE in the matcher rather than by editing slugs: there is no live
+  // N-400 capture, so which pages have moved is not knowable here, and a draft
+  // made before a split still serves the bare route. Both forms must resolve.
+  const LIVE_BASE = "https://my.uscis.gov/forms/application-for-naturalization/13370795";
+
+  it("resolves the -page-1 route for the sections the live run left blank", () => {
+    // Hard-coded URLs, not derived from the slug, so this reads as the report did.
+    const reported: Array<[string, string]> = [
+      [
+        "/about-you/your-immigration-information/your-immigration-information-page-1",
+        "/about-you/your-immigration-information",
+      ],
+      [
+        "/moral-character/party-or-group-affiliations/party-or-group-affiliations-page-1",
+        "/moral-character/party-or-group-affiliations",
+      ],
+      [
+        "/moral-character/good-moral-character/good-moral-character-page-1",
+        "/moral-character/good-moral-character",
+      ],
+      [
+        "/moral-character/crimes-and-offenses/crimes-and-offenses-page-1",
+        "/moral-character/crimes-and-offenses",
+      ],
+      ["/moral-character/illegal-activity/illegal-activity-page-1", "/moral-character/illegal-activity"],
+      ["/moral-character/military-service/military-service-page-1", "/moral-character/military-service"],
+      [
+        "/moral-character/attachment-to-the-us-constitution/attachment-to-the-us-constitution-page-1",
+        "/moral-character/attachment-to-the-us-constitution",
+      ],
+      ["/moral-character/oath-of-allegiance/oath-of-allegiance-page-1", "/moral-character/oath-of-allegiance"],
+    ];
+    const wrong = reported
+      .map(([url, want]) => ({ url, want, got: pageForUrl(pages, `${LIVE_BASE}${url}`)?.slug ?? null }))
+      .filter(({ want, got }) => got !== want);
+    expect(wrong, `page-1 routes that do not resolve: ${JSON.stringify(wrong)}`).toEqual([]);
+    // The pages must arrive with their fields, which is the whole point.
+    const gmc = pageForUrl(pages, `${LIVE_BASE}/moral-character/good-moral-character/good-moral-character-page-1`);
+    expect(gmc?.fields.length).toBeGreaterThan(0);
+  });
+
+  it("resolves EVERY page from its -page-1 route, with no page shadowing another", () => {
+    // Descriptor-wide, because the rule applies to every page: the reported ones
+    // are just the ones a firm happened to hit. A page whose alias resolves to
+    // some OTHER page would fill the wrong section, which is worse than blank.
+    const mismatches: string[] = [];
+    for (const page of pages) {
+      const last = page.slug.slice(page.slug.lastIndexOf("/") + 1);
+      const url = `${LIVE_BASE}${page.slug}/${last}-page-1`;
+      const got = pageForUrl(pages, url);
+      if (got?.slug !== page.slug) mismatches.push(`${page.slug} -> ${got?.slug ?? "NO MATCH"}`);
+    }
+    expect(mismatches, `page-1 routes resolving to the wrong page: ${mismatches.join(", ")}`).toEqual([]);
+    expect(pages.length).toBeGreaterThan(40);
+  });
+
+  it("keeps every declared -page-2/-page-3 slug winning for its own URL", () => {
+    // The alias must never swallow a sibling that is declared as it is served.
+    // Exact matching runs as a complete pass BEFORE any alias is considered.
+    const declaredSiblings = pages.map((p) => p.slug).filter((s) => /-page-[23]$/.test(s));
+    expect(declaredSiblings.length).toBeGreaterThanOrEqual(5);
+    for (const slug of declaredSiblings) {
+      expect(pageForUrl(pages, `${LIVE_BASE}${slug}`)?.slug, slug).toBe(slug);
+    }
+  });
+
+  it("still returns null for a route the descriptor does not know", () => {
+    // The alias is one exact extra form, not a fuzzy match. Everything else has
+    // to stay unknown, because "unknown" is what makes the walk skip instead of
+    // typing a section's answers into the wrong page.
+    for (const url of [
+      "https://my.uscis.gov/account/dashboard",
+      `${LIVE_BASE}/moral-character/good-moral-character/good-moral-character-page-4`,
+      `${LIVE_BASE}/moral-character/good-moral-character-page-1`,
+      `${LIVE_BASE}/moral-character/good-moral-character/something-else-page-1`,
+      `${LIVE_BASE}/a-section-uscis-has-not-shipped-yet`,
+    ]) {
+      expect(pageForUrl(pages, url), url).toBeNull();
+    }
+  });
+
+  it("leaves the review stop intact, bare route or -page-1 route", () => {
+    // The review page must keep resolving to its `kind: "review"` entry (the
+    // walk's stop) and must stay inside onTerminalPath either way — the alias
+    // must not turn the terminal section into something the walk types on.
+    const review = "/review-and-submit/review-your-application";
+    expect(pageForUrl(pages, `${LIVE_BASE}${review}`)?.kind).toBe("review");
+    const aliased = `${LIVE_BASE}${review}/review-your-application-page-1`;
+    expect(pageForUrl(pages, aliased)?.kind).toBe("review");
+    expect(onTerminalPath(`${LIVE_BASE}${review}`)).toBe(true);
+    expect(onTerminalPath(aliased)).toBe(true);
   });
 });
 

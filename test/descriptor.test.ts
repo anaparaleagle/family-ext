@@ -3,8 +3,11 @@ import { I130_PAGES, descriptorFieldNames } from "../src/i130/form-descriptor";
 import { pageForUrl, pageForHeading } from "../src/runner/section-detector";
 import { descriptorForPath } from "../src/runner/doc-flow";
 import type { UploadPageDescriptor } from "../src/runner/payload";
+import type { FormPage } from "../src/runner/types";
 
 const BASE = "https://my.uscis.gov/forms/petition-for-a-relative/12993840";
+
+const stub = (slug: string): FormPage => ({ slug, title: slug, kind: "form", fields: [] });
 
 describe("section-detector", () => {
   it("detects a page by URL slug", () => {
@@ -29,6 +32,55 @@ describe("section-detector", () => {
 
   it("returns null for an unknown URL", () => {
     expect(pageForUrl(I130_PAGES, "https://my.uscis.gov/account/dashboard")).toBeNull();
+  });
+
+  // ── The `-page-1` alias ───────────────────────────────────────────────────
+  // myUSCIS nests a page under itself once it gains a sibling: the bare route
+  // starts being served as a `-page-1` CHILD, beside the `-page-2` that appeared.
+  // Matching is by path suffix, so the bare slug then matches nothing and the
+  // walk clicks past a page it can fill. Handled as a rule, not per slug: any
+  // page can move, and a draft created before the split still serves the bare
+  // route, so both forms have to resolve.
+
+  it("detects a page from the -page-1 child route it is nested under", () => {
+    const p = pageForUrl(I130_PAGES, `${BASE}/about-you/your-name/your-name-page-1`);
+    expect(p?.slug).toBe("/about-you/your-name");
+  });
+
+  it("tolerates a trailing slash on the -page-1 route", () => {
+    const p = pageForUrl(I130_PAGES, `${BASE}/about-you/your-name/your-name-page-1/`);
+    expect(p?.slug).toBe("/about-you/your-name");
+  });
+
+  it("keeps an explicitly declared -page-2 slug matching its own URL", () => {
+    const p = pageForUrl(I130_PAGES, `${BASE}/your-family/your-parents/your-parents-page-2`);
+    expect(p?.slug).toBe("/your-family/your-parents/your-parents-page-2");
+  });
+
+  it("lets an exact match on ANY page beat a -page-1 alias on a longer slug", () => {
+    // Two full passes, exact first — not one pass that considers both forms per
+    // page. A slug declared as it is served must win even when some other page's
+    // alias also fits and that page's slug sorts first by length.
+    const pages = [stub("/moral-character/good-moral-character"), stub("/good-moral-character-page-1")];
+    const p = pageForUrl(pages, `${BASE}/moral-character/good-moral-character/good-moral-character-page-1`);
+    expect(p?.slug).toBe("/good-moral-character-page-1");
+  });
+
+  it("does not let a bare page's alias swallow its declared -page-2 sibling", () => {
+    const pages = [
+      stub("/your-family/your-parents/your-parents"),
+      stub("/your-family/your-parents/your-parents-page-2"),
+    ];
+    const p = pageForUrl(pages, `${BASE}/your-family/your-parents/your-parents-page-2`);
+    expect(p?.slug).toBe("/your-family/your-parents/your-parents-page-2");
+  });
+
+  it("matches only the nested alias, not any URL ending in -page-1", () => {
+    // Strict, not fuzzy: the alias is `<slug>/<last segment>-page-1` and nothing
+    // else. A sibling route that merely ends in -page-1 stays unknown.
+    expect(pageForUrl(I130_PAGES, `${BASE}/about-you/your-name-page-1`)).toBeNull();
+    expect(pageForUrl(I130_PAGES, `${BASE}/about-you/your-name/other-page-1`)).toBeNull();
+    expect(pageForUrl(I130_PAGES, `${BASE}/about-you/your-name/your-name-page-3`)).toBeNull();
   });
 });
 
