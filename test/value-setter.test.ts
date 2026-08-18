@@ -336,3 +336,80 @@ describe("value-setter: diagnosing an autocomplete miss", () => {
     expect(log).toContain('restored the input to "United States"');
   }, 20000);
 });
+
+// An autocomplete that ALREADY HOLDS A VALUE, with a list that filters on what is
+// actually in the box — which is what MUI does and what the static lists above
+// never exercised. This is the shape that failed live on the N-400 contact page
+// (SOF-1312): physicalAddress.state held "New York", the case said "Illinois",
+// and the run reported 15/17 filled while leaving the WRONG state on the form.
+//
+// From the extension's own diagnostic on that run:
+//   we typed: "Illinois" (8 chars)
+//   options rendered after typing that: 1
+//   options on screen (1):  "New York"
+//   VERDICT: nothing resembling this value is in the list at all.
+//
+// The matcher was fine. The QUERY was wrong: typeInto could not clear the box, so
+// the widget went on filtering against its old value and never offered Illinois.
+// Silently keeping a wrong answer is worse than leaving a field blank, because
+// nothing downstream can tell it happened.
+describe("value-setter: search on a field that already has a value", () => {
+  beforeEach(() => setBody(""));
+
+  /**
+   * A search input whose option list filters on the input's CURRENT value, and
+   * which commits the clicked option — the two behaviours a real Autocomplete has
+   * and a static fixture does not.
+   */
+  function filteringAutocomplete(name: string, committed: string, all: string[]): HTMLInputElement {
+    setBody(
+      `<input type="text" name="${name}" id="${name}" value="${committed}" />` +
+        `<ul role="listbox" id="lb"></ul>`,
+    );
+    const el = document.querySelector<HTMLInputElement>(`[name="${name}"]`)!;
+    const lb = document.getElementById("lb")!;
+    const render = (): void => {
+      const q = el.value.trim().toLowerCase();
+      lb.innerHTML = all
+        .filter((o) => o.toLowerCase().startsWith(q))
+        .map((o) => `<li role="option">${o}</li>`)
+        .join("");
+      for (const opt of Array.from(lb.querySelectorAll('[role="option"]'))) {
+        opt.addEventListener("click", () => {
+          el.value = opt.textContent || "";
+          render();
+        });
+      }
+    };
+    el.addEventListener("input", render);
+    render();
+    return el;
+  }
+
+  const STATES = ["New York", "New Jersey", "Illinois", "Indiana"];
+
+  it("replaces the old value instead of filtering the list against it", async () => {
+    const el = filteringAutocomplete("addr.state", "New York", STATES);
+    const res = await setValue({ name: "addr.state", kind: "search" }, "Illinois");
+    expect(res.success, "the autocomplete kept its old value").toBe(true);
+    expect(el.value).toBe("Illinois");
+  });
+
+  it("still works when the field starts empty", async () => {
+    // Non-vacuity: the blank case is the one that already worked, and it must keep
+    // working — a fix that only handles the pre-filled case is half a fix.
+    const el = filteringAutocomplete("addr.state", "", STATES);
+    const res = await setValue({ name: "addr.state", kind: "search" }, "Indiana");
+    expect(res.success).toBe(true);
+    expect(el.value).toBe("Indiana");
+  });
+
+  it("leaves the old value alone when the target genuinely is not in the list", async () => {
+    // Clearing the box must not become a way to silently wipe an answer: if we
+    // cannot commit our value, the field must still hold what the client had.
+    const el = filteringAutocomplete("addr.state", "New York", STATES);
+    const res = await setValue({ name: "addr.state", kind: "search" }, "Atlantis");
+    expect(res.success).toBe(false);
+    expect(el.value, "a failed match must not blank the field").toBe("New York");
+  });
+});
