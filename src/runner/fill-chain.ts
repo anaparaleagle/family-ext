@@ -451,6 +451,28 @@ export async function fillPage(
       continue;
     }
 
+    // A field the FORM has made read-only is not ours to set, and its value is
+    // already whatever the form decided it should be. myUSCIS mirrors the physical
+    // address into the mailing block and marks all seven inputs readOnly the moment
+    // the client says the two addresses are the same.
+    //
+    // We got that wrong in both directions. The two autocompletes reported "no
+    // match", because a read-only box will not open a listbox. The other five
+    // reported SUCCESS — setText's native-setter strategy assigns straight through
+    // readOnly — so we were overwriting the form's own values and counting it as
+    // filled. That only looked harmless because the mirrored values equalled ours.
+    //
+    // Checked here rather than in setValue so it lands in `skipped` beside the
+    // conditional non-reveals: both are "legitimately not filled", which is what the
+    // count means, and neither is a failure anyone should chase.
+    const el = locateElement(spec);
+    if (el && "readOnly" in el && (el as HTMLInputElement).readOnly) {
+      skipped++;
+      dbg(`fill: skip ${spec.name} — the form has made it read-only, so its value is not ours to set`);
+      lastWasRadio = false;
+      continue;
+    }
+
     const res = await setValue(spec, p.value);
     results.push(res);
     if (!res.success) dbg(`fill: FAIL ${spec.name} — ${res.message}`);
@@ -1194,7 +1216,7 @@ function logRunSummary(
   dbg(`fillAll: RUN SUMMARY (${config.formType})`);
   dbg(`  pages typed on: ${summaries.length}`);
   dbg(`  fields filled:  ${filled}/${total}`);
-  dbg(`  not shown (conditional, correctly skipped): ${skipped}`);
+  dbg(`  correctly skipped (not shown, or read-only and the form's own): ${skipped}`);
   dbg(`  upload pages visited: ${uploadsSeen.length ? uploadsSeen.join(", ") : "none"}`);
 
   const failures: string[] = [];

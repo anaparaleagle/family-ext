@@ -356,3 +356,46 @@ describe("N-400 descriptor — oath of allegiance page 2", () => {
     expect(N400_PAGES.map((p) => p.slug)).toContain(bare);
   });
 });
+
+// A FIELD THE FORM HAS MADE READ-ONLY. Live on the N-400 contact page: ticking
+// "This is the same as my current physical address" makes myUSCIS mirror the
+// physical address into the mailing block ITSELF and mark all seven mailing inputs
+// readOnly. Probed on draft 13375119 they held exactly the right values already —
+// United States / Illinois / Naperville / 60564 / 123 Naperville Road — and they
+// were the only read-only inputs on the page.
+//
+// We got that wrong in both directions. The two autocompletes reported "no match",
+// because a read-only box will not open a listbox. The other five reported SUCCESS:
+// setText's native-setter strategy assigns straight through readOnly, so we were
+// writing into fields the form had declared its own and counting it as filled. It
+// only looked harmless because the mirrored values happened to equal ours.
+//
+// A read-only input is not ours to set. Skip it, and do not touch it.
+describe("fillPage — a field the form has made read-only", () => {
+  it("skips it rather than failing, and leaves its value alone", async () => {
+    setBody(
+      textInput("applicant.mailing.city") +
+        `<input type="text" name="applicant.mailing.state" id="applicant.mailing.state" value="Illinois" readonly />`,
+    );
+    const page: FormPage = {
+      slug: "/contact",
+      title: "Contact",
+      kind: "form",
+      fields: [t("applicant.mailing.city"), t("applicant.mailing.state")],
+    };
+
+    const res = await fillPage(page, {
+      "applicant.mailing.city": "Naperville",
+      // Deliberately DIFFERENT from what the mirror holds, so a stray write shows up.
+      "applicant.mailing.state": "Ohio",
+    });
+
+    expect(res.failed, "a read-only field must not count as a failure").toBe(0);
+    expect(res.filled).toBe(1);
+    expect(res.skipped, "the read-only field should be skipped, not filled").toBe(1);
+    const state = document.querySelector<HTMLInputElement>('[name="applicant.mailing.state"]');
+    expect(state?.value, "wrote into a field the form marked read-only").toBe("Illinois");
+    const city = document.querySelector<HTMLInputElement>('[name="applicant.mailing.city"]');
+    expect(city?.value, "a writable field beside it must still fill").toBe("Naperville");
+  }, 20000);
+});
