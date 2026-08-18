@@ -19,11 +19,11 @@
 //    the upload". There was no upload.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fillAll, planPageFill } from "../src/runner/fill-chain";
+import { fillAll, fillPage, planPageFill } from "../src/runner/fill-chain";
 import { t } from "../src/runner/types";
 import type { FormConfig, FormPage } from "../src/runner/types";
 import { N400_PAGES } from "../src/n400/form-descriptor";
-import { radioGroup, setBody } from "./fixtures/dom";
+import { radioGroup, setBody, textInput } from "./fixtures/dom";
 
 const BASE = "https://my.uscis.gov/forms/application-for-naturalization/13375119";
 
@@ -245,4 +245,114 @@ describe("fillAll — does not retry an upload that never happened", () => {
     // there was nothing to process.
     expect(elapsed).toBeLessThan(20000);
   }, 30000);
+});
+
+// A REPEATER ON A DRAFT THAT ALREADY HAS SAVED ROWS. Live on draft 13375119
+// (SOF-1312): /about-you/where-you-have-lived reported 0/7, every field "element
+// not on page", and the same shape killed the walk on schools-and-employment at
+// page 8 of 57.
+//
+// The row field NAMES were right. The INDEX was not. The page renders no inputs at
+// all — it shows saved rows with Edit/Delete plus "Add another address" — and the
+// row that Add opens is numbered AFTER the saved ones. With one address already
+// saved the new row is:
+//
+//   applicant.whereYouHaveLived.1.address.zipCode
+//
+// The chain asked for row 0 because that is the payload's index, polled three
+// seconds for `...0.` and returned silently when it never came. So every repeater
+// fails completely on any draft that already holds rows, which is bugs 3, 7 and 8
+// of the ticket in one defect.
+//
+// The index is DISCOVERED rather than assumed, so a blank draft (Add renders 0)
+// and a draft with saved rows (Add renders 1) both work without counting anything.
+describe("fillPage — a repeater row myUSCIS numbers after the rows already saved", () => {
+  const PREFIX = "applicant.whereYouHaveLived";
+  const COLS = ["address.country", "address.city", "address.zipCode"];
+
+  const page: FormPage = {
+    slug: "/about-you/where-you-have-lived",
+    title: "Where you have lived",
+    kind: "form",
+    fields: COLS.map((c) => t(`${PREFIX}.{i}.${c}`)),
+    repeater: {
+      namePrefix: PREFIX,
+      // The live label, which is NOT the "add an address" the descriptor carried.
+      addButtonText: "add another address",
+      rowCommitButtonText: "Save entry",
+    },
+  };
+
+  // The payload is 0-indexed off our own list fact, and stays that way — what
+  // moves is which DOM row it is written into.
+  const values: Record<string, string> = {
+    [`${PREFIX}.0.address.country`]: "United States",
+    [`${PREFIX}.0.address.city`]: "Aurora",
+    [`${PREFIX}.0.address.zipCode`]: "60505",
+  };
+
+  /** A saved-row summary: no inputs, an Add control, and Add renders row `index`. */
+  function summaryWithAddRenderingRow(index: number): void {
+    setBody(`<button type="button">Add another address</button>`);
+    document.querySelector("button")!.addEventListener("click", () => {
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        COLS.map((c) => textInput(`${PREFIX}.${index}.${c}`)).join(""),
+      );
+    });
+  }
+
+  it("fills the row that actually rendered, not the index the payload used", async () => {
+    summaryWithAddRenderingRow(1);
+    const res = await fillPage(page, values);
+    expect(res.failed, "asked for a row index myUSCIS did not render").toBe(0);
+    expect(res.filled).toBe(3);
+    const zip = document.querySelector<HTMLInputElement>(`[name="${PREFIX}.1.address.zipCode"]`);
+    expect(zip?.value).toBe("60505");
+  }, 30000);
+
+  it("still fills row 0 on a blank draft", async () => {
+    // Non-vacuity: the blank case already worked and must keep working, or the fix
+    // has just moved the bug to the other kind of draft.
+    summaryWithAddRenderingRow(0);
+    const res = await fillPage(page, values);
+    expect(res.failed).toBe(0);
+    expect(res.filled).toBe(3);
+    const zip = document.querySelector<HTMLInputElement>(`[name="${PREFIX}.0.address.zipCode"]`);
+    expect(zip?.value).toBe("60505");
+  }, 30000);
+});
+
+// The Oath of allegiance has a SECOND page, captured live off draft 13375119. The
+// descriptor had no entry for it, so the walk logged "page not in descriptor" and
+// clicked past three questions the client had already answered — the rest of the
+// ticket's "Oath of allegiance not filled at all", beyond the -page-1 routing.
+describe("N-400 descriptor — oath of allegiance page 2", () => {
+  const SLUG = "/moral-character/oath-of-allegiance/oath-of-allegiance-page-2";
+
+  it("declares the page", () => {
+    expect(N400_PAGES.map((p) => p.slug)).toContain(SLUG);
+  });
+
+  it("drives all three willingness radios", () => {
+    const page = N400_PAGES.find((p) => p.slug === SLUG);
+    const names = (page?.fields ?? []).map((f) => f.name);
+    for (const n of [
+      "moralCharacter.oathOfAllegiancePage2.willingToBearArms",
+      "moralCharacter.oathOfAllegiancePage2.willingToPerformNonCombat",
+      "moralCharacter.oathOfAllegiancePage2.willingToWorkUnderCivilian",
+    ]) {
+      expect(names, n).toContain(n);
+    }
+    for (const f of page?.fields ?? []) expect(f.kind).toBe("radio");
+  });
+
+  it("is a page-2 slug the -page-1 alias could never have reached", () => {
+    // Spelled out because the alias fixed eight of the nine nested routes and it is
+    // easy to assume it covers this one too. It cannot: the alias derives
+    // `<slug>/<last>-page-1`, and nothing derives a -page-2.
+    const bare = "/moral-character/oath-of-allegiance";
+    expect(SLUG).not.toBe(`${bare}/oath-of-allegiance-page-1`);
+    expect(N400_PAGES.map((p) => p.slug)).toContain(bare);
+  });
 });
