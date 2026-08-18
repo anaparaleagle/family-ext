@@ -272,7 +272,10 @@ export const N400_PAGES: FormPage[] = [
     ],
     repeater: {
       namePrefix: "applicant.whereYouHaveLived",
-      addButtonText: "add an address",
+      // The label live on draft 13375119, which is NOT the "Add an address" the
+      // 2026-07-30 capture recorded. It only kept working because findAddButton
+      // falls back to any control starting with the word "add" — luck, not matching.
+      addButtonText: "add another address",
       rowCommitButtonText: "Save entry",
     },
   },
@@ -745,6 +748,22 @@ export const N400_PAGES: FormPage[] = [
       // `unableToTakeOath` = Yes is a substantive N-648-adjacent answer. It must
       // only ever come from an explicit firm answer, never from a default.
       radio("moralCharacter.oathOfAllegiance.unableToTakeOath", YN),
+    ],
+  },
+  {
+    // Captured live off draft 13375119 (SOF-1312). The oath section has a SECOND
+    // page and nothing here knew about it, so the walk logged "page not in
+    // descriptor" and clicked past three questions the client had already answered.
+    // The `-page-1` alias cannot reach it: that derives `<slug>/<last>-page-1`, and
+    // nothing derives a -page-2. Diffing the live sidebar against this file, it was
+    // the ONLY live page no entry or alias covered.
+    slug: "/moral-character/oath-of-allegiance/oath-of-allegiance-page-2",
+    title: "Oath of allegiance page 2",
+    kind: "form",
+    fields: [
+      radio("moralCharacter.oathOfAllegiancePage2.willingToBearArms", YN),
+      radio("moralCharacter.oathOfAllegiancePage2.willingToPerformNonCombat", YN),
+      radio("moralCharacter.oathOfAllegiancePage2.willingToWorkUnderCivilian", YN),
     ],
   },
 

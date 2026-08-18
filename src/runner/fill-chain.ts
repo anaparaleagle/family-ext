@@ -383,6 +383,10 @@ export async function fillPage(
   // /your-family/children reported its count field missing on a live run. The plan
   // is already sorted plain-first, so deferring Add is all that is needed.
   let rowsRendered = false;
+  // How far the DOM's row numbering runs ahead of the payload's. Zero on a blank
+  // draft; on a draft that already holds rows it is however many are saved, learned
+  // from the index the FIRST Add actually opened rather than assumed or counted.
+  let rowOffset = 0;
   const renderRowsOnce = async (): Promise<void> => {
     if (rowsRendered || !page.repeater) return;
     rowsRendered = true;
@@ -393,14 +397,31 @@ export async function fillPage(
     const repeaterFields = page.fields.filter((f) => f.name.includes("{i}"));
     const rows = repeaterRowCount(page.repeater, repeaterFields, fieldValues);
     for (let i = 0; i < rows; i++) {
-      await ensureRepeaterRow(page.repeater, i);
+      const rendered = await ensureRepeaterRow(page.repeater, i + rowOffset);
+      if (i === 0 && rendered !== null) rowOffset = rendered;
     }
+  };
+
+  /**
+   * The spec to actually drive, with the payload's row index shifted onto the row
+   * myUSCIS rendered. Plain (non-repeater) fields are untouched, and with no offset
+   * this is the identity — so a blank draft behaves exactly as before.
+   */
+  const onRenderedRow = (p: PlannedField): FieldSpec => {
+    if (p.plain || rowOffset === 0 || !page.repeater) return p.spec;
+    const prefix = page.repeater.namePrefix;
+    return {
+      ...p.spec,
+      name: p.spec.name.replace(`${prefix}.${p.rowIndex}.`, `${prefix}.${p.rowIndex + rowOffset}.`),
+    };
   };
 
   let lastWasRadio = false;
   let skipped = 0;
   for (const p of plan) {
     if (!p.plain) await renderRowsOnce();
+    // AFTER renderRowsOnce, which is what learns the offset.
+    const spec = onRenderedRow(p);
     if (lastWasRadio && p.spec.kind !== "radio") {
       // A radio may have revealed conditional fields; let React settle.
       await sleep(800);
@@ -412,27 +433,27 @@ export async function fillPage(
       // and let setValue report the failure — loudly. A driven reveal that shows
       // nothing is a broken descriptor or a changed form, and silence there is
       // exactly what let the premium radio and the address block sit unfilled.
-      const appeared = await waitForRevealed(p.spec);
+      const appeared = await waitForRevealed(spec);
       if (!appeared) {
         dbg(
           `fill: ${p.spec.name} did not appear after setting "${p.revealedBy.by}" — ` +
             `the reveal is wrong or the form changed`,
         );
       }
-    } else if (p.conditional && locateElement(p.spec) === null) {
+    } else if (p.conditional && locateElement(spec) === null) {
       // Conditional with NO declared reveal: all we can do is look. Absent means a
       // legitimate non-reveal (this branch hides the block), so skip it quietly
       // instead of counting a failure. Probed AFTER the radio-settle above so a
       // field a same-page radio just revealed is seen as present.
       skipped++;
-      dbg(`fill: skip ${p.spec.name} — conditional field not shown on this page`);
+      dbg(`fill: skip ${spec.name} — conditional field not shown on this page`);
       lastWasRadio = false;
       continue;
     }
 
-    const res = await setValue(p.spec, p.value);
+    const res = await setValue(spec, p.value);
     results.push(res);
-    if (!res.success) dbg(`fill: FAIL ${p.spec.name} — ${res.message}`);
+    if (!res.success) dbg(`fill: FAIL ${spec.name} — ${res.message}`);
     lastWasRadio = p.spec.kind === "radio" && res.success;
 
     // This answer opens a block below it. Give the block a chance to mount before
@@ -443,8 +464,8 @@ export async function fillPage(
     }
 
     // After country/state autocomplete, wait for dependent lookups.
-    const n = p.spec.name.toLowerCase();
-    if ((n.includes("country") || n.includes("state")) && p.spec.kind === "search" && res.success) {
+    const n = spec.name.toLowerCase();
+    if ((n.includes("country") || n.includes("state")) && spec.kind === "search" && res.success) {
       await sleep(1200);
     }
   }
@@ -464,19 +485,63 @@ export async function fillPage(
   };
 }
 
-/** Click the repeater "Add" button until the row at `index` is rendered. */
-async function ensureRepeaterRow(repeater: RepeaterSpec, index: number): Promise<void> {
-  const anchorName = `${repeater.namePrefix}.${index}.`;
-  if (rowRendered(anchorName)) return;
+/** Every row index currently rendered for `namePrefix`, read off the input names. */
+function renderedRowIndices(namePrefix: string): number[] {
+  const found = new Set<number>();
+  for (const el of Array.from(document.querySelectorAll("input, select, textarea"))) {
+    const name = el.getAttribute("name");
+    if (!name || !name.startsWith(`${namePrefix}.`)) continue;
+    const n = Number(name.slice(namePrefix.length + 1).split(".")[0]);
+    if (Number.isInteger(n)) found.add(n);
+  }
+  return [...found].sort((a, b) => a - b);
+}
+
+/**
+ * Make a row exist for payload row `index`, and report WHICH index myUSCIS gave it.
+ *
+ * The returned number is the whole point. myUSCIS numbers a new row AFTER the rows
+ * the draft already holds, so on a draft with one saved address the row that "Add
+ * another address" opens is `...whereYouHaveLived.1.*` while our payload counts from
+ * 0. This used to assert the row it wanted, poll three seconds for a name that was
+ * never coming, and return silently — every field on the page then reported "element
+ * not on page" and the walk stalled trying to commit a row that had never rendered.
+ * Live on draft 13375119 that was /about-you/where-you-have-lived at 0/7 and
+ * /about-you/schools-and-employment at 0/3, which is where the run died.
+ *
+ * Discovered rather than counted: reading the number of saved-row summaries would
+ * mean parsing myUSCIS's row markup, whereas the index it actually used is right
+ * there in the new inputs' names. A blank draft answers 0 and a draft with rows
+ * answers 1 through the same code path.
+ *
+ * null means no row appeared at all — a missing Add control or a click that did
+ * nothing, both of which are failures worth a line rather than silence.
+ */
+async function ensureRepeaterRow(
+  repeater: RepeaterSpec,
+  index: number,
+): Promise<number | null> {
+  if (rowRendered(`${repeater.namePrefix}.${index}.`)) return index;
+  const before = renderedRowIndices(repeater.namePrefix);
   const btn = findAddButton(repeater.addButtonText);
   if (!btn) {
     dbg(`fill: no "Add" button (${repeater.addButtonText}) to render row ${index}`);
-    return;
+    return null;
   }
   btn.click();
-  for (let attempt = 0; attempt < 20 && !rowRendered(anchorName); attempt++) {
+  for (let attempt = 0; attempt < 20; attempt++) {
     await sleep(150);
+    const fresh = renderedRowIndices(repeater.namePrefix).filter((n) => !before.includes(n));
+    if (fresh.length) {
+      const rendered = Math.min(...fresh);
+      if (rendered !== index) {
+        dbg(`fill: "${repeater.addButtonText}" opened row ${rendered}, not ${index} — filling ${rendered}`);
+      }
+      return rendered;
+    }
   }
+  dbg(`fill: clicked "${repeater.addButtonText}" but no new row rendered for ${index}`);
+  return null;
 }
 
 function rowRendered(anchorPrefix: string): boolean {
