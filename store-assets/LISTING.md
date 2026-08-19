@@ -1,11 +1,11 @@
-# Chrome Web Store listing — ParaLeagle Family myUSCIS Autofill
+# Chrome Web Store listing — ParaLeagle Family Form Autofill
 
 Everything the developer dashboard asks for, written out so it can be pasted
 rather than improvised. Keep this file in step with the manifest.
 
 Dashboard: https://chrome.google.com/webstore/devconsole
 
-Upload: `paraleagle-family-ext-v0.8.1-webstore.zip` (repo root, gitignored —
+Upload: `paraleagle-family-ext-v0.8.3-webstore.zip` (repo root, gitignored —
 rebuild with `npm run build` then re-zip the CONTENTS of `dist/`).
 
 ---
@@ -15,7 +15,10 @@ rebuild with `npm run build` then re-zip the CONTENTS of `dist/`).
 One-time, on the account that will own the item:
 
 1. A Chrome Web Store developer account costs **$5, one time**. Pay it once per
-   account, not per extension.
+   account, not per extension — so if this item goes on the account that already
+   owns the published H-1B item (`imcfojejfmpkepmanakogmooejclmgnl`), there is
+   nothing more to pay. Confirm that account is the TEAM account before creating
+   the item.
 2. Add and verify a **contact email** under Account. Publishing is blocked until
    that is verified.
 3. Optional but worth it: verify the **paraleagle.ai** domain, so the listing can
@@ -41,15 +44,15 @@ Version numbers cannot be reused. Every upload needs a higher `version` in
 
 **Title**
 
-    ParaLeagle Family myUSCIS Autofill
+    ParaLeagle Family Form Autofill
 
 **Summary** (132 characters max)
 
-    Fill the guided online I-130, I-539 and N-400 on myUSCIS from your firm's ParaLeagle case data.
+    Fill the guided online I-130, I-539 and N-400 on my.uscis.gov from your firm's ParaLeagle case data.
 
 **Description**
 
-    ParaLeagle Family myUSCIS Autofill is a tool for immigration law-firm staff
+    ParaLeagle Family Form Autofill is a tool for immigration law-firm staff
     who already use ParaLeagle. It fills the guided online forms on my.uscis.gov
     from case data the firm has already collected and reviewed in ParaLeagle,
     instead of re-typing it a third time.
@@ -61,7 +64,7 @@ Version numbers cannot be reused. Every upload needs a higher `version` in
 
     How it works:
     1. Sign in with your ParaLeagle account in the extension popup.
-    2. Pick the case and the form you have open on myUSCIS.
+    2. Pick the case and the form you have open on my.uscis.gov.
     3. Load the case, then use the toolbar on the form to fill page by page,
        or to walk the whole form.
 
@@ -88,12 +91,43 @@ Version numbers cannot be reused. Every upload needs a higher `version` in
 **Screenshots** — at least one, 1280x800 or 640x400, PNG or JPEG. Up to five.
 Worth capturing, in this order:
 
-1. The toolbar on a guided myUSCIS form, mid-fill, showing the filled count.
+1. The toolbar on a guided my.uscis.gov form, mid-fill, showing the filled count.
 2. The popup: signed in, a case selected, the form picker.
 3. A document page with attachments in place.
 
 Screenshots are public even on an unlisted item. Use a demo case — no real
 client name, A-number, date of birth or address anywhere in the frame.
+
+---
+
+## 2.5 Test instructions — the Build tab
+
+The reviewer-notes field is called **Test instructions** and lives under **Build**,
+not on the Privacy tab. Fill it. Do not leave it blank.
+
+**Do not hand over a ParaLeagle login.** Firm accounts hold real client
+immigration records. The H-1B item (`imcfojejfmpkepmanakogmooejclmgnl`) was
+approved with notes of exactly this shape and no credentials, and the rejection
+before it was a static scan of the bundle and the manifest — nothing in it
+suggests a human tried to sign in. Paste:
+
+    ParaLeagle Family Form Autofill is an internal tool for immigration law
+    firms. It fills the guided online Forms I-130, I-539 and N-400 on
+    my.uscis.gov from case data held in the firm's own ParaLeagle account, so it
+    requires a firm login and does nothing on any other site.
+
+    Exercising it end to end needs two accounts: a ParaLeagle firm account, and a
+    USCIS online account with a form draft open. We cannot supply a shared
+    ParaLeagle login because accounts contain real client immigration records —
+    A-numbers, passports, dates of birth. We can provision a reviewer account
+    against a demo-only tenant on request; please ask and we will respond the
+    same day.
+
+    The extension only ever writes data the firm itself supplied, and it submits
+    nothing to USCIS. A person reviews every page and files it.
+
+If they come back citing non-functionality, THEN provision the demo tenant. Do
+not appeal a violation that is real — it costs days and clears nothing.
 
 ---
 
@@ -108,12 +142,6 @@ client name, A-number, date of birth or address anywhere in the frame.
     already uploaded for that case.
 
 **Permission justifications**
-
-`activeTab`
-
-    Used to read and fill the guided USCIS form in the tab the user is looking
-    at when they click the extension's toolbar. Nothing is read from a tab the
-    user has not acted on.
 
 `storage`
 
@@ -133,8 +161,11 @@ Host permission — `https://family-api.paraleagle.io/*`
     it, using the signed-in user's token. It is the only place that token is
     ever sent.
 
-Host permissions — `https://*.s3.amazonaws.com/*` and the matching
-`s3.us-east-1` patterns
+Host permissions — `https://*.s3.amazonaws.com/*`, `https://s3.amazonaws.com/*`,
+`https://*.s3.us-east-1.amazonaws.com/*` and `https://s3.us-east-1.amazonaws.com/*`
+
+    Four patterns because a presigned link arrives in either the virtual-hosted
+    or the path style, and in either the global or the us-east-1 form.
 
     Supporting documents the firm uploaded to ParaLeagle are stored in Amazon
     S3, and ParaLeagle's API returns time-limited links directly to S3. The
@@ -193,7 +224,7 @@ Send firm users the item link, and tell them one thing first:
 
 The store assigns the extension a new ID, so the store copy and a copy loaded
 from a folder are two separate extensions. Both inject a toolbar into the same
-myUSCIS page, and two toolbars fight.
+my.uscis.gov page, and two toolbars fight.
 
 Expect review to take anywhere from a few hours to a few days. Host permissions
 on a government site and PII handling are the two things that slow it down.

@@ -348,15 +348,16 @@ describe("no government product brand in what a reviewer reads", () => {
   });
 });
 
-// "package.json, which is kept in step by hand" — it was not. The lock file sat
-// at 0.8.0 through two version bumps.
+// "package.json, which is kept in step by hand" — it was not.
+//
+// The lock file is deliberately NOT asserted here, even though it had sat at
+// 0.8.0 through two version bumps. `npm install` rewrites its `version` from
+// package.json before any test runs, so the assertion was GREEN in CI on the
+// commit where the committed lock said 0.8.0 — a guard that cannot go red.
+// Bump the lock by hand along with the other two; nothing can check it for you.
 describe("one version number, everywhere", () => {
-  it("is the same in the manifest, package.json and the lock file", () => {
-    const version = manifestField("version");
+  it("is the same in the manifest and package.json", () => {
     const pkg = JSON.parse(readFileSync(join(REPO, "package.json"), "utf-8"));
-    const lock = JSON.parse(readFileSync(join(REPO, "package-lock.json"), "utf-8"));
-    expect(pkg.version).toBe(version);
-    expect(lock.version).toBe(version);
-    expect(lock.packages[""].version).toBe(version);
+    expect(pkg.version).toBe(manifestField("version"));
   });
 });

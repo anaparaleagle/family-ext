@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "ParaLeagle Family myUSCIS Autofill",
-  "version": "0.8.2",
-  "description": "Autofill the guided online Forms I-130, I-539 and N-400 on myUSCIS from ParaLeagle family-visa data",
+  "name": "ParaLeagle Family Form Autofill",
+  "version": "0.8.3",
+  "description": "Autofill the guided online Forms I-130, I-539 and N-400 on my.uscis.gov from ParaLeagle family-visa data",
   "permissions": [
     "storage"
   ],
