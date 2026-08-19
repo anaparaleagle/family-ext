@@ -27,6 +27,17 @@ export type FieldKind =
  */
 export interface LocateSpec {
   /**
+   * The element's `id`, for an input that has an id but NO name attribute.
+   *
+   * The strongest strategy there is, and tried first: an id is a single element by
+   * definition, so unlike an anchor walk or a label match it cannot land on
+   * someone else's field. Added for the ETA-9141's worksite county
+   * (`<input id="primaryWorksiteCounty">` with no name), which the H-1B extension
+   * had to pin the same way on the LCA — and which decides the prevailing-wage
+   * area, so a wrong element there is a wrong wage.
+   */
+  id?: string;
+  /**
    * The name of a nearby field whose name IS stable. The element is found as the
    * next same-type input after that anchor, within the anchor's own field group.
    *

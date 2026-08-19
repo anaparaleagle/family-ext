@@ -1,0 +1,8193 @@
+{
+ "url": "https://flag.dol.gov/dashboard/application/9141/6a831a2313a71d001e967db2",
+ "form": "9141",
+ "capturedAt": "2026-08-17T14:50:53.962Z",
+ "navItems": [
+  "New Application",
+  "Cases",
+  "Profiles",
+  "My Network",
+  "AEmployment Based Visa Information",
+  "Employer Point-of-Contact Information",
+  "Employer Information",
+  "Attorney or Agent Information (if applicable)",
+  "Wage Source Information",
+  "Job Description",
+  "Minimum Job Requirements and/or Alternative Job Requirements",
+  "Other Information",
+  "Place of Employment Information",
+  "Additional Worksites",
+  "Application Documents"
+ ],
+ "sections": [
+  {
+   "name": "New Application",
+   "fields": [
+    {
+     "key": "visaType",
+     "kind": "select",
+     "label": "A.1. Indicate the type of visa classification supported by this application*Click tooltip for more information",
+     "box": "A.1",
+     "name": "visaType",
+     "id": "visaType",
+     "required": false,
+     "disabled": false,
+     "current": "- Select -",
+     "options": [
+      {
+       "value": "- Select -",
+       "label": "- Select -"
+      },
+      {
+       "value": "H-2B",
+       "label": "H-2B"
+      },
+      {
+       "value": "H-1B",
+       "label": "H-1B"
+      },
+      {
+       "value": "H-1B1 Chile",
+       "label": "H-1B1 Chile"
+      },
+      {
+       "value": "H-1B1 Singapore",
+       "label": "H-1B1 Singapore"
+      },
+      {
+       "value": "E-3 Australian",
+       "label": "E-3 Australian"
+      },
+      {
+       "value": "PERM",
+       "label": "PERM"
+      }
+     ],
+     "mapId": "A1"
+    }
+   ],
+   "buttons": [
+    "Skip to main content",
+    "Add Data",
+    "Click tooltip for more information",
+    "Save & Quit",
+    "Continue"
+   ],
+   "reveals": [],
+   "rows": [
+    {
+     "addButtonText": "Add Data",
+     "added": [],
+     "addedFields": [],
+     "inModal": true
+    }
+   ],
+   "navChanged": true
+  },
+  {
+   "name": "Cases",
+   "fields": [
+    {
+     "key": "visaType",
+     "kind": "select",
+     "label": "A.1. Indicate the type of visa classification supported by this application*Click tooltip for more information",
+     "box": "A.1",
+     "name": "visaType",
+     "id": "visaType",
+     "required": false,
+     "disabled": false,
+     "current": "- Select -",
+     "options": [
+      {
+       "value": "- Select -",
+       "label": "- Select -"
+      },
+      {
+       "value": "H-2B",
+       "label": "H-2B"
+      },
+      {
+       "value": "H-1B",
+       "label": "H-1B"
+      },
+      {
+       "value": "H-1B1 Chile",
+       "label": "H-1B1 Chile"
+      },
+      {
+       "value": "H-1B1 Singapore",
+       "label": "H-1B1 Singapore"
+      },
+      {
+       "value": "E-3 Australian",
+       "label": "E-3 Australian"
+      },
+      {
+       "value": "PERM",
+       "label": "PERM"
+      }
+     ],
+     "mapId": "A1"
+    }
+   ],
+   "buttons": [
+    "Skip to main content",
+    "Add Data",
+    "Click tooltip for more information",
+    "Save & Quit",
+    "Continue",
+    "Close modal",
+    "Save as Initiated",
+    "Delete Case?"
+   ],
+   "reveals": [],
+   "rows": [
+    {
+     "addButtonText": "Add Data",
+     "added": [],
+     "addedFields": [],
+     "inModal": true
+    }
+   ],
+   "navChanged": false
+  },
+  {
+   "name": "Profiles",
+   "fields": [
+    {
+     "key": "visaType",
+     "kind": "select",
+     "label": "A.1. Indicate the type of visa classification supported by this application*Click tooltip for more information",
+     "box": "A.1",
+     "name": "visaType",
+     "id": "visaType",
+     "required": false,
+     "disabled": false,
+     "current": "- Select -",
+     "options": [
+      {
+       "value": "- Select -",
+       "label": "- Select -"
+      },
+      {
+       "value": "H-2B",
+       "label": "H-2B"
+      },
+      {
+       "value": "H-1B",
+       "label": "H-1B"
+      },
+      {
+       "value": "H-1B1 Chile",
+       "label": "H-1B1 Chile"
+      },
+      {
+       "value": "H-1B1 Singapore",
+       "label": "H-1B1 Singapore"
+      },
+      {
+       "value": "E-3 Australian",
+       "label": "E-3 Australian"
+      },
+      {
+       "value": "PERM",
+       "label": "PERM"
+      }
+     ],
+     "mapId": "A1"
+    }
+   ],
+   "buttons": [
+    "Skip to main content",
+    "Add Data",
+    "Click tooltip for more information",
+    "Save & Quit",
+    "Continue"
+   ],
+   "reveals": [],
+   "rows": [
+    {
+     "addButtonText": "Add Data",
+     "added": [],
+     "addedFields": [],
+     "inModal": true
+    }
+   ],
+   "navChanged": false
+  },
+  {
+   "name": "My Network",
+   "fields": [
+    {
+     "key": "visaType",
+     "kind": "select",
+     "label": "A.1. Indicate the type of visa classification supported by this application*Click tooltip for more information",
+     "box": "A.1",
+     "name": "visaType",
+     "id": "visaType",
+     "required": false,
+     "disabled": false,
+     "current": "- Select -",
+     "options": [
+      {
+       "value": "- Select -",
+       "label": "- Select -"
+      },
+      {
+       "value": "H-2B",
+       "label": "H-2B"
+      },
+      {
+       "value": "H-1B",
+       "label": "H-1B"
+      },
+      {
+       "value": "H-1B1 Chile",
+       "label": "H-1B1 Chile"
+      },
+      {
+       "value": "H-1B1 Singapore",
+       "label": "H-1B1 Singapore"
+      },
+      {
+       "value": "E-3 Australian",
+       "label": "E-3 Australian"
+      },
+      {
+       "value": "PERM",
+       "label": "PERM"
+      }
+     ],
+     "mapId": "A1"
+    }
+   ],
+   "buttons": [
+    "Skip to main content",
+    "Add Data",
+    "Click tooltip for more information",
+    "Save & Quit",
+    "Continue",
+    "Close modal",
+    "Save as Initiated",
+    "Delete Case?"
+   ],
+   "reveals": [],
+   "rows": [
+    {
+     "addButtonText": "Add Data",
+     "added": [],
+     "addedFields": [],
+     "inModal": true
+    }
+   ],
+   "navChanged": false
+  },
+  {
+   "name": "AEmployment Based Visa Information",
+   "fields": [
+    {
+     "key": "visaType",
+     "kind": "select",
+     "label": "A.1. Indicate the type of visa classification supported by this application*Click tooltip for more information",
+     "box": "A.1",
+     "name": "visaType",
+     "id": "visaType",
+     "required": false,
+     "disabled": false,
+     "current": "- Select -",
+     "options": [
+      {
+       "value": "- Select -",
+       "label": "- Select -"
+      },
+      {
+       "value": "H-2B",
+       "label": "H-2B"
+      },
+      {
+       "value": "H-1B",
+       "label": "H-1B"
+      },
+      {
+       "value": "H-1B1 Chile",
+       "label": "H-1B1 Chile"
+      },
+      {
+       "value": "H-1B1 Singapore",
+       "label": "H-1B1 Singapore"
+      },
+      {
+       "value": "E-3 Australian",
+       "label": "E-3 Australian"
+      },
+      {
+       "value": "PERM",
+       "label": "PERM"
+      }
+     ],
+     "mapId": "A1"
+    }
+   ],
+   "buttons": [
+    "Skip to main content",
+    "Add Data",
+    "Click tooltip for more information",
+    "Save & Quit",
+    "Continue"
+   ],
+   "reveals": [],
+   "rows": [
+    {
+     "addButtonText": "Add Data",
+     "added": [],
+     "addedFields": [],
+     "inModal": true
+    }
+   ],
+   "navChanged": false
+  },
+  {
+   "name": "Employer Point-of-Contact Information",
+   "fields": [
+    {
+     "key": "requestorPocLastName",
+     "kind": "text",
+     "label": "B.1. Contact’s last (family) name*Click tooltip for more information",
+     "box": "B.1",
+     "name": "requestorPocLastName",
+     "id": "requestorPocLastName",
+     "required": false,
+     "disabled": false,
+     "mapId": "B1"
+    },
+    {
+     "key": "requestorPocFirstName",
+     "kind": "text",
+     "label": "B.2. First (given) name*Click tooltip for more information",
+     "box": "B.2",
+     "name": "requestorPocFirstName",
+     "id": "requestorPocFirstName",
+     "required": false,
+     "disabled": false,
+     "mapId": "B2"
+    },
+    {
+     "key": "requestorPocMiddleName",
+     "kind": "text",
+     "label": "B.3. Middle name(s) (if applicable) §Click tooltip for more information",
+     "box": "B.3",
+     "name": "requestorPocMiddleName",
+     "id": "requestorPocMiddleName",
+     "required": false,
+     "disabled": false,
+     "mapId": "B3"
+    },
+    {
+     "key": "requestorPocJobTitle",
+     "kind": "text",
+     "label": "B.4. Contact's job title*Click tooltip for more information",
+     "box": "B.4",
+     "name": "requestorPocJobTitle",
+     "id": "requestorPocJobTitle",
+     "required": false,
+     "disabled": false,
+     "mapId": "B4"
+    },
+    {
+     "key": "requestorPocAddr1",
+     "kind": "text",
+     "label": "B.5. Address 1*Click tooltip for more information",
+     "box": "B.5",
+     "name": "requestorPocAddr1",
+     "id": "requestorPocAddr1",
+     "required": false,
+     "disabled": false,
+     "mapId": "B5"
+    },
+    {
+     "key": "requestorPocAddr2",
+     "kind": "text",
+     "label": "B.6. Address 2Click tooltip for more information",
+     "box": "B.6",
+     "name": "requestorPocAddr2",
+     "id": "requestorPocAddr2",
+     "required": false,
+     "disabled": false,
+     "mapId": "B6"
+    },
+    {
+     "key": "requestorPocCountry",
+     "kind": "select",
+     "label": "B.10. Country*Click tooltip for more information",
+     "box": "B.10",
+     "name": "requestorPocCountry",
+     "id": "requestorPocCountry",
+     "required": false,
+     "disabled": false,
+     "current": "- Select -",
+     "options": [
+      {
+       "value": "- Select -",
+       "label": "- Select -"
+      },
+      {
+       "value": "UNITED STATES OF AMERICA",
+       "label": "UNITED STATES OF AMERICA"
+      },
+      {
+       "value": "AFGHANISTAN",
+       "label": "AFGHANISTAN"
+      },
+      {
+       "value": "ALBANIA",
+       "label": "ALBANIA"
+      },
+      {
+       "value": "ALGERIA",
+       "label": "ALGERIA"
+      },
+      {
+       "value": "ANDORRA",
+       "label": "ANDORRA"
+      },
+      {
+       "value": "ANGOLA",
+       "label": "ANGOLA"
+      },
+      {
+       "value": "ANGUILLA",
+       "label": "ANGUILLA"
+      },
+      {
+       "value": "ANTIGUA AND BARBUDA",
+       "label": "ANTIGUA AND BARBUDA"
+      },
+      {
+       "value": "ARGENTINA",
+       "label": "ARGENTINA"
+      },
+      {
+       "value": "ARMENIA",
+       "label": "ARMENIA"
+      },
+      {
+       "value": "AUSTRALIA",
+       "label": "AUSTRALIA"
+      },
+      {
+       "value": "AUSTRIA",
+       "label": "AUSTRIA"
+      },
+      {
+       "value": "AZERBAIJAN",
+       "label": "AZERBAIJAN"
+      },
+      {
+       "value": "BAHAMAS",
+       "label": "BAHAMAS"
+      },
+      {
+       "value": "BAHRAIN",
+       "label": "BAHRAIN"
+      },
+      {
+       "value": "BANGLADESH",
+       "label": "BANGLADESH"
+      },
+      {
+       "value": "BARBADOS",
+       "label": "BARBADOS"
+      },
+      {
+       "value": "BELARUS",
+       "label": "BELARUS"
+      },
+      {
+       "value": "BELGIUM",
+       "label": "BELGIUM"
+      },
+      {
+       "value": "BELIZE",
+       "label": "BELIZE"
+      },
+      {
+       "value": "BENIN",
+       "label": "BENIN"
+      },
+      {
+       "value": "BERMUDA",
+       "label": "BERMUDA"
+      },
+      {
+       "value": "BHUTAN",
+       "label": "BHUTAN"
+      },
+      {
+       "value": "BOLIVIA",
+       "label": "BOLIVIA"
+      },
+      {
+       "value": "BOSNIA AND HERZEGOVINA",
+       "label": "BOSNIA AND HERZEGOVINA"
+      },
+      {
+       "value": "BOTSWANA",
+       "label": "BOTSWANA"
+      },
+      {
+       "value": "BRAZIL",
+       "label": "BRAZIL"
+      },
+      {
+       "value": "BRITISH VIRGIN ISLANDS",
+       "label": "BRITISH VIRGIN ISLANDS"
+      },
+      {
+       "value": "BRUNEI",
+       "label": "BRUNEI"
+      },
+      {
+       "value": "BULGARIA",
+       "label": "BULGARIA"
+      },
+      {
+       "value": "BURKINA FASO",
+       "label": "BURKINA FASO"
+      },
+      {
+       "value": "BURMA (MYANMAR)",
+       "label": "BURMA (MYANMAR)"
+      },
+      {
+       "value": "BURUNDI",
+       "label": "BURUNDI"
+      },
+      {
+       "value": "CABO VERDE",
+       "label": "CABO VERDE"
+      },
+      {
+       "value": "CAMBODIA",
+       "label": "CAMBODIA"
+      },
+      {
+       "value": "CAMEROON",
+       "label": "CAMEROON"
+      },
+      {
+       "value": "CANADA",
+       "label": "CANADA"
+      },
+      {
+       "value": "CAPE VERDE",
+       "label": "CAPE VERDE"
+      },
+      {
+       "value": "CAYMAN ISLANDS",
+       "label": "CAYMAN ISLANDS"
+      },
+      {
+       "value": "CENTRAL AFRICAN REPUBLIC",
+       "label": "CENTRAL AFRICAN REPUBLIC"
+      },
+      {
+       "value": "CHAD",
+       "label": "CHAD"
+      },
+      {
+       "value": "CHILE",
+       "label": "CHILE"
+      },
+      {
+       "value": "CHINA",
+       "label": "CHINA"
+      },
+      {
+       "value": "COLOMBIA",
+       "label": "COLOMBIA"
+      },
+      {
+       "value": "COMOROS",
+       "label": "COMOROS"
+      },
+      {
+       "value": "COSTA RICA",
+       "label": "COSTA RICA"
+      },
+      {
+       "value": "CROATIA",
+       "label": "CROATIA"
+      },
+      {
+       "value": "CUBA",
+       "label": "CUBA"
+      },
+      {
+       "value": "CYPRUS",
+       "label": "CYPRUS"
+      },
+      {
+       "value": "CZECH REPUBLIC",
+       "label": "CZECH REPUBLIC"
+      },
+      {
+       "value": "CZECHIA",
+       "label": "CZECHIA"
+      },
+      {
+       "value": "CZECHOSLOVAKIA",
+       "label": "CZECHOSLOVAKIA"
+      },
+      {
+       "value": "CÔTE D’IVOIRE",
+       "label": "CÔTE D’IVOIRE"
+      },
+      {
+       "value": "DEMOCRATIC REPUBLIC OF THE CONGO",
+       "label": "DEMOCRATIC REPUBLIC OF THE CONGO"
+      },
+      {
+       "value": "DENMARK",
+       "label": "DENMARK"
+      },
+      {
+       "value": "DJIBOUTI",
+       "label": "DJIBOUTI"
+      },
+      {
+       "value": "DOMINICA",
+       "label": "DOMINICA"
+      },
+      {
+       "value": "DOMINICAN REPUBLIC",
+       "label": "DOMINICAN REPUBLIC"
+      },
+      {
+       "value": "EAST TIMOR",
+       "label": "EAST TIMOR"
+      },
+      {
+       "value": "ECUADOR",
+       "label": "ECUADOR"
+      },
+      {
+       "value": "EGYPT",
+       "label": "EGYPT"
+      },
+      {
+       "value": "EL SALVADOR",
+       "label": "EL SALVADOR"
+      },
+      {
+       "value": "EQUATORIAL GUINEA",
+       "label": "EQUATORIAL GUINEA"
+      },
+      {
+       "value": "ERITREA",
+       "label": "ERITREA"
+      },
+      {
+       "value": "ESTONIA",
+       "label": "ESTONIA"
+      },
+      {
+       "value": "ESWATINI",
+       "label": "ESWATINI"
+      },
+      {
+       "value": "ETHIOPIA",
+       "label": "ETHIOPIA"
+      },
+      {
+       "value": "FIJI",
+       "label": "FIJI"
+      },
+      {
+       "value": "FINLAND",
+       "label": "FINLAND"
+      },
+      {
+       "value": "FRANCE",
+       "label": "FRANCE"
+      },
+      {
+       "value": "GABON",
+       "label": "GABON"
+      },
+      {
+       "value": "GAMBIA",
+       "label": "GAMBIA"
+      },
+      {
+       "value": "GEORGIA",
+       "label": "GEORGIA"
+      },
+      {
+       "value": "GERMANY",
+       "label": "GERMANY"
+      },
+      {
+       "value": "GHANA",
+       "label": "GHANA"
+      },
+      {
+       "value": "GIBRALTAR",
+       "label": "GIBRALTAR"
+      },
+      {
+       "value": "GREECE",
+       "label": "GREECE"
+      },
+      {
+       "value": "GREENLAND",
+       "label": "GREENLAND"
+      },
+      {
+       "value": "GRENADA",
+       "label": "GRENADA"
+      },
+      {
+       "value": "GUATEMALA",
+       "label": "GUATEMALA"
+      },
+      {
+       "value": "GUINEA",
+       "label": "GUINEA"
+      },
+      {
+       "value": "GUINEA-BISSAU",
+       "label": "GUINEA-BISSAU"
+      },
+      {
+       "value": "GUYANA",
+       "label": "GUYANA"
+      },
+      {
+       "value": "HAITI",
+       "label": "HAITI"
+      },
+      {
+       "value": "HOLY SEE",
+       "label": "HOLY SEE"
+      },
+      {
+       "value": "HONDURAS",
+       "label": "HONDURAS"
+      },
+      {
+       "value": "HONG KONG",
+       "label": "HONG KONG"
+      },
+      {
+       "value": "HUNGARY",
+       "label": "HUNGARY"
+      },
+      {
+       "value": "ICELAND",
+       "label": "ICELAND"
+      },
+      {
+       "value": "INDIA",
+       "label": "INDIA"
+      },
+      {
+       "value": "INDONESIA",
+       "label": "INDONESIA"
+      },
+      {
+       "value": "IRAN",
+       "label": "IRAN"
+      },
+      {
+       "value": "IRAQ",
+       "label": "IRAQ"
+      },
+      {
+       "value": "IRELAND",
+       "label": "IRELAND"
+      },
+      {
+       "value": "ISRAEL",
+       "label": "ISRAEL"
+      },
+      {
+       "value": "ITALY",
+       "label": "ITALY"
+      },
+      {
+       "value": "IVORY COAST",
+       "label": "IVORY COAST"
+      },
+      {
+       "value": "JAMAICA",
+       "label": "JAMAICA"
+      },
+      {
+       "value": "JAPAN",
+       "label": "JAPAN"
+      },
+      {
+       "value": "JORDAN",
+       "label": "JORDAN"
+      },
+      {
+       "value": "KAZAKHSTAN",
+       "label": "KAZAKHSTAN"
+      },
+      {
+       "value": "KENYA",
+       "label": "KENYA"
+      },
+      {
+       "value": "KIRIBATI",
+       "label": "KIRIBATI"
+      },
+      {
+       "value": "KOSOVO",
+       "label": "KOSOVO"
+      },
+      {
+       "value": "KUWAIT",
+       "label": "KUWAIT"
+      },
+      {
+       "value": "KYRGYZSTAN",
+       "label": "KYRGYZSTAN"
+      },
+      {
+       "value": "LAOS",
+       "label": "LAOS"
+      },
+      {
+       "value": "LATVIA",
+       "label": "LATVIA"
+      },
+      {
+       "value": "LEBANON",
+       "label": "LEBANON"
+      },
+      {
+       "value": "LESOTHO",
+       "label": "LESOTHO"
+      },
+      {
+       "value": "LIBERIA",
+       "label": "LIBERIA"
+      },
+      {
+       "value": "LIBYA",
+       "label": "LIBYA"
+      },
+      {
+       "value": "LIECHTENSTEIN",
+       "label": "LIECHTENSTEIN"
+      },
+      {
+       "value": "LITHUANIA",
+       "label": "LITHUANIA"
+      },
+      {
+       "value": "LUXEMBOURG",
+       "label": "LUXEMBOURG"
+      },
+      {
+       "value": "MACEDONIA",
+       "label": "MACEDONIA"
+      },
+      {
+       "value": "MADAGASCAR",
+       "label": "MADAGASCAR"
+      },
+      {
+       "value": "MALAWI",
+       "label": "MALAWI"
+      },
+      {
+       "value": "MALAYSIA",
+       "label": "MALAYSIA"
+      },
+      {
+       "value": "MALDIVES",
+       "label": "MALDIVES"
+      },
+      {
+       "value": "MALI",
+       "label": "MALI"
+      },
+      {
+       "value": "MALTA",
+       "label": "MALTA"
+      },
+      {
+       "value": "MAURITANIA",
+       "label": "MAURITANIA"
+      },
+      {
+       "value": "MAURITIUS",
+       "label": "MAURITIUS"
+      },
+      {
+       "value": "MEXICO",
+       "label": "MEXICO"
+      },
+      {
+       "value": "MICRONESIA",
+       "label": "MICRONESIA"
+      },
+      {
+       "value": "MOLDOVA",
+       "label": "MOLDOVA"
+      },
+      {
+       "value": "MONACO",
+       "label": "MONACO"
+      },
+      {
+       "value": "MONGOLIA",
+       "label": "MONGOLIA"
+      },
+      {
+       "value": "MONTENEGRO",
+       "label": "MONTENEGRO"
+      },
+      {
+       "value": "MOROCCO",
+       "label": "MOROCCO"
+      },
+      {
+       "value": "MOZAMBIQUE",
+       "label": "MOZAMBIQUE"
+      },
+      {
+       "value": "NAMIBIA",
+       "label": "NAMIBIA"
+      },
+      {
+       "value": "NAURU",
+       "label": "NAURU"
+      },
+      {
+       "value": "NEPAL",
+       "label": "NEPAL"
+      },
+      {
+       "value": "NETHERLANDS",
+       "label": "NETHERLANDS"
+      },
+      {
+       "value": "NEW ZEALAND",
+       "label": "NEW ZEALAND"
+      },
+      {
+       "value": "NICARAGUA",
+       "label": "NICARAGUA"
+      },
+      {
+       "value": "NIGER",
+       "label": "NIGER"
+      },
+      {
+       "value": "NIGERIA",
+       "label": "NIGERIA"
+      },
+      {
+       "value": "NORTH KOREA",
+       "label": "NORTH KOREA"
+      },
+      {
+       "value": "NORTH MACEDONIA",
+       "label": "NORTH MACEDONIA"
+      },
+      {
+       "value": "NORTHERN CYPRUS",
+       "label": "NORTHERN CYPRUS"
+      },
+      {
+       "value": "NORWAY",
+       "label": "NORWAY"
+      },
+      {
+       "value": "OMAN",
+       "label": "OMAN"
+      },
+      {
+       "value": "PAKISTAN",
+       "label": "PAKISTAN"
+      },
+      {
+       "value": "PALESTINE",
+       "label": "PALESTINE"
+      },
+      {
+       "value": "PANAMA",
+       "label": "PANAMA"
+      },
+      {
+       "value": "PAPUA NEW GUINEA",
+       "label": "PAPUA NEW GUINEA"
+      },
+      {
+       "value": "PARAGUAY",
+       "label": "PARAGUAY"
+      },
+      {
+       "value": "PERU",
+       "label": "PERU"
+      },
+      {
+       "value": "PHILIPPINES",
+       "label": "PHILIPPINES"
+      },
+      {
+       "value": "POLAND",
+       "label": "POLAND"
+      },
+      {
+       "value": "PORTUGAL",
+       "label": "PORTUGAL"
+      },
+      {
+       "value": "QATAR",
+       "label": "QATAR"
+      },
+      {
+       "value": "REPUBLIC OF CONGO",
+       "label": "REPUBLIC OF CONGO"
+      },
+      {
+       "value": "ROMANIA",
+       "label": "ROMANIA"
+      },
+      {
+       "value": "RUSSIA",
+       "label": "RUSSIA"
+      },
+      {
+       "value": "RWANDA",
+       "label": "RWANDA"
+      },
+      {
+       "value": "SAINT KITTS AND NEVIS",
+       "label": "SAINT KITTS AND NEVIS"
+      },
+      {
+       "value": "SAINT LUCIA",
+       "label": "SAINT LUCIA"
+      },
+      {
+       "value": "SAINT VINCENT AND THE GRENADINES",
+       "label": "SAINT VINCENT AND THE GRENADINES"
+      },
+      {
+       "value": "SAMOA",
+       "label": "SAMOA"
+      },
+      {
+       "value": "SAN MARINO",
+       "label": "SAN MARINO"
+      },
+      {
+       "value": "SAO TOME AND PRINCIPE",
+       "label": "SAO TOME AND PRINCIPE"
+      },
+      {
+       "value": "SAUDI ARABIA",
+       "label": "SAUDI ARABIA"
+      },
+      {
+       "value": "SENEGAL",
+       "label": "SENEGAL"
+      },
+      {
+       "value": "SERBIA",
+       "label": "SERBIA"
+      },
+      {
+       "value": "SEYCHELLES",
+       "label": "SEYCHELLES"
+      },
+      {
+       "value": "SIERRA LEONE",
+       "label": "SIERRA LEONE"
+      },
+      {
+       "value": "SINGAPORE",
+       "label": "SINGAPORE"
+      },
+      {
+       "value": "SLOVAKIA",
+       "label": "SLOVAKIA"
+      },
+      {
+       "value": "SLOVENIA",
+       "label": "SLOVENIA"
+      },
+      {
+       "value": "SOLOMON ISLANDS",
+       "label": "SOLOMON ISLANDS"
+      },
+      {
+       "value": "SOMALIA",
+       "label": "SOMALIA"
+      },
+      {
+       "value": "SOMALILAND",
+       "label": "SOMALILAND"
+      },
+      {
+       "value": "SOUTH AFRICA",
+       "label": "SOUTH AFRICA"
+      },
+      {
+       "value": "SOUTH KOREA",
+       "label": "SOUTH KOREA"
+      },
+      {
+       "value": "SOUTH OSSETIA",
+       "label": "SOUTH OSSETIA"
+      },
+      {
+       "value": "SOUTH SUDAN",
+       "label": "SOUTH SUDAN"
+      },
+      {
+       "value": "SPAIN",
+       "label": "SPAIN"
+      },
+      {
+       "value": "SRI LANKA",
+       "label": "SRI LANKA"
+      },
+      {
+       "value": "SUDAN",
+       "label": "SUDAN"
+      },
+      {
+       "value": "SURINAME",
+       "label": "SURINAME"
+      },
+      {
+       "value": "SWAZILAND",
+       "label": "SWAZILAND"
+      },
+      {
+       "value": "SWEDEN",
+       "label": "SWEDEN"
+      },
+      {
+       "value": "SWITZERLAND",
+       "label": "SWITZERLAND"
+      },
+      {
+       "value": "SYRIA",
+       "label": "SYRIA"
+      },
+      {
+       "value": "TAIWAN",
+       "label": "TAIWAN"
+      },
+      {
+       "value": "TAJIKISTAN",
+       "label": "TAJIKISTAN"
+      },
+      {
+       "value": "TANZANIA",
+       "label": "TANZANIA"
+      },
+      {
+       "value": "THAILAND",
+       "label": "THAILAND"
+      },
+      {
+       "value": "THE BAHAMAS",
+       "label": "THE BAHAMAS"
+      },
+      {
+       "value": "TIMOR-LESTE",
+       "label": "TIMOR-LESTE"
+      },
+      {
+       "value": "TOGO",
+       "label": "TOGO"
+      },
+      {
+       "value": "TONGA",
+       "label": "TONGA"
+      },
+      {
+       "value": "TRANSNISTRIA",
+       "label": "TRANSNISTRIA"
+      },
+      {
+       "value": "TRINIDAD AND TOBAGO",
+       "label": "TRINIDAD AND TOBAGO"
+      },
+      {
+       "value": "TUNISIA",
+       "label": "TUNISIA"
+      },
+      {
+       "value": "TURKEY",
+       "label": "TURKEY"
+      },
+      {
+       "value": "TURKMENISTAN",
+       "label": "TURKMENISTAN"
+      },
+      {
+       "value": "TUVALU",
+       "label": "TUVALU"
+      },
+      {
+       "value": "UGANDA",
+       "label": "UGANDA"
+      },
+      {
+       "value": "UKRAINE",
+       "label": "UKRAINE"
+      },
+      {
+       "value": "UNITED ARAB EMIRATES",
+       "label": "UNITED ARAB EMIRATES"
+      },
+      {
+       "value": "UNITED KINGDOM",
+       "label": "UNITED KINGDOM"
+      },
+      {
+       "value": "URUGUAY",
+       "label": "URUGUAY"
+      },
+      {
+       "value": "UZBEKISTAN",
+       "label": "UZBEKISTAN"
+      },
+      {
+       "value": "VANUATU",
+       "label": "VANUATU"
+      },
+      {
+       "value": "VATICAN CITY",
+       "label": "VATICAN CITY"
+      },
+      {
+       "value": "VENEZUELA",
+       "label": "VENEZUELA"
+      },
+      {
+       "value": "VIETNAM",
+       "label": "VIETNAM"
+      },
+      {
+       "value": "YEMEN",
+       "label": "YEMEN"
+      },
+      {
+       "value": "ZAMBIA",
+       "label": "ZAMBIA"
+      },
+      {
+       "value": "ZIMBABWE",
+       "label": "ZIMBABWE"
+      }
+     ],
+     "mapId": "B10"
+    },
+    {
+     "key": "requestorPocCity",
+     "kind": "text",
+     "label": "B.7. City*Click tooltip for more information",
+     "box": "B.7",
+     "name": "requestorPocCity",
+     "id": "requestorPocCity",
+     "required": false,
+     "disabled": true,
+     "mapId": "B7"
+    },
+    {
+     "key": "requestorPocState",
+     "kind": "select",
+     "label": "B.8. State §Click tooltip for more information",
+     "box": "B.8",
+     "name": "requestorPocState",
+     "id": "requestorPocState",
+     "required": false,
+     "disabled": true,
+     "current": "- Select -",
+     "options": [
+      {
+       "value": "- Select -",
+       "label": "- Select -"
+      },
+      {
+       "value": "ALABAMA",
+       "label": "ALABAMA"
+      },
+      {
+       "value": "ALASKA",
+       "label": "ALASKA"
+      },
+      {
+       "value": "ARIZONA",
+       "label": "ARIZONA"
+      },
+      {
+       "value": "ARKANSAS",
+       "label": "ARKANSAS"
+      },
+      {
+       "value": "CALIFORNIA",
+       "label": "CALIFORNIA"
+      },
+      {
+       "value": "COLORADO",
+       "label": "COLORADO"
+      },
+      {
+       "value": "CONNECTICUT",
+       "label": "CONNECTICUT"
+      },
+      {
+       "value": "DELAWARE",
+       "label": "DELAWARE"
+      },
+      {
+       "value": "DISTRICT OF COLUMBIA",
+       "label": "DISTRICT OF COLUMBIA"
+      },
+      {
+       "value": "FLORIDA",
+       "label": "FLORIDA"
+      },
+      {
+       "value": "GEORGIA",
+       "label": "GEORGIA"
+      },
+      {
+       "value": "GUAM",
+       "label": "GUAM"
+      },
+      {
+       "value": "HAWAII",
+       "label": "HAWAII"
+      },
+      {
+       "value": "IDAHO",
+       "label": "IDAHO"
+      },
+      {
+       "value": "ILLINOIS",
+       "label": "ILLINOIS"
+      },
+      {
+       "value": "INDIANA",
+       "label": "INDIANA"
+      },
+      {
+       "value": "IOWA",
+       "label": "IOWA"
+      },
+      {
+       "value": "KANSAS",
+       "label": "KANSAS"
+      },
+      {
+       "value": "KENTUCKY",
+       "label": "KENTUCKY"
+      },
+      {
+       "value": "LOUISIANA",
+       "label": "LOUISIANA"
+      },
+      {
+       "value": "MAINE",
+       "label": "MAINE"
+      },
+      {
+       "value": "MARYLAND",
+       "label": "MARYLAND"
+      },
+      {
+       "value": "MASSACHUSETTS",
+       "label": "MASSACHUSETTS"
+      },
+      {
+       "value": "MICHIGAN",
+       "label": "MICHIGAN"
+      },
+      {
+       "value": "MINNESOTA",
+       "label": "MINNESOTA"
+      },
+      {
+       "value": "MISSISSIPPI",
+       "label": "MISSISSIPPI"
+      },
+      {
+       "value": "MISSOURI",
+       "label": "MISSOURI"
+      },
+      {
+       "value": "MONTANA",
+       "label": "MONTANA"
+      },
+      {
+       "value": "NEBRASKA",
+       "label": "NEBRASKA"
+      },
+      {
+       "value": "NEVADA",
+       "label": "NEVADA"
+      },
+      {
+       "value": "NEW HAMPSHIRE",
+       "label": "NEW HAMPSHIRE"
+      },
+      {
+       "value": "NEW JERSEY",
+       "label": "NEW JERSEY"
+      },
+      {
+       "value": "NEW MEXICO",
+       "label": "NEW MEXICO"
+      },
+      {
+       "value": "NEW YORK",
+       "label": "NEW YORK"
+      },
+      {
+       "value": "NORTH CAROLINA",
+       "label": "NORTH CAROLINA"
+      },
+      {
+       "value": "NORTH DAKOTA",
+       "label": "NORTH DAKOTA"
+      },
+      {
+       "value": "NORTHERN MARIANA ISLANDS",
+       "label": "NORTHERN MARIANA ISLANDS"
+      },
+      {
+       "value": "OHIO",
+       "label": "OHIO"
+      },
+      {
+       "value": "OKLAHOMA",
+       "label": "OKLAHOMA"
+      },
+      {
+       "value": "OREGON",
+       "label": "OREGON"
+      },
+      {
+       "value": "PENNSYLVANIA",
+       "label": "PENNSYLVANIA"
+      },
+      {
+       "value": "PUERTO RICO",
+       "label": "PUERTO RICO"
+      },
+      {
+       "value": "RHODE ISLAND",
+       "label": "RHODE ISLAND"
+      },
+      {
+       "value": "SOUTH CAROLINA",
+       "label": "SOUTH CAROLINA"
+      },
+      {
+       "value": "SOUTH DAKOTA",
+       "label": "SOUTH DAKOTA"
+      },
+      {
+       "value": "TENNESSEE",
+       "label": "TENNESSEE"
+      },
+      {
+       "value": "TEXAS",
+       "label": "TEXAS"
+      },
+      {
+       "value": "UTAH",
+       "label": "UTAH"
+      },
+      {
+       "value": "VERMONT",
+       "label": "VERMONT"
+      },
+      {
+       "value": "VIRGIN ISLANDS",
+       "label": "VIRGIN ISLANDS"
+      },
+      {
+       "value": "VIRGINIA",
+       "label": "VIRGINIA"
+      },
+      {
+       "value": "WASHINGTON",
+       "label": "WASHINGTON"
+      },
+      {
+       "value": "WEST VIRGINIA",
+       "label": "WEST VIRGINIA"
+      },
+      {
+       "value": "WISCONSIN",
+       "label": "WISCONSIN"
+      },
+      {
+       "value": "WYOMING",
+       "label": "WYOMING"
+      }
+     ],
+     "mapId": "B8"
+    },
+    {
+     "key": "requestorPocPostalCode",
+     "kind": "text",
+     "label": "B.9. Postal codeClick tooltip for more information",
+     "box": "B.9",
+     "name": "requestorPocPostalCode",
+     "id": "requestorPocPostalCode",
+     "required": false,
+     "disabled": true,
+     "mapId": "B9"
+    },
+    {
+     "key": "requestorPocProvince",
+     "kind": "text",
+     "label": "B.11. Province (if applicable) §Click tooltip for more information",
+     "box": "B.11",
+     "name": "requestorPocProvince",
+     "id": "requestorPocProvince",
+     "required": false,
+     "disabled": true,
+     "mapId": "B11"
+    },
+    {
+     "key": "requestorPocPhoneCountry",
+     "kind": "select",
+     "label": "Contact Information",
+     "box": null,
+     "name": "requestorPocPhoneCountry",
+     "id": null,
+     "required": false,
+     "disabled": false,
+     "current": "US",
+     "options": [
+      {
+       "value": "ZZ",
+       "label": "International"
+      },
+      {
+       "value": "AF",
+       "label": "Afghanistan"
+      },
+      {
+       "value": "AX",
+       "label": "Åland Islands"
+      },
+      {
+       "value": "AL",
+       "label": "Albania"
+      },
+      {
+       "value": "DZ",
+       "label": "Algeria"
+      },
+      {
+       "value": "AS",
+       "label": "American Samoa"
+      },
+      {
+       "value": "AD",
+       "label": "Andorra"
+      },
+      {
+       "value": "AO",
+       "label": "Angola"
+      },
+      {
+       "value": "AI",
+       "label": "Anguilla"
+      },
+      {
+       "value": "AG",
+       "label": "Antigua and Barbuda"
+      },
+      {
+       "value": "AR",
+       "label": "Argentina"
+      },
+      {
+       "value": "AM",
+       "label": "Armenia"
+      },
+      {
+       "value": "AW",
+       "label": "Aruba"
+      },
+      {
+       "value": "AC",
+       "label": "Ascension Island"
+      },
+      {
+       "value": "AU",
+       "label": "Australia"
+      },
+      {
+       "value": "AT",
+       "label": "Austria"
+      },
+      {
+       "value": "AZ",
+       "label": "Azerbaijan"
+      },
+      {
+       "value": "BS",
+       "label": "Bahamas"
+      },
+      {
+       "value": "BH",
+       "label": "Bahrain"
+      },
+      {
+       "value": "BD",
+       "label": "Bangladesh"
+      },
+      {
+       "value": "BB",
+       "label": "Barbados"
+      },
+      {
+       "value": "BY",
+       "label": "Belarus"
+      },
+      {
+       "value": "BE",
+       "label": "Belgium"
+      },
+      {
+       "value": "BZ",
+       "label": "Belize"
+      },
+      {
+       "value": "BJ",
+       "label": "Benin"
+      },
+      {
+       "value": "BM",
+       "label": "Bermuda"
+      },
+      {
+       "value": "BT",
+       "label": "Bhutan"
+      },
+      {
+       "value": "BO",
+       "label": "Bolivia"
+      },
+      {
+       "value": "BQ",
+       "label": "Bonaire, Sint Eustatius and Saba"
+      },
+      {
+       "value": "BA",
+       "label": "Bosnia and Herzegovina"
+      },
+      {
+       "value": "BW",
+       "label": "Botswana"
+      },
+      {
+       "value": "BR",
+       "label": "Brazil"
+      },
+      {
+       "value": "IO",
+       "label": "British Indian Ocean Territory"
+      },
+      {
+       "value": "BN",
+       "label": "Brunei Darussalam"
+      },
+      {
+       "value": "BG",
+       "label": "Bulgaria"
+      },
+      {
+       "value": "BF",
+       "label": "Burkina Faso"
+      },
+      {
+       "value": "MM",
+       "label": "Burma"
+      },
+      {
+       "value": "BI",
+       "label": "Burundi"
+      },
+      {
+       "value": "KH",
+       "label": "Cambodia"
+      },
+      {
+       "value": "CM",
+       "label": "Cameroon"
+      },
+      {
+       "value": "CA",
+       "label": "Canada"
+      },
+      {
+       "value": "CV",
+       "label": "Cape Verde"
+      },
+      {
+       "value": "KY",
+       "label": "Cayman Islands"
+      },
+      {
+       "value": "CF",
+       "label": "Central African Republic"
+      },
+      {
+       "value": "TD",
+       "label": "Chad"
+      },
+      {
+       "value": "CL",
+       "label": "Chile"
+      },
+      {
+       "value": "CN",
+       "label": "China"
+      },
+      {
+       "value": "CX",
+       "label": "Christmas Island"
+      },
+      {
+       "value": "CC",
+       "label": "Cocos (Keeling) Islands"
+      },
+      {
+       "value": "CO",
+       "label": "Colombia"
+      },
+      {
+       "value": "KM",
+       "label": "Comoros"
+      },
+      {
+       "value": "CG",
+       "label": "Congo"
+      },
+      {
+       "value": "CD",
+       "label": "Congo, Democratic Republic of the"
+      },
+      {
+       "value": "CK",
+       "label": "Cook Islands"
+      },
+      {
+       "value": "CR",
+       "label": "Costa Rica"
+      },
+      {
+       "value": "CI",
+       "label": "Cote d'Ivoire"
+      },
+      {
+       "value": "HR",
+       "label": "Croatia"
+      },
+      {
+       "value": "CU",
+       "label": "Cuba"
+      },
+      {
+       "value": "CW",
+       "label": "Curaçao"
+      },
+      {
+       "value": "CY",
+       "label": "Cyprus"
+      },
+      {
+       "value": "CZ",
+       "label": "Czech Republic"
+      },
+      {
+       "value": "DK",
+       "label": "Denmark"
+      },
+      {
+       "value": "DJ",
+       "label": "Djibouti"
+      },
+      {
+       "value": "DM",
+       "label": "Dominica"
+      },
+      {
+       "value": "DO",
+       "label": "Dominican Republic"
+      },
+      {
+       "value": "EC",
+       "label": "Ecuador"
+      },
+      {
+       "value": "EG",
+       "label": "Egypt"
+      },
+      {
+       "value": "SV",
+       "label": "El Salvador"
+      },
+      {
+       "value": "GQ",
+       "label": "Equatorial Guinea"
+      },
+      {
+       "value": "ER",
+       "label": "Eritrea"
+      },
+      {
+       "value": "EE",
+       "label": "Estonia"
+      },
+      {
+       "value": "ET",
+       "label": "Ethiopia"
+      },
+      {
+       "value": "FK",
+       "label": "Falkland Islands"
+      },
+      {
+       "value": "FO",
+       "label": "Faroe Islands"
+      },
+      {
+       "value": "FM",
+       "label": "Federated States of Micronesia"
+      },
+      {
+       "value": "FJ",
+       "label": "Fiji"
+      },
+      {
+       "value": "FI",
+       "label": "Finland"
+      },
+      {
+       "value": "FR",
+       "label": "France"
+      },
+      {
+       "value": "GF",
+       "label": "French Guiana"
+      },
+      {
+       "value": "PF",
+       "label": "French Polynesia"
+      },
+      {
+       "value": "GA",
+       "label": "Gabon"
+      },
+      {
+       "value": "GM",
+       "label": "Gambia"
+      },
+      {
+       "value": "GE",
+       "label": "Georgia"
+      },
+      {
+       "value": "DE",
+       "label": "Germany"
+      },
+      {
+       "value": "GH",
+       "label": "Ghana"
+      },
+      {
+       "value": "GI",
+       "label": "Gibraltar"
+      },
+      {
+       "value": "GR",
+       "label": "Greece"
+      },
+      {
+       "value": "GL",
+       "label": "Greenland"
+      },
+      {
+       "value": "GD",
+       "label": "Grenada"
+      },
+      {
+       "value": "GP",
+       "label": "Guadeloupe"
+      },
+      {
+       "value": "GU",
+       "label": "Guam"
+      },
+      {
+       "value": "GT",
+       "label": "Guatemala"
+      },
+      {
+       "value": "GG",
+       "label": "Guernsey"
+      },
+      {
+       "value": "GN",
+       "label": "Guinea"
+      },
+      {
+       "value": "GW",
+       "label": "Guinea-Bissau"
+      },
+      {
+       "value": "GY",
+       "label": "Guyana"
+      },
+      {
+       "value": "HT",
+       "label": "Haiti"
+      },
+      {
+       "value": "VA",
+       "label": "Holy See (Vatican City State)"
+      },
+      {
+       "value": "HN",
+       "label": "Honduras"
+      },
+      {
+       "value": "HK",
+       "label": "Hong Kong"
+      },
+      {
+       "value": "HU",
+       "label": "Hungary"
+      },
+      {
+       "value": "IS",
+       "label": "Iceland"
+      },
+      {
+       "value": "IN",
+       "label": "India"
+      },
+      {
+       "value": "ID",
+       "label": "Indonesia"
+      },
+      {
+       "value": "IR",
+       "label": "Iran"
+      },
+      {
+       "value": "IQ",
+       "label": "Iraq"
+      },
+      {
+       "value": "IE",
+       "label": "Ireland"
+      },
+      {
+       "value": "IM",
+       "label": "Isle of Man"
+      },
+      {
+       "value": "IL",
+       "label": "Israel"
+      },
+      {
+       "value": "IT",
+       "label": "Italy"
+      },
+      {
+       "value": "JM",
+       "label": "Jamaica"
+      },
+      {
+       "value": "JP",
+       "label": "Japan"
+      },
+      {
+       "value": "JE",
+       "label": "Jersey"
+      },
+      {
+       "value": "JO",
+       "label": "Jordan"
+      },
+      {
+       "value": "KZ",
+       "label": "Kazakhstan"
+      },
+      {
+       "value": "KE",
+       "label": "Kenya"
+      },
+      {
+       "value": "KI",
+       "label": "Kiribati"
+      },
+      {
+       "value": "XK",
+       "label": "Kosovo"
+      },
+      {
+       "value": "KW",
+       "label": "Kuwait"
+      },
+      {
+       "value": "KG",
+       "label": "Kyrgyzstan"
+      },
+      {
+       "value": "LA",
+       "label": "Laos"
+      },
+      {
+       "value": "LV",
+       "label": "Latvia"
+      },
+      {
+       "value": "LB",
+       "label": "Lebanon"
+      },
+      {
+       "value": "LS",
+       "label": "Lesotho"
+      },
+      {
+       "value": "LR",
+       "label": "Liberia"
+      },
+      {
+       "value": "LY",
+       "label": "Libya"
+      },
+      {
+       "value": "LI",
+       "label": "Liechtenstein"
+      },
+      {
+       "value": "LT",
+       "label": "Lithuania"
+      },
+      {
+       "value": "LU",
+       "label": "Luxembourg"
+      },
+      {
+       "value": "MO",
+       "label": "Macao"
+      },
+      {
+       "value": "MG",
+       "label": "Madagascar"
+      },
+      {
+       "value": "MW",
+       "label": "Malawi"
+      },
+      {
+       "value": "MY",
+       "label": "Malaysia"
+      },
+      {
+       "value": "MV",
+       "label": "Maldives"
+      },
+      {
+       "value": "ML",
+       "label": "Mali"
+      },
+      {
+       "value": "MT",
+       "label": "Malta"
+      },
+      {
+       "value": "MH",
+       "label": "Marshall Islands"
+      },
+      {
+       "value": "MQ",
+       "label": "Martinique"
+      },
+      {
+       "value": "MR",
+       "label": "Mauritania"
+      },
+      {
+       "value": "MU",
+       "label": "Mauritius"
+      },
+      {
+       "value": "YT",
+       "label": "Mayotte"
+      },
+      {
+       "value": "MX",
+       "label": "Mexico"
+      },
+      {
+       "value": "MD",
+       "label": "Moldova"
+      },
+      {
+       "value": "MC",
+       "label": "Monaco"
+      },
+      {
+       "value": "MN",
+       "label": "Mongolia"
+      },
+      {
+       "value": "ME",
+       "label": "Montenegro"
+      },
+      {
+       "value": "MS",
+       "label": "Montserrat"
+      },
+      {
+       "value": "MA",
+       "label": "Morocco"
+      },
+      {
+       "value": "MZ",
+       "label": "Mozambique"
+      },
+      {
+       "value": "NA",
+       "label": "Namibia"
+      },
+      {
+       "value": "NR",
+       "label": "Nauru"
+      },
+      {
+       "value": "NP",
+       "label": "Nepal"
+      },
+      {
+       "value": "NL",
+       "label": "Netherlands"
+      },
+      {
+       "value": "NC",
+       "label": "New Caledonia"
+      },
+      {
+       "value": "NZ",
+       "label": "New Zealand"
+      },
+      {
+       "value": "NI",
+       "label": "Nicaragua"
+      },
+      {
+       "value": "NE",
+       "label": "Niger"
+      },
+      {
+       "value": "NG",
+       "label": "Nigeria"
+      },
+      {
+       "value": "NU",
+       "label": "Niue"
+      },
+      {
+       "value": "NF",
+       "label": "Norfolk Island"
+      },
+      {
+       "value": "KP",
+       "label": "North Korea"
+      },
+      {
+       "value": "MK",
+       "label": "North Macedonia"
+      },
+      {
+       "value": "MP",
+       "label": "Northern Mariana Islands"
+      },
+      {
+       "value": "NO",
+       "label": "Norway"
+      },
+      {
+       "value": "OM",
+       "label": "Oman"
+      },
+      {
+       "value": "PK",
+       "label": "Pakistan"
+      },
+      {
+       "value": "PW",
+       "label": "Palau"
+      },
+      {
+       "value": "PS",
+       "label": "Palestine"
+      },
+      {
+       "value": "PA",
+       "label": "Panama"
+      },
+      {
+       "value": "PG",
+       "label": "Papua New Guinea"
+      },
+      {
+       "value": "PY",
+       "label": "Paraguay"
+      },
+      {
+       "value": "PE",
+       "label": "Peru"
+      },
+      {
+       "value": "PH",
+       "label": "Philippines"
+      },
+      {
+       "value": "PL",
+       "label": "Poland"
+      },
+      {
+       "value": "PT",
+       "label": "Portugal"
+      },
+      {
+       "value": "PR",
+       "label": "Puerto Rico"
+      },
+      {
+       "value": "QA",
+       "label": "Qatar"
+      },
+      {
+       "value": "RE",
+       "label": "Reunion"
+      },
+      {
+       "value": "RO",
+       "label": "Romania"
+      },
+      {
+       "value": "RU",
+       "label": "Russia"
+      },
+      {
+       "value": "RW",
+       "label": "Rwanda"
+      },
+      {
+       "value": "BL",
+       "label": "Saint Barthélemy"
+      },
+      {
+       "value": "SH",
+       "label": "Saint Helena"
+      },
+      {
+       "value": "KN",
+       "label": "Saint Kitts and Nevis"
+      },
+      {
+       "value": "LC",
+       "label": "Saint Lucia"
+      },
+      {
+       "value": "MF",
+       "label": "Saint Martin (French Part)"
+      },
+      {
+       "value": "PM",
+       "label": "Saint Pierre and Miquelon"
+      },
+      {
+       "value": "VC",
+       "label": "Saint Vincent and the Grenadines"
+      },
+      {
+       "value": "WS",
+       "label": "Samoa"
+      },
+      {
+       "value": "SM",
+       "label": "San Marino"
+      },
+      {
+       "value": "ST",
+       "label": "Sao Tome and Principe"
+      },
+      {
+       "value": "SA",
+       "label": "Saudi Arabia"
+      },
+      {
+       "value": "SN",
+       "label": "Senegal"
+      },
+      {
+       "value": "RS",
+       "label": "Serbia"
+      },
+      {
+       "value": "SC",
+       "label": "Seychelles"
+      },
+      {
+       "value": "SL",
+       "label": "Sierra Leone"
+      },
+      {
+       "value": "SG",
+       "label": "Singapore"
+      },
+      {
+       "value": "SX",
+       "label": "Sint Maarten"
+      },
+      {
+       "value": "SK",
+       "label": "Slovakia"
+      },
+      {
+       "value": "SI",
+       "label": "Slovenia"
+      },
+      {
+       "value": "SB",
+       "label": "Solomon Islands"
+      },
+      {
+       "value": "SO",
+       "label": "Somalia"
+      },
+      {
+       "value": "ZA",
+       "label": "South Africa"
+      },
+      {
+       "value": "KR",
+       "label": "South Korea"
+      },
+      {
+       "value": "SS",
+       "label": "South Sudan"
+      },
+      {
+       "value": "ES",
+       "label": "Spain"
+      },
+      {
+       "value": "LK",
+       "label": "Sri Lanka"
+      },
+      {
+       "value": "SD",
+       "label": "Sudan"
+      },
+      {
+       "value": "SR",
+       "label": "Suriname"
+      },
+      {
+       "value": "SJ",
+       "label": "Svalbard and Jan Mayen"
+      },
+      {
+       "value": "SZ",
+       "label": "Swaziland"
+      },
+      {
+       "value": "SE",
+       "label": "Sweden"
+      },
+      {
+       "value": "CH",
+       "label": "Switzerland"
+      },
+      {
+       "value": "SY",
+       "label": "Syria"
+      },
+      {
+       "value": "TW",
+       "label": "Taiwan"
+      },
+      {
+       "value": "TJ",
+       "label": "Tajikistan"
+      },
+      {
+       "value": "TZ",
+       "label": "Tanzania"
+      },
+      {
+       "value": "TH",
+       "label": "Thailand"
+      },
+      {
+       "value": "TL",
+       "label": "Timor-Leste"
+      },
+      {
+       "value": "TG",
+       "label": "Togo"
+      },
+      {
+       "value": "TK",
+       "label": "Tokelau"
+      },
+      {
+       "value": "TO",
+       "label": "Tonga"
+      },
+      {
+       "value": "TT",
+       "label": "Trinidad and Tobago"
+      },
+      {
+       "value": "TA",
+       "label": "Tristan da Cunha"
+      },
+      {
+       "value": "TN",
+       "label": "Tunisia"
+      },
+      {
+       "value": "TR",
+       "label": "Turkey"
+      },
+      {
+       "value": "TM",
+       "label": "Turkmenistan"
+      },
+      {
+       "value": "TC",
+       "label": "Turks and Caicos Islands"
+      },
+      {
+       "value": "TV",
+       "label": "Tuvalu"
+      },
+      {
+       "value": "UG",
+       "label": "Uganda"
+      },
+      {
+       "value": "UA",
+       "label": "Ukraine"
+      },
+      {
+       "value": "AE",
+       "label": "United Arab Emirates"
+      },
+      {
+       "value": "GB",
+       "label": "United Kingdom"
+      },
+      {
+       "value": "US",
+       "label": "United States"
+      },
+      {
+       "value": "UY",
+       "label": "Uruguay"
+      },
+      {
+       "value": "UZ",
+       "label": "Uzbekistan"
+      },
+      {
+       "value": "VU",
+       "label": "Vanuatu"
+      },
+      {
+       "value": "VE",
+       "label": "Venezuela"
+      },
+      {
+       "value": "VN",
+       "label": "Vietnam"
+      },
+      {
+       "value": "VG",
+       "label": "Virgin Islands, British"
+      },
+      {
+       "value": "VI",
+       "label": "Virgin Islands, U.S."
+      },
+      {
+       "value": "WF",
+       "label": "Wallis and Futuna"
+      },
+      {
+       "value": "EH",
+       "label": "Western Sahara"
+      },
+      {
+       "value": "YE",
+       "label": "Yemen"
+      },
+      {
+       "value": "ZM",
+       "label": "Zambia"
+      },
+      {
+       "value": "ZW",
+       "label": "Zimbabwe"
+      }
+     ]
+    },
+    {
+     "key": "requestorPocPhone",
+     "kind": "tel",
+     "label": "B.12. Telephone number*Click tooltip for more information",
+     "box": "B.12",
+     "name": "requestorPocPhone",
+     "id": "requestorPocPhone",
+     "required": false,
+     "disabled": false,
+     "mapId": "B12"
+    },
+    {
+     "key": "requestorPocPhoneExt",
+     "kind": "text",
+     "label": "B.13. Extension (if applicable) §Click tooltip for more information",
+     "box": "B.13",
+     "name": "requestorPocPhoneExt",
+     "id": "requestorPocPhoneExt",
+     "required": false,
+     "disabled": false,
+     "mapId": "B13"
+    },
+    {
+     "key": "requestorPocEmail",
+     "kind": "text",
+     "label": "B.14. Business e-mail address*Click tooltip for more information",
+     "box": "B.14",
+     "name": "requestorPocEmail",
+     "id": "requestorPocEmail",
+     "required": false,
+     "disabled": false,
+     "mapId": "B14"
+    }
+   ],
+   "buttons": [
+    "Skip to main content",
+    "Add Data",
+    "Click tooltip for more information",
+    "Save & Quit",
+    "Back",
+    "Continue",
+    "Close modal",
+    "Save as Initiated",
+    "Delete Case?"
+   ],
+   "reveals": [],
+   "rows": [
+    {
+     "addButtonText": "Add Data",
+     "added": [],
+     "addedFields": [],
+     "inModal": true
+    }
+   ],
+   "navChanged": true
+  },
+  {
+   "name": "Employer Information",
+   "fields": [
+    {
+     "key": "empBusinessName",
+     "kind": "text",
+     "label": "C.1. Legal business name*Click tooltip for more information",
+     "box": "C.1",
+     "name": "empBusinessName",
+     "id": "empBusinessName",
+     "required": false,
+     "disabled": false,
+     "mapId": "C1"
+    },
+    {
+     "key": "empTradeName",
+     "kind": "text",
+     "label": "C.2. Trade name/Doing Business As (DBA), if applicable §Click tooltip for more information",
+     "box": "C.2",
+     "name": "empTradeName",
+     "id": "empTradeName",
+     "required": false,
+     "disabled": false,
+     "mapId": "C2"
+    },
+    {
+     "key": "empAddr1",
+     "kind": "text",
+     "label": "C.3. Address 1*Click tooltip for more information",
+     "box": "C.3",
+     "name": "empAddr1",
+     "id": "empAddr1",
+     "required": false,
+     "disabled": false,
+     "mapId": "C3"
+    },
+    {
+     "key": "empAddr2",
+     "kind": "text",
+     "label": "C.4. Address 2Click tooltip for more information",
+     "box": "C.4",
+     "name": "empAddr2",
+     "id": "empAddr2",
+     "required": false,
+     "disabled": false,
+     "mapId": "C4"
+    },
+    {
+     "key": "empCountry",
+     "kind": "select",
+     "label": "C.8. Country*Click tooltip for more information",
+     "box": "C.8",
+     "name": "empCountry",
+     "id": "empCountry",
+     "required": false,
+     "disabled": false,
+     "current": "- Select -",
+     "options": [
+      {
+       "value": "- Select -",
+       "label": "- Select -"
+      },
+      {
+       "value": "UNITED STATES OF AMERICA",
+       "label": "UNITED STATES OF AMERICA"
+      },
+      {
+       "value": "AFGHANISTAN",
+       "label": "AFGHANISTAN"
+      },
+      {
+       "value": "ALBANIA",
+       "label": "ALBANIA"
+      },
+      {
+       "value": "ALGERIA",
+       "label": "ALGERIA"
+      },
+      {
+       "value": "ANDORRA",
+       "label": "ANDORRA"
+      },
+      {
+       "value": "ANGOLA",
+       "label": "ANGOLA"
+      },
+      {
+       "value": "ANGUILLA",
+       "label": "ANGUILLA"
+      },
+      {
+       "value": "ANTIGUA AND BARBUDA",
+       "label": "ANTIGUA AND BARBUDA"
+      },
+      {
+       "value": "ARGENTINA",
+       "label": "ARGENTINA"
+      },
+      {
+       "value": "ARMENIA",
+       "label": "ARMENIA"
+      },
+      {
+       "value": "AUSTRALIA",
+       "label": "AUSTRALIA"
+      },
+      {
+       "value": "AUSTRIA",
+       "label": "AUSTRIA"
+      },
+      {
+       "value": "AZERBAIJAN",
+       "label": "AZERBAIJAN"
+      },
+      {
+       "value": "BAHAMAS",
+       "label": "BAHAMAS"
+      },
+      {
+       "value": "BAHRAIN",
+       "label": "BAHRAIN"
+      },
+      {
+       "value": "BANGLADESH",
+       "label": "BANGLADESH"
+      },
+      {
+       "value": "BARBADOS",
+       "label": "BARBADOS"
+      },
+      {
+       "value": "BELARUS",
+       "label": "BELARUS"
+      },
+      {
+       "value": "BELGIUM",
+       "label": "BELGIUM"
+      },
+      {
+       "value": "BELIZE",
+       "label": "BELIZE"
+      },
+      {
+       "value": "BENIN",
+       "label": "BENIN"
+      },
+      {
+       "value": "BERMUDA",
+       "label": "BERMUDA"
+      },
+      {
+       "value": "BHUTAN",
+       "label": "BHUTAN"
+      },
+      {
+       "value": "BOLIVIA",
+       "label": "BOLIVIA"
+      },
+      {
+       "value": "BOSNIA AND HERZEGOVINA",
+       "label": "BOSNIA AND HERZEGOVINA"
+      },
+      {
+       "value": "BOTSWANA",
+       "label": "BOTSWANA"
+      },
+      {
+       "value": "BRAZIL",
+       "label": "BRAZIL"
+      },
+      {
+       "value": "BRITISH VIRGIN ISLANDS",
+       "label": "BRITISH VIRGIN ISLANDS"
+      },
+      {
+       "value": "BRUNEI",
+       "label": "BRUNEI"
+      },
+      {
+       "value": "BULGARIA",
+       "label": "BULGARIA"
+      },
+      {
+       "value": "BURKINA FASO",
+       "label": "BURKINA FASO"
+      },
+      {
+       "value": "BURMA (MYANMAR)",
+       "label": "BURMA (MYANMAR)"
+      },
+      {
+       "value": "BURUNDI",
+       "label": "BURUNDI"
+      },
+      {
+       "value": "CABO VERDE",
+       "label": "CABO VERDE"
+      },
+      {
+       "value": "CAMBODIA",
+       "label": "CAMBODIA"
+      },
+      {
+       "value": "CAMEROON",
+       "label": "CAMEROON"
+      },
+      {
+       "value": "CANADA",
+       "label": "CANADA"
+      },
+      {
+       "value": "CAPE VERDE",
+       "label": "CAPE VERDE"
+      },
+      {
+       "value": "CAYMAN ISLANDS",
+       "label": "CAYMAN ISLANDS"
+      },
+      {
+       "value": "CENTRAL AFRICAN REPUBLIC",
+       "label": "CENTRAL AFRICAN REPUBLIC"
+      },
+      {
+       "value": "CHAD",
+       "label": "CHAD"
+      },
+      {
+       "value": "CHILE",
+       "label": "CHILE"
+      },
+      {
+       "value": "CHINA",
+       "label": "CHINA"
+      },
+      {
+       "value": "COLOMBIA",
+       "label": "COLOMBIA"
+      },
+      {
+       "value": "COMOROS",
+       "label": "COMOROS"
+      },
+      {
+       "value": "COSTA RICA",
+       "label": "COSTA RICA"
+      },
+      {
+       "value": "CROATIA",
+       "label": "CROATIA"
+      },
+      {
+       "value": "CUBA",
+       "label": "CUBA"
+      },
+      {
+       "value": "CYPRUS",
+       "label": "CYPRUS"
+      },
+      {
+       "value": "CZECH REPUBLIC",
+       "label": "CZECH REPUBLIC"
+      },
+      {
+       "value": "CZECHIA",
+       "label": "CZECHIA"
+      },
+      {
+       "value": "CZECHOSLOVAKIA",
+       "label": "CZECHOSLOVAKIA"
+      },
+      {
+       "value": "CÔTE D’IVOIRE",
+       "label": "CÔTE D’IVOIRE"
+      },
+      {
+       "value": "DEMOCRATIC REPUBLIC OF THE CONGO",
+       "label": "DEMOCRATIC REPUBLIC OF THE CONGO"
+      },
+      {
+       "value": "DENMARK",
+       "label": "DENMARK"
+      },
+      {
+       "value": "DJIBOUTI",
+       "label": "DJIBOUTI"
+      },
+      {
+       "value": "DOMINICA",
+       "label": "DOMINICA"
+      },
+      {
+       "value": "DOMINICAN REPUBLIC",
+       "label": "DOMINICAN REPUBLIC"
+      },
+      {
+       "value": "EAST TIMOR",
+       "label": "EAST TIMOR"
+      },
+      {
+       "value": "ECUADOR",
+       "label": "ECUADOR"
+      },
+      {
+       "value": "EGYPT",
+       "label": "EGYPT"
+      },
+      {
+       "value": "EL SALVADOR",
+       "label": "EL SALVADOR"
+      },
+      {
+       "value": "EQUATORIAL GUINEA",
+       "label": "EQUATORIAL GUINEA"
+      },
+      {
+       "value": "ERITREA",
+       "label": "ERITREA"
+      },
+      {
+       "value": "ESTONIA",
+       "label": "ESTONIA"
+      },
+      {
+       "value": "ESWATINI",
+       "label": "ESWATINI"
+      },
+      {
+       "value": "ETHIOPIA",
+       "label": "ETHIOPIA"
+      },
+      {
+       "value": "FIJI",
+       "label": "FIJI"
+      },
+      {
+       "value": "FINLAND",
+       "label": "FINLAND"
+      },
+      {
+       "value": "FRANCE",
+       "label": "FRANCE"
+      },
+      {
+       "value": "GABON",
+       "label": "GABON"
+      },
+      {
+       "value": "GAMBIA",
+       "label": "GAMBIA"
+      },
+      {
+       "value": "GEORGIA",
+       "label": "GEORGIA"
+      },
+      {
+       "value": "GERMANY",
+       "label": "GERMANY"
+      },
+      {
+       "value": "GHANA",
+       "label": "GHANA"
+      },
+      {
+       "value": "GIBRALTAR",
+       "label": "GIBRALTAR"
+      },
+      {
+       "value": "GREECE",
+       "label": "GREECE"
+      },
+      {
+       "value": "GREENLAND",
+       "label": "GREENLAND"
+      },
+      {
+       "value": "GRENADA",
+       "label": "GRENADA"
+      },
+      {
+       "value": "GUATEMALA",
+       "label": "GUATEMALA"
+      },
+      {
+       "value": "GUINEA",
+       "label": "GUINEA"
+      },
+      {
+       "value": "GUINEA-BISSAU",
+       "label": "GUINEA-BISSAU"
+      },
+      {
+       "value": "GUYANA",
+       "label": "GUYANA"
+      },
+      {
+       "value": "HAITI",
+       "label": "HAITI"
+      },
+      {
+       "value": "HOLY SEE",
+       "label": "HOLY SEE"
+      },
+      {
+       "value": "HONDURAS",
+       "label": "HONDURAS"
+      },
+      {
+       "value": "HONG KONG",
+       "label": "HONG KONG"
+      },
+      {
+       "value": "HUNGARY",
+       "label": "HUNGARY"
+      },
+      {
+       "value": "ICELAND",
+       "label": "ICELAND"
+      },
+      {
+       "value": "INDIA",
+       "label": "INDIA"
+      },
+      {
+       "value": "INDONESIA",
+       "label": "INDONESIA"
+      },
+      {
+       "value": "IRAN",
+       "label": "IRAN"
+      },
+      {
+       "value": "IRAQ",
+       "label": "IRAQ"
+      },
+      {
+       "value": "IRELAND",
+       "label": "IRELAND"
+      },
+      {
+       "value": "ISRAEL",
+       "label": "ISRAEL"
+      },
+      {
+       "value": "ITALY",
+       "label": "ITALY"
+      },
+      {
+       "value": "IVORY COAST",
+       "label": "IVORY COAST"
+      },
+      {
+       "value": "JAMAICA",
+       "label": "JAMAICA"
+      },
+      {
+       "value": "JAPAN",
+       "label": "JAPAN"
+      },
+      {
+       "value": "JORDAN",
+       "label": "JORDAN"
+      },
+      {
+       "value": "KAZAKHSTAN",
+       "label": "KAZAKHSTAN"
+      },
+      {
+       "value": "KENYA",
+       "label": "KENYA"
+      },
+      {
+       "value": "KIRIBATI",
+       "label": "KIRIBATI"
+      },
+      {
+       "value": "KOSOVO",
+       "label": "KOSOVO"
+      },
+      {
+       "value": "KUWAIT",
+       "label": "KUWAIT"
+      },
+      {
+       "value": "KYRGYZSTAN",
+       "label": "KYRGYZSTAN"
+      },
+      {
+       "value": "LAOS",
+       "label": "LAOS"
+      },
+      {
+       "value": "LATVIA",
+       "label": "LATVIA"
+      },
+      {
+       "value": "LEBANON",
+       "label": "LEBANON"
+      },
+      {
+       "value": "LESOTHO",
+       "label": "LESOTHO"
+      },
+      {
+       "value": "LIBERIA",
+       "label": "LIBERIA"
+      },
+      {
+       "value": "LIBYA",
+       "label": "LIBYA"
+      },
+      {
+       "value": "LIECHTENSTEIN",
+       "label": "LIECHTENSTEIN"
+      },
+      {
+       "value": "LITHUANIA",
+       "label": "LITHUANIA"
+      },
+      {
+       "value": "LUXEMBOURG",
+       "label": "LUXEMBOURG"
+      },
+      {
+       "value": "MACEDONIA",
+       "label": "MACEDONIA"
+      },
+      {
+       "value": "MADAGASCAR",
+       "label": "MADAGASCAR"
+      },
+      {
+       "value": "MALAWI",
+       "label": "MALAWI"
+      },
+      {
+       "value": "MALAYSIA",
+       "label": "MALAYSIA"
+      },
+      {
+       "value": "MALDIVES",
+       "label": "MALDIVES"
+      },
+      {
+       "value": "MALI",
+       "label": "MALI"
+      },
+      {
+       "value": "MALTA",
+       "label": "MALTA"
+      },
+      {
+       "value": "MAURITANIA",
+       "label": "MAURITANIA"
+      },
+      {
+       "value": "MAURITIUS",
+       "label": "MAURITIUS"
+      },
+      {
+       "value": "MEXICO",
+       "label": "MEXICO"
+      },
+      {
+       "value": "MICRONESIA",
+       "label": "MICRONESIA"
+      },
+      {
+       "value": "MOLDOVA",
+       "label": "MOLDOVA"
+      },
+      {
+       "value": "MONACO",
+       "label": "MONACO"
+      },
+      {
+       "value": "MONGOLIA",
+       "label": "MONGOLIA"
+      },
+      {
+       "value": "MONTENEGRO",
+       "label": "MONTENEGRO"
+      },
+      {
+       "value": "MOROCCO",
+       "label": "MOROCCO"
+      },
+      {
+       "value": "MOZAMBIQUE",
+       "label": "MOZAMBIQUE"
+      },
+      {
+       "value": "NAMIBIA",
+       "label": "NAMIBIA"
+      },
+      {
+       "value": "NAURU",
+       "label": "NAURU"
+      },
+      {
+       "value": "NEPAL",
+       "label": "NEPAL"
+      },
+      {
+       "value": "NETHERLANDS",
+       "label": "NETHERLANDS"
+      },
+      {
+       "value": "NEW ZEALAND",
+       "label": "NEW ZEALAND"
+      },
+      {
+       "value": "NICARAGUA",
+       "label": "NICARAGUA"
+      },
+      {
+       "value": "NIGER",
+       "label": "NIGER"
+      },
+      {
+       "value": "NIGERIA",
+       "label": "NIGERIA"
+      },
+      {
+       "value": "NORTH KOREA",
+       "label": "NORTH KOREA"
+      },
+      {
+       "value": "NORTH MACEDONIA",
+       "label": "NORTH MACEDONIA"
+      },
+      {
+       "value": "NORTHERN CYPRUS",
+       "label": "NORTHERN CYPRUS"
+      },
+      {
+       "value": "NORWAY",
+       "label": "NORWAY"
+      },
+      {
+       "value": "OMAN",
+       "label": "OMAN"
+      },
+      {
+       "value": "PAKISTAN",
+       "label": "PAKISTAN"
+      },
+      {
+       "value": "PALESTINE",
+       "label": "PALESTINE"
+      },
+      {
+       "value": "PANAMA",
+       "label": "PANAMA"
+      },
+      {
+       "value": "PAPUA NEW GUINEA",
+       "label": "PAPUA NEW GUINEA"
+      },
+      {
+       "value": "PARAGUAY",
+       "label": "PARAGUAY"
+      },
+      {
+       "value": "PERU",
+       "label": "PERU"
+      },
+      {
+       "value": "PHILIPPINES",
+       "label": "PHILIPPINES"
+      },
+      {
+       "value": "POLAND",
+       "label": "POLAND"
+      },
+      {
+       "value": "PORTUGAL",
+       "label": "PORTUGAL"
+      },
+      {
+       "value": "QATAR",
+       "label": "QATAR"
+      },
+      {
+       "value": "REPUBLIC OF CONGO",
+       "label": "REPUBLIC OF CONGO"
+      },
+      {
+       "value": "ROMANIA",
+       "label": "ROMANIA"
+      },
+      {
+       "value": "RUSSIA",
+       "label": "RUSSIA"
+      },
+      {
+       "value": "RWANDA",
+       "label": "RWANDA"
+      },
+      {
+       "value": "SAINT KITTS AND NEVIS",
+       "label": "SAINT KITTS AND NEVIS"
+      },
+      {
+       "value": "SAINT LUCIA",
+       "label": "SAINT LUCIA"
+      },
+      {
+       "value": "SAINT VINCENT AND THE GRENADINES",
+       "label": "SAINT VINCENT AND THE GRENADINES"
+      },
+      {
+       "value": "SAMOA",
+       "label": "SAMOA"
+      },
+      {
+       "value": "SAN MARINO",
+       "label": "SAN MARINO"
+      },
+      {
+       "value": "SAO TOME AND PRINCIPE",
+       "label": "SAO TOME AND PRINCIPE"
+      },
+      {
+       "value": "SAUDI ARABIA",
+       "label": "SAUDI ARABIA"
+      },
+      {
+       "value": "SENEGAL",
+       "label": "SENEGAL"
+      },
+      {
+       "value": "SERBIA",
+       "label": "SERBIA"
+      },
+      {
+       "value": "SEYCHELLES",
+       "label": "SEYCHELLES"
+      },
+      {
+       "value": "SIERRA LEONE",
+       "label": "SIERRA LEONE"
+      },
+      {
+       "value": "SINGAPORE",
+       "label": "SINGAPORE"
+      },
+      {
+       "value": "SLOVAKIA",
+       "label": "SLOVAKIA"
+      },
+      {
+       "value": "SLOVENIA",
+       "label": "SLOVENIA"
+      },
+      {
+       "value": "SOLOMON ISLANDS",
+       "label": "SOLOMON ISLANDS"
+      },
+      {
+       "value": "SOMALIA",
+       "label": "SOMALIA"
+      },
+      {
+       "value": "SOMALILAND",
+       "label": "SOMALILAND"
+      },
+      {
+       "value": "SOUTH AFRICA",
+       "label": "SOUTH AFRICA"
+      },
+      {
+       "value": "SOUTH KOREA",
+       "label": "SOUTH KOREA"
+      },
+      {
+       "value": "SOUTH OSSETIA",
+       "label": "SOUTH OSSETIA"
+      },
+      {
+       "value": "SOUTH SUDAN",
+       "label": "SOUTH SUDAN"
+      },
+      {
+       "value": "SPAIN",
+       "label": "SPAIN"
+      },
+      {
+       "value": "SRI LANKA",
+       "label": "SRI LANKA"
+      },
+      {
+       "value": "SUDAN",
+       "label": "SUDAN"
+      },
+      {
+       "value": "SURINAME",
+       "label": "SURINAME"
+      },
+      {
+       "value": "SWAZILAND",
+       "label": "SWAZILAND"
+      },
+      {
+       "value": "SWEDEN",
+       "label": "SWEDEN"
+      },
+      {
+       "value": "SWITZERLAND",
+       "label": "SWITZERLAND"
+      },
+      {
+       "value": "SYRIA",
+       "label": "SYRIA"
+      },
+      {
+       "value": "TAIWAN",
+       "label": "TAIWAN"
+      },
+      {
+       "value": "TAJIKISTAN",
+       "label": "TAJIKISTAN"
+      },
+      {
+       "value": "TANZANIA",
+       "label": "TANZANIA"
+      },
+      {
+       "value": "THAILAND",
+       "label": "THAILAND"
+      },
+      {
+       "value": "THE BAHAMAS",
+       "label": "THE BAHAMAS"
+      },
+      {
+       "value": "TIMOR-LESTE",
+       "label": "TIMOR-LESTE"
+      },
+      {
+       "value": "TOGO",
+       "label": "TOGO"
+      },
+      {
+       "value": "TONGA",
+       "label": "TONGA"
+      },
+      {
+       "value": "TRANSNISTRIA",
+       "label": "TRANSNISTRIA"
+      },
+      {
+       "value": "TRINIDAD AND TOBAGO",
+       "label": "TRINIDAD AND TOBAGO"
+      },
+      {
+       "value": "TUNISIA",
+       "label": "TUNISIA"
+      },
+      {
+       "value": "TURKEY",
+       "label": "TURKEY"
+      },
+      {
+       "value": "TURKMENISTAN",
+       "label": "TURKMENISTAN"
+      },
+      {
+       "value": "TUVALU",
+       "label": "TUVALU"
+      },
+      {
+       "value": "UGANDA",
+       "label": "UGANDA"
+      },
+      {
+       "value": "UKRAINE",
+       "label": "UKRAINE"
+      },
+      {
+       "value": "UNITED ARAB EMIRATES",
+       "label": "UNITED ARAB EMIRATES"
+      },
+      {
+       "value": "UNITED KINGDOM",
+       "label": "UNITED KINGDOM"
+      },
+      {
+       "value": "URUGUAY",
+       "label": "URUGUAY"
+      },
+      {
+       "value": "UZBEKISTAN",
+       "label": "UZBEKISTAN"
+      },
+      {
+       "value": "VANUATU",
+       "label": "VANUATU"
+      },
+      {
+       "value": "VATICAN CITY",
+       "label": "VATICAN CITY"
+      },
+      {
+       "value": "VENEZUELA",
+       "label": "VENEZUELA"
+      },
+      {
+       "value": "VIETNAM",
+       "label": "VIETNAM"
+      },
+      {
+       "value": "YEMEN",
+       "label": "YEMEN"
+      },
+      {
+       "value": "ZAMBIA",
+       "label": "ZAMBIA"
+      },
+      {
+       "value": "ZIMBABWE",
+       "label": "ZIMBABWE"
+      }
+     ],
+     "mapId": "C8"
+    },
+    {
+     "key": "empCity",
+     "kind": "text",
+     "label": "C.5. City*Click tooltip for more information",
+     "box": "C.5",
+     "name": "empCity",
+     "id": "empCity",
+     "required": false,
+     "disabled": true,
+     "mapId": "C5"
+    },
+    {
+     "key": "empState",
+     "kind": "select",
+     "label": "C.6. State §Click tooltip for more information",
+     "box": "C.6",
+     "name": "empState",
+     "id": "empState",
+     "required": false,
+     "disabled": true,
+     "current": "- Select -",
+     "options": [
+      {
+       "value": "- Select -",
+       "label": "- Select -"
+      },
+      {
+       "value": "ALABAMA",
+       "label": "ALABAMA"
+      },
+      {
+       "value": "ALASKA",
+       "label": "ALASKA"
+      },
+      {
+       "value": "ARIZONA",
+       "label": "ARIZONA"
+      },
+      {
+       "value": "ARKANSAS",
+       "label": "ARKANSAS"
+      },
+      {
+       "value": "CALIFORNIA",
+       "label": "CALIFORNIA"
+      },
+      {
+       "value": "COLORADO",
+       "label": "COLORADO"
+      },
+      {
+       "value": "CONNECTICUT",
+       "label": "CONNECTICUT"
+      },
+      {
+       "value": "DELAWARE",
+       "label": "DELAWARE"
+      },
+      {
+       "value": "DISTRICT OF COLUMBIA",
+       "label": "DISTRICT OF COLUMBIA"
+      },
+      {
+       "value": "FLORIDA",
+       "label": "FLORIDA"
+      },
+      {
+       "value": "GEORGIA",
+       "label": "GEORGIA"
+      },
+      {
+       "value": "GUAM",
+       "label": "GUAM"
+      },
+      {
+       "value": "HAWAII",
+       "label": "HAWAII"
+      },
+      {
+       "value": "IDAHO",
+       "label": "IDAHO"
+      },
+      {
+       "value": "ILLINOIS",
+       "label": "ILLINOIS"
+      },
+      {
+       "value": "INDIANA",
+       "label": "INDIANA"
+      },
+      {
+       "value": "IOWA",
+       "label": "IOWA"
+      },
+      {
+       "value": "KANSAS",
+       "label": "KANSAS"
+      },
+      {
+       "value": "KENTUCKY",
+       "label": "KENTUCKY"
+      },
+      {
+       "value": "LOUISIANA",
+       "label": "LOUISIANA"
+      },
+      {
+       "value": "MAINE",
+       "label": "MAINE"
+      },
+      {
+       "value": "MARYLAND",
+       "label": "MARYLAND"
+      },
+      {
+       "value": "MASSACHUSETTS",
+       "label": "MASSACHUSETTS"
+      },
+      {
+       "value": "MICHIGAN",
+       "label": "MICHIGAN"
+      },
+      {
+       "value": "MINNESOTA",
+       "label": "MINNESOTA"
+      },
+      {
+       "value": "MISSISSIPPI",
+       "label": "MISSISSIPPI"
+      },
+      {
+       "value": "MISSOURI",
+       "label": "MISSOURI"
+      },
+      {
+       "value": "MONTANA",
+       "label": "MONTANA"
+      },
+      {
+       "value": "NEBRASKA",
+       "label": "NEBRASKA"
+      },
+      {
+       "value": "NEVADA",
+       "label": "NEVADA"
+      },
+      {
+       "value": "NEW HAMPSHIRE",
+       "label": "NEW HAMPSHIRE"
+      },
+      {
+       "value": "NEW JERSEY",
+       "label": "NEW JERSEY"
+      },
+      {
+       "value": "NEW MEXICO",
+       "label": "NEW MEXICO"
+      },
+      {
+       "value": "NEW YORK",
+       "label": "NEW YORK"
+      },
+      {
+       "value": "NORTH CAROLINA",
+       "label": "NORTH CAROLINA"
+      },
+      {
+       "value": "NORTH DAKOTA",
+       "label": "NORTH DAKOTA"
+      },
+      {
+       "value": "NORTHERN MARIANA ISLANDS",
+       "label": "NORTHERN MARIANA ISLANDS"
+      },
+      {
+       "value": "OHIO",
+       "label": "OHIO"
+      },
+      {
+       "value": "OKLAHOMA",
+       "label": "OKLAHOMA"
+      },
+      {
+       "value": "OREGON",
+       "label": "OREGON"
+      },
+      {
+       "value": "PENNSYLVANIA",
+       "label": "PENNSYLVANIA"
+      },
+      {
+       "value": "PUERTO RICO",
+       "label": "PUERTO RICO"
+      },
+      {
+       "value": "RHODE ISLAND",
+       "label": "RHODE ISLAND"
+      },
+      {
+       "value": "SOUTH CAROLINA",
+       "label": "SOUTH CAROLINA"
+      },
+      {
+       "value": "SOUTH DAKOTA",
+       "label": "SOUTH DAKOTA"
+      },
+      {
+       "value": "TENNESSEE",
+       "label": "TENNESSEE"
+      },
+      {
+       "value": "TEXAS",
+       "label": "TEXAS"
+      },
+      {
+       "value": "UTAH",
+       "label": "UTAH"
+      },
+      {
+       "value": "VERMONT",
+       "label": "VERMONT"
+      },
+      {
+       "value": "VIRGIN ISLANDS",
+       "label": "VIRGIN ISLANDS"
+      },
+      {
+       "value": "VIRGINIA",
+       "label": "VIRGINIA"
+      },
+      {
+       "value": "WASHINGTON",
+       "label": "WASHINGTON"
+      },
+      {
+       "value": "WEST VIRGINIA",
+       "label": "WEST VIRGINIA"
+      },
+      {
+       "value": "WISCONSIN",
+       "label": "WISCONSIN"
+      },
+      {
+       "value": "WYOMING",
+       "label": "WYOMING"
+      }
+     ],
+     "mapId": "C6"
+    },
+    {
+     "key": "empPostcode",
+     "kind": "text",
+     "label": "C.7. Postal codeClick tooltip for more information",
+     "box": "C.7",
+     "name": "empPostcode",
+     "id": "empPostcode",
+     "required": false,
+     "disabled": true,
+     "mapId": "C7"
+    },
+    {
+     "key": "empProvince",
+     "kind": "text",
+     "label": "C.9. Province (if applicable) §Click tooltip for more information",
+     "box": "C.9",
+     "name": "empProvince",
+     "id": "empProvince",
+     "required": false,
+     "disabled": true,
+     "mapId": "C9"
+    },
+    {
+     "key": "empPhoneCountry",
+     "kind": "select",
+     "label": "Select an Employer profile to populate this section (optional)",
+     "box": null,
+     "name": "empPhoneCountry",
+     "id": null,
+     "required": false,
+     "disabled": false,
+     "current": "US",
+     "options": [
+      {
+       "value": "ZZ",
+       "label": "International"
+      },
+      {
+       "value": "AF",
+       "label": "Afghanistan"
+      },
+      {
+       "value": "AX",
+       "label": "Åland Islands"
+      },
+      {
+       "value": "AL",
+       "label": "Albania"
+      },
+      {
+       "value": "DZ",
+       "label": "Algeria"
+      },
+      {
+       "value": "AS",
+       "label": "American Samoa"
+      },
+      {
+       "value": "AD",
+       "label": "Andorra"
+      },
+      {
+       "value": "AO",
+       "label": "Angola"
+      },
+      {
+       "value": "AI",
+       "label": "Anguilla"
+      },
+      {
+       "value": "AG",
+       "label": "Antigua and Barbuda"
+      },
+      {
+       "value": "AR",
+       "label": "Argentina"
+      },
+      {
+       "value": "AM",
+       "label": "Armenia"
+      },
+      {
+       "value": "AW",
+       "label": "Aruba"
+      },
+      {
+       "value": "AC",
+       "label": "Ascension Island"
+      },
+      {
+       "value": "AU",
+       "label": "Australia"
+      },
+      {
+       "value": "AT",
+       "label": "Austria"
+      },
+      {
+       "value": "AZ",
+       "label": "Azerbaijan"
+      },
+      {
+       "value": "BS",
+       "label": "Bahamas"
+      },
+      {
+       "value": "BH",
+       "label": "Bahrain"
+      },
+      {
+       "value": "BD",
+       "label": "Bangladesh"
+      },
+      {
+       "value": "BB",
+       "label": "Barbados"
+      },
+      {
+       "value": "BY",
+       "label": "Belarus"
+      },
+      {
+       "value": "BE",
+       "label": "Belgium"
+      },
+      {
+       "value": "BZ",
+       "label": "Belize"
+      },
+      {
+       "value": "BJ",
+       "label": "Benin"
+      },
+      {
+       "value": "BM",
+       "label": "Bermuda"
+      },
+      {
+       "value": "BT",
+       "label": "Bhutan"
+      },
+      {
+       "value": "BO",
+       "label": "Bolivia"
+      },
+      {
+       "value": "BQ",
+       "label": "Bonaire, Sint Eustatius and Saba"
+      },
+      {
+       "value": "BA",
+       "label": "Bosnia and Herzegovina"
+      },
+      {
+       "value": "BW",
+       "label": "Botswana"
+      },
+      {
+       "value": "BR",
+       "label": "Brazil"
+      },
+      {
+       "value": "IO",
+       "label": "British Indian Ocean Territory"
+      },
+      {
+       "value": "BN",
+       "label": "Brunei Darussalam"
+      },
+      {
+       "value": "BG",
+       "label": "Bulgaria"
+      },
+      {
+       "value": "BF",
+       "label": "Burkina Faso"
+      },
+      {
+       "value": "MM",
+       "label": "Burma"
+      },
+      {
+       "value": "BI",
+       "label": "Burundi"
+      },
+      {
+       "value": "KH",
+       "label": "Cambodia"
+      },
+      {
+       "value": "CM",
+       "label": "Cameroon"
+      },
+      {
+       "value": "CA",
+       "label": "Canada"
+      },
+      {
+       "value": "CV",
+       "label": "Cape Verde"
+      },
+      {
+       "value": "KY",
+       "label": "Cayman Islands"
+      },
+      {
+       "value": "CF",
+       "label": "Central African Republic"
+      },
+      {
+       "value": "TD",
+       "label": "Chad"
+      },
+      {
+       "value": "CL",
+       "label": "Chile"
+      },
+      {
+       "value": "CN",
+       "label": "China"
+      },
+      {
+       "value": "CX",
+       "label": "Christmas Island"
+      },
+      {
+       "value": "CC",
+       "label": "Cocos (Keeling) Islands"
+      },
+      {
+       "value": "CO",
+       "label": "Colombia"
+      },
+      {
+       "value": "KM",
+       "label": "Comoros"
+      },
+      {
+       "value": "CG",
+       "label": "Congo"
+      },
+      {
+       "value": "CD",
+       "label": "Congo, Democratic Republic of the"
+      },
+      {
+       "value": "CK",
+       "label": "Cook Islands"
+      },
+      {
+       "value": "CR",
+       "label": "Costa Rica"
+      },
+      {
+       "value": "CI",
+       "label": "Cote d'Ivoire"
+      },
+      {
+       "value": "HR",
+       "label": "Croatia"
+      },
+      {
+       "value": "CU",
+       "label": "Cuba"
+      },
+      {
+       "value": "CW",
+       "label": "Curaçao"
+      },
+      {
+       "value": "CY",
+       "label": "Cyprus"
+      },
+      {
+       "value": "CZ",
+       "label": "Czech Republic"
+      },
+      {
+       "value": "DK",
+       "label": "Denmark"
+      },
+      {
+       "value": "DJ",
+       "label": "Djibouti"
+      },
+      {
+       "value": "DM",
+       "label": "Dominica"
+      },
+      {
+       "value": "DO",
+       "label": "Dominican Republic"
+      },
+      {
+       "value": "EC",
+       "label": "Ecuador"
+      },
+      {
+       "value": "EG",
+       "label": "Egypt"
+      },
+      {
+       "value": "SV",
+       "label": "El Salvador"
+      },
+      {
+       "value": "GQ",
+       "label": "Equatorial Guinea"
+      },
+      {
+       "value": "ER",
+       "label": "Eritrea"
+      },
+      {
+       "value": "EE",
+       "label": "Estonia"
+      },
+      {
+       "value": "ET",
+       "label": "Ethiopia"
+      },
+      {
+       "value": "FK",
+       "label": "Falkland Islands"
+      },
+      {
+       "value": "FO",
+       "label": "Faroe Islands"
+      },
+      {
+       "value": "FM",
+       "label": "Federated States of Micronesia"
+      },
+      {
+       "value": "FJ",
+       "label": "Fiji"
+      },
+      {
+       "value": "FI",
+       "label": "Finland"
+      },
+      {
+       "value": "FR",
+       "label": "France"
+      },
+      {
+       "value": "GF",
+       "label": "French Guiana"
+      },
+      {
+       "value": "PF",
+       "label": "French Polynesia"
+      },
+      {
+       "value": "GA",
+       "label": "Gabon"
+      },
+      {
+       "value": "GM",
+       "label": "Gambia"
+      },
+      {
+       "value": "GE",
+       "label": "Georgia"
+      },
+      {
+       "value": "DE",
+       "label": "Germany"
+      },
+      {
+       "value": "GH",
+       "label": "Ghana"
+      },
+      {
+       "value": "GI",
+       "label": "Gibraltar"
+      },
+      {
+       "value": "GR",
+       "label": "Greece"
+      },
+      {
+       "value": "GL",
+       "label": "Greenland"
+      },
+      {
+       "value": "GD",
+       "label": "Grenada"
+      },
+      {
+       "value": "GP",
+       "label": "Guadeloupe"
+      },
+      {
+       "value": "GU",
+       "label": "Guam"
+      },
+      {
+       "value": "GT",
+       "label": "Guatemala"
+      },
+      {
+       "value": "GG",
+       "label": "Guernsey"
+      },
+      {
+       "value": "GN",
+       "label": "Guinea"
+      },
+      {
+       "value": "GW",
+       "label": "Guinea-Bissau"
+      },
+      {
+       "value": "GY",
+       "label": "Guyana"
+      },
+      {
+       "value": "HT",
+       "label": "Haiti"
+      },
+      {
+       "value": "VA",
+       "label": "Holy See (Vatican City State)"
+      },
+      {
+       "value": "HN",
+       "label": "Honduras"
+      },
+      {
+       "value": "HK",
+       "label": "Hong Kong"
+      },
+      {
+       "value": "HU",
+       "label": "Hungary"
+      },
+      {
+       "value": "IS",
+       "label": "Iceland"
+      },
+      {
+       "value": "IN",
+       "label": "India"
+      },
+      {
+       "value": "ID",
+       "label": "Indonesia"
+      },
+      {
+       "value": "IR",
+       "label": "Iran"
+      },
+      {
+       "value": "IQ",
+       "label": "Iraq"
+      },
+      {
+       "value": "IE",
+       "label": "Ireland"
+      },
+      {
+       "value": "IM",
+       "label": "Isle of Man"
+      },
+      {
+       "value": "IL",
+       "label": "Israel"
+      },
+      {
+       "value": "IT",
+       "label": "Italy"
+      },
+      {
+       "value": "JM",
+       "label": "Jamaica"
+      },
+      {
+       "value": "JP",
+       "label": "Japan"
+      },
+      {
+       "value": "JE",
+       "label": "Jersey"
+      },
+      {
+       "value": "JO",
+       "label": "Jordan"
+      },
+      {
+       "value": "KZ",
+       "label": "Kazakhstan"
+      },
+      {
+       "value": "KE",
+       "label": "Kenya"
+      },
+      {
+       "value": "KI",
+       "label": "Kiribati"
+      },
+      {
+       "value": "XK",
+       "label": "Kosovo"
+      },
+      {
+       "value": "KW",
+       "label": "Kuwait"
+      },
+      {
+       "value": "KG",
+       "label": "Kyrgyzstan"
+      },
+      {
+       "value": "LA",
+       "label": "Laos"
+      },
+      {
+       "value": "LV",
+       "label": "Latvia"
+      },
+      {
+       "value": "LB",
+       "label": "Lebanon"
+      },
+      {
+       "value": "LS",
+       "label": "Lesotho"
+      },
+      {
+       "value": "LR",
+       "label": "Liberia"
+      },
+      {
+       "value": "LY",
+       "label": "Libya"
+      },
+      {
+       "value": "LI",
+       "label": "Liechtenstein"
+      },
+      {
+       "value": "LT",
+       "label": "Lithuania"
+      },
+      {
+       "value": "LU",
+       "label": "Luxembourg"
+      },
+      {
+       "value": "MO",
+       "label": "Macao"
+      },
+      {
+       "value": "MG",
+       "label": "Madagascar"
+      },
+      {
+       "value": "MW",
+       "label": "Malawi"
+      },
+      {
+       "value": "MY",
+       "label": "Malaysia"
+      },
+      {
+       "value": "MV",
+       "label": "Maldives"
+      },
+      {
+       "value": "ML",
+       "label": "Mali"
+      },
+      {
+       "value": "MT",
+       "label": "Malta"
+      },
+      {
+       "value": "MH",
+       "label": "Marshall Islands"
+      },
+      {
+       "value": "MQ",
+       "label": "Martinique"
+      },
+      {
+       "value": "MR",
+       "label": "Mauritania"
+      },
+      {
+       "value": "MU",
+       "label": "Mauritius"
+      },
+      {
+       "value": "YT",
+       "label": "Mayotte"
+      },
+      {
+       "value": "MX",
+       "label": "Mexico"
+      },
+      {
+       "value": "MD",
+       "label": "Moldova"
+      },
+      {
+       "value": "MC",
+       "label": "Monaco"
+      },
+      {
+       "value": "MN",
+       "label": "Mongolia"
+      },
+      {
+       "value": "ME",
+       "label": "Montenegro"
+      },
+      {
+       "value": "MS",
+       "label": "Montserrat"
+      },
+      {
+       "value": "MA",
+       "label": "Morocco"
+      },
+      {
+       "value": "MZ",
+       "label": "Mozambique"
+      },
+      {
+       "value": "NA",
+       "label": "Namibia"
+      },
+      {
+       "value": "NR",
+       "label": "Nauru"
+      },
+      {
+       "value": "NP",
+       "label": "Nepal"
+      },
+      {
+       "value": "NL",
+       "label": "Netherlands"
+      },
+      {
+       "value": "NC",
+       "label": "New Caledonia"
+      },
+      {
+       "value": "NZ",
+       "label": "New Zealand"
+      },
+      {
+       "value": "NI",
+       "label": "Nicaragua"
+      },
+      {
+       "value": "NE",
+       "label": "Niger"
+      },
+      {
+       "value": "NG",
+       "label": "Nigeria"
+      },
+      {
+       "value": "NU",
+       "label": "Niue"
+      },
+      {
+       "value": "NF",
+       "label": "Norfolk Island"
+      },
+      {
+       "value": "KP",
+       "label": "North Korea"
+      },
+      {
+       "value": "MK",
+       "label": "North Macedonia"
+      },
+      {
+       "value": "MP",
+       "label": "Northern Mariana Islands"
+      },
+      {
+       "value": "NO",
+       "label": "Norway"
+      },
+      {
+       "value": "OM",
+       "label": "Oman"
+      },
+      {
+       "value": "PK",
+       "label": "Pakistan"
+      },
+      {
+       "value": "PW",
+       "label": "Palau"
+      },
+      {
+       "value": "PS",
+       "label": "Palestine"
+      },
+      {
+       "value": "PA",
+       "label": "Panama"
+      },
+      {
+       "value": "PG",
+       "label": "Papua New Guinea"
+      },
+      {
+       "value": "PY",
+       "label": "Paraguay"
+      },
+      {
+       "value": "PE",
+       "label": "Peru"
+      },
+      {
+       "value": "PH",
+       "label": "Philippines"
+      },
+      {
+       "value": "PL",
+       "label": "Poland"
+      },
+      {
+       "value": "PT",
+       "label": "Portugal"
+      },
+      {
+       "value": "PR",
+       "label": "Puerto Rico"
+      },
+      {
+       "value": "QA",
+       "label": "Qatar"
+      },
+      {
+       "value": "RE",
+       "label": "Reunion"
+      },
+      {
+       "value": "RO",
+       "label": "Romania"
+      },
+      {
+       "value": "RU",
+       "label": "Russia"
+      },
+      {
+       "value": "RW",
+       "label": "Rwanda"
+      },
+      {
+       "value": "BL",
+       "label": "Saint Barthélemy"
+      },
+      {
+       "value": "SH",
+       "label": "Saint Helena"
+      },
+      {
+       "value": "KN",
+       "label": "Saint Kitts and Nevis"
+      },
+      {
+       "value": "LC",
+       "label": "Saint Lucia"
+      },
+      {
+       "value": "MF",
+       "label": "Saint Martin (French Part)"
+      },
+      {
+       "value": "PM",
+       "label": "Saint Pierre and Miquelon"
+      },
+      {
+       "value": "VC",
+       "label": "Saint Vincent and the Grenadines"
+      },
+      {
+       "value": "WS",
+       "label": "Samoa"
+      },
+      {
+       "value": "SM",
+       "label": "San Marino"
+      },
+      {
+       "value": "ST",
+       "label": "Sao Tome and Principe"
+      },
+      {
+       "value": "SA",
+       "label": "Saudi Arabia"
+      },
+      {
+       "value": "SN",
+       "label": "Senegal"
+      },
+      {
+       "value": "RS",
+       "label": "Serbia"
+      },
+      {
+       "value": "SC",
+       "label": "Seychelles"
+      },
+      {
+       "value": "SL",
+       "label": "Sierra Leone"
+      },
+      {
+       "value": "SG",
+       "label": "Singapore"
+      },
+      {
+       "value": "SX",
+       "label": "Sint Maarten"
+      },
+      {
+       "value": "SK",
+       "label": "Slovakia"
+      },
+      {
+       "value": "SI",
+       "label": "Slovenia"
+      },
+      {
+       "value": "SB",
+       "label": "Solomon Islands"
+      },
+      {
+       "value": "SO",
+       "label": "Somalia"
+      },
+      {
+       "value": "ZA",
+       "label": "South Africa"
+      },
+      {
+       "value": "KR",
+       "label": "South Korea"
+      },
+      {
+       "value": "SS",
+       "label": "South Sudan"
+      },
+      {
+       "value": "ES",
+       "label": "Spain"
+      },
+      {
+       "value": "LK",
+       "label": "Sri Lanka"
+      },
+      {
+       "value": "SD",
+       "label": "Sudan"
+      },
+      {
+       "value": "SR",
+       "label": "Suriname"
+      },
+      {
+       "value": "SJ",
+       "label": "Svalbard and Jan Mayen"
+      },
+      {
+       "value": "SZ",
+       "label": "Swaziland"
+      },
+      {
+       "value": "SE",
+       "label": "Sweden"
+      },
+      {
+       "value": "CH",
+       "label": "Switzerland"
+      },
+      {
+       "value": "SY",
+       "label": "Syria"
+      },
+      {
+       "value": "TW",
+       "label": "Taiwan"
+      },
+      {
+       "value": "TJ",
+       "label": "Tajikistan"
+      },
+      {
+       "value": "TZ",
+       "label": "Tanzania"
+      },
+      {
+       "value": "TH",
+       "label": "Thailand"
+      },
+      {
+       "value": "TL",
+       "label": "Timor-Leste"
+      },
+      {
+       "value": "TG",
+       "label": "Togo"
+      },
+      {
+       "value": "TK",
+       "label": "Tokelau"
+      },
+      {
+       "value": "TO",
+       "label": "Tonga"
+      },
+      {
+       "value": "TT",
+       "label": "Trinidad and Tobago"
+      },
+      {
+       "value": "TA",
+       "label": "Tristan da Cunha"
+      },
+      {
+       "value": "TN",
+       "label": "Tunisia"
+      },
+      {
+       "value": "TR",
+       "label": "Turkey"
+      },
+      {
+       "value": "TM",
+       "label": "Turkmenistan"
+      },
+      {
+       "value": "TC",
+       "label": "Turks and Caicos Islands"
+      },
+      {
+       "value": "TV",
+       "label": "Tuvalu"
+      },
+      {
+       "value": "UG",
+       "label": "Uganda"
+      },
+      {
+       "value": "UA",
+       "label": "Ukraine"
+      },
+      {
+       "value": "AE",
+       "label": "United Arab Emirates"
+      },
+      {
+       "value": "GB",
+       "label": "United Kingdom"
+      },
+      {
+       "value": "US",
+       "label": "United States"
+      },
+      {
+       "value": "UY",
+       "label": "Uruguay"
+      },
+      {
+       "value": "UZ",
+       "label": "Uzbekistan"
+      },
+      {
+       "value": "VU",
+       "label": "Vanuatu"
+      },
+      {
+       "value": "VE",
+       "label": "Venezuela"
+      },
+      {
+       "value": "VN",
+       "label": "Vietnam"
+      },
+      {
+       "value": "VG",
+       "label": "Virgin Islands, British"
+      },
+      {
+       "value": "VI",
+       "label": "Virgin Islands, U.S."
+      },
+      {
+       "value": "WF",
+       "label": "Wallis and Futuna"
+      },
+      {
+       "value": "EH",
+       "label": "Western Sahara"
+      },
+      {
+       "value": "YE",
+       "label": "Yemen"
+      },
+      {
+       "value": "ZM",
+       "label": "Zambia"
+      },
+      {
+       "value": "ZW",
+       "label": "Zimbabwe"
+      }
+     ]
+    },
+    {
+     "key": "empPhone",
+     "kind": "tel",
+     "label": "C.10. Telephone number*Click tooltip for more information",
+     "box": "C.10",
+     "name": "empPhone",
+     "id": "empPhone",
+     "required": false,
+     "disabled": false,
+     "mapId": "C10"
+    },
+    {
+     "key": "empPhoneext",
+     "kind": "text",
+     "label": "C.11. Extension (if applicable) §Click tooltip for more information",
+     "box": "C.11",
+     "name": "empPhoneext",
+     "id": "empPhoneext",
+     "required": false,
+     "disabled": false,
+     "mapId": "C11"
+    },
+    {
+     "key": "empFein",
+     "kind": "text",
+     "label": "C.12. Federal Employer Identification Number (FEIN from IRS) *Click tooltip for more information",
+     "box": "C.12",
+     "name": "empFein",
+     "id": "empFein",
+     "required": false,
+     "disabled": false,
+     "mapId": "C12"
+    },
+    {
+     "key": "combobox@Select an Employer profile to populate this section (optional)",
+     "kind": "search",
+     "label": "Select an Employer profile to populate this section (optional)",
+     "box": null,
+     "name": null,
+     "id": null,
+     "required": false
+    }
+   ],
+   "buttons": [
+    "Skip to main content",
+    "Add Data",
+    "Click tooltip for more information",
+    "Save & Quit",
+    "Back",
+    "Continue"
+   ],
+   "reveals": [],
+   "rows": [
+    {
+     "addButtonText": "Add Data",
+     "added": [],
+     "addedFields": [],
+     "inModal": true
+    }
+   ],
+   "navChanged": true
+  },
+  {
+   "name": "Attorney or Agent Information (if applicable)",
+   "fields": [
+    {
+     "key": "attyRepresentType",
+     "kind": "radio",
+     "label": "Attorney",
+     "box": null,
+     "options": [
+      {
+       "value": "Attorney",
+       "label": "Attorney",
+       "id": "attyRepresentType_Attorney"
+      },
+      {
+       "value": "Agent",
+       "label": "Agent",
+       "id": "attyRepresentType_Agent"
+      },
+      {
+       "value": "None",
+       "label": "None",
+       "id": "attyRepresentType_None"
+      }
+     ],
+     "checked": "None",
+     "context": "Select an Attorney/Agent profile to populate this section (optional) -Select-PopulateD.1. Indicate the type of representation for the employer in the filing of this application * If D.1 is “Attorney” or “Agent” the remainder of this section is required.Click tooltip for more information AttorneyAgentNone",
+     "boxCandidates": [
+      "D.1"
+     ]
+    }
+   ],
+   "buttons": [
+    "Skip to main content",
+    "Add Data",
+    "Click tooltip for more information",
+    "Save & Quit",
+    "Back",
+    "Continue",
+    "Close modal",
+    "Save as Initiated",
+    "Delete Case?"
+   ],
+   "reveals": [
+    {
+     "gate": "attyRepresentType",
+     "gateLabel": "Attorney",
+     "answers": [
+      {
+       "value": "Attorney",
+       "label": "Attorney",
+       "revealed": [
+        "attyLastname",
+        "attyFirstname",
+        "attyMiddlename",
+        "attyAddr1",
+        "attyAddr2",
+        "attyCountry",
+        "attyCity",
+        "attyState",
+        "attyPostcode",
+        "attyPhoneCountry",
+        "attyPhone",
+        "attyPhoneext",
+        "attyEmail",
+        "attyBizname",
+        "attyFein"
+       ],
+       "revealedFields": [
+        {
+         "key": "attyLastname",
+         "kind": "text",
+         "label": "D.2. Attorney or agent's last (family) name*Click tooltip for more information",
+         "box": "D.2",
+         "name": "attyLastname",
+         "id": "attyLastname",
+         "required": false,
+         "disabled": false,
+         "mapId": "D2"
+        },
+        {
+         "key": "attyFirstname",
+         "kind": "text",
+         "label": "D.3. First (given) name*Click tooltip for more information",
+         "box": "D.3",
+         "name": "attyFirstname",
+         "id": "attyFirstname",
+         "required": false,
+         "disabled": false,
+         "mapId": "D3"
+        },
+        {
+         "key": "attyMiddlename",
+         "kind": "text",
+         "label": "D.4. Middle name(s)Click tooltip for more information",
+         "box": "D.4",
+         "name": "attyMiddlename",
+         "id": "attyMiddlename",
+         "required": false,
+         "disabled": false,
+         "mapId": "D4"
+        },
+        {
+         "key": "attyAddr1",
+         "kind": "text",
+         "label": "D.5. Address 1*Click tooltip for more information",
+         "box": "D.5",
+         "name": "attyAddr1",
+         "id": "attyAddr1",
+         "required": false,
+         "disabled": false,
+         "mapId": "D5"
+        },
+        {
+         "key": "attyAddr2",
+         "kind": "text",
+         "label": "D.6. Address 2 (apartment/suite/floor and number)Click tooltip for more information",
+         "box": "D.6",
+         "name": "attyAddr2",
+         "id": "attyAddr2",
+         "required": false,
+         "disabled": false,
+         "mapId": "D6"
+        },
+        {
+         "key": "attyCountry",
+         "kind": "select",
+         "label": "D.10. Country*Click tooltip for more information",
+         "box": "D.10",
+         "name": "attyCountry",
+         "id": "attyCountry",
+         "required": false,
+         "disabled": false,
+         "current": "- Select -",
+         "options": [
+          {
+           "value": "- Select -",
+           "label": "- Select -"
+          },
+          {
+           "value": "UNITED STATES OF AMERICA",
+           "label": "UNITED STATES OF AMERICA"
+          },
+          {
+           "value": "AFGHANISTAN",
+           "label": "AFGHANISTAN"
+          },
+          {
+           "value": "ALBANIA",
+           "label": "ALBANIA"
+          },
+          {
+           "value": "ALGERIA",
+           "label": "ALGERIA"
+          },
+          {
+           "value": "ANDORRA",
+           "label": "ANDORRA"
+          },
+          {
+           "value": "ANGOLA",
+           "label": "ANGOLA"
+          },
+          {
+           "value": "ANGUILLA",
+           "label": "ANGUILLA"
+          },
+          {
+           "value": "ANTIGUA AND BARBUDA",
+           "label": "ANTIGUA AND BARBUDA"
+          },
+          {
+           "value": "ARGENTINA",
+           "label": "ARGENTINA"
+          },
+          {
+           "value": "ARMENIA",
+           "label": "ARMENIA"
+          },
+          {
+           "value": "AUSTRALIA",
+           "label": "AUSTRALIA"
+          },
+          {
+           "value": "AUSTRIA",
+           "label": "AUSTRIA"
+          },
+          {
+           "value": "AZERBAIJAN",
+           "label": "AZERBAIJAN"
+          },
+          {
+           "value": "BAHAMAS",
+           "label": "BAHAMAS"
+          },
+          {
+           "value": "BAHRAIN",
+           "label": "BAHRAIN"
+          },
+          {
+           "value": "BANGLADESH",
+           "label": "BANGLADESH"
+          },
+          {
+           "value": "BARBADOS",
+           "label": "BARBADOS"
+          },
+          {
+           "value": "BELARUS",
+           "label": "BELARUS"
+          },
+          {
+           "value": "BELGIUM",
+           "label": "BELGIUM"
+          },
+          {
+           "value": "BELIZE",
+           "label": "BELIZE"
+          },
+          {
+           "value": "BENIN",
+           "label": "BENIN"
+          },
+          {
+           "value": "BERMUDA",
+           "label": "BERMUDA"
+          },
+          {
+           "value": "BHUTAN",
+           "label": "BHUTAN"
+          },
+          {
+           "value": "BOLIVIA",
+           "label": "BOLIVIA"
+          },
+          {
+           "value": "BOSNIA AND HERZEGOVINA",
+           "label": "BOSNIA AND HERZEGOVINA"
+          },
+          {
+           "value": "BOTSWANA",
+           "label": "BOTSWANA"
+          },
+          {
+           "value": "BRAZIL",
+           "label": "BRAZIL"
+          },
+          {
+           "value": "BRITISH VIRGIN ISLANDS",
+           "label": "BRITISH VIRGIN ISLANDS"
+          },
+          {
+           "value": "BRUNEI",
+           "label": "BRUNEI"
+          },
+          {
+           "value": "BULGARIA",
+           "label": "BULGARIA"
+          },
+          {
+           "value": "BURKINA FASO",
+           "label": "BURKINA FASO"
+          },
+          {
+           "value": "BURMA (MYANMAR)",
+           "label": "BURMA (MYANMAR)"
+          },
+          {
+           "value": "BURUNDI",
+           "label": "BURUNDI"
+          },
+          {
+           "value": "CABO VERDE",
+           "label": "CABO VERDE"
+          },
+          {
+           "value": "CAMBODIA",
+           "label": "CAMBODIA"
+          },
+          {
+           "value": "CAMEROON",
+           "label": "CAMEROON"
+          },
+          {
+           "value": "CANADA",
+           "label": "CANADA"
+          },
+          {
+           "value": "CAPE VERDE",
+           "label": "CAPE VERDE"
+          },
+          {
+           "value": "CAYMAN ISLANDS",
+           "label": "CAYMAN ISLANDS"
+          },
+          {
+           "value": "CENTRAL AFRICAN REPUBLIC",
+           "label": "CENTRAL AFRICAN REPUBLIC"
+          },
+          {
+           "value": "CHAD",
+           "label": "CHAD"
+          },
+          {
+           "value": "CHILE",
+           "label": "CHILE"
+          },
+          {
+           "value": "CHINA",
+           "label": "CHINA"
+          },
+          {
+           "value": "COLOMBIA",
+           "label": "COLOMBIA"
+          },
+          {
+           "value": "COMOROS",
+           "label": "COMOROS"
+          },
+          {
+           "value": "COSTA RICA",
+           "label": "COSTA RICA"
+          },
+          {
+           "value": "CROATIA",
+           "label": "CROATIA"
+          },
+          {
+           "value": "CUBA",
+           "label": "CUBA"
+          },
+          {
+           "value": "CYPRUS",
+           "label": "CYPRUS"
+          },
+          {
+           "value": "CZECH REPUBLIC",
+           "label": "CZECH REPUBLIC"
+          },
+          {
+           "value": "CZECHIA",
+           "label": "CZECHIA"
+          },
+          {
+           "value": "CZECHOSLOVAKIA",
+           "label": "CZECHOSLOVAKIA"
+          },
+          {
+           "value": "CÔTE D’IVOIRE",
+           "label": "CÔTE D’IVOIRE"
+          },
+          {
+           "value": "DEMOCRATIC REPUBLIC OF THE CONGO",
+           "label": "DEMOCRATIC REPUBLIC OF THE CONGO"
+          },
+          {
+           "value": "DENMARK",
+           "label": "DENMARK"
+          },
+          {
+           "value": "DJIBOUTI",
+           "label": "DJIBOUTI"
+          },
+          {
+           "value": "DOMINICA",
+           "label": "DOMINICA"
+          },
+          {
+           "value": "DOMINICAN REPUBLIC",
+           "label": "DOMINICAN REPUBLIC"
+          },
+          {
+           "value": "EAST TIMOR",
+           "label": "EAST TIMOR"
+          },
+          {
+           "value": "ECUADOR",
+           "label": "ECUADOR"
+          },
+          {
+           "value": "EGYPT",
+           "label": "EGYPT"
+          },
+          {
+           "value": "EL SALVADOR",
+           "label": "EL SALVADOR"
+          },
+          {
+           "value": "EQUATORIAL GUINEA",
+           "label": "EQUATORIAL GUINEA"
+          },
+          {
+           "value": "ERITREA",
+           "label": "ERITREA"
+          },
+          {
+           "value": "ESTONIA",
+           "label": "ESTONIA"
+          },
+          {
+           "value": "ESWATINI",
+           "label": "ESWATINI"
+          },
+          {
+           "value": "ETHIOPIA",
+           "label": "ETHIOPIA"
+          },
+          {
+           "value": "FIJI",
+           "label": "FIJI"
+          },
+          {
+           "value": "FINLAND",
+           "label": "FINLAND"
+          },
+          {
+           "value": "FRANCE",
+           "label": "FRANCE"
+          },
+          {
+           "value": "GABON",
+           "label": "GABON"
+          },
+          {
+           "value": "GAMBIA",
+           "label": "GAMBIA"
+          },
+          {
+           "value": "GEORGIA",
+           "label": "GEORGIA"
+          },
+          {
+           "value": "GERMANY",
+           "label": "GERMANY"
+          },
+          {
+           "value": "GHANA",
+           "label": "GHANA"
+          },
+          {
+           "value": "GIBRALTAR",
+           "label": "GIBRALTAR"
+          },
+          {
+           "value": "GREECE",
+           "label": "GREECE"
+          },
+          {
+           "value": "GREENLAND",
+           "label": "GREENLAND"
+          },
+          {
+           "value": "GRENADA",
+           "label": "GRENADA"
+          },
+          {
+           "value": "GUATEMALA",
+           "label": "GUATEMALA"
+          },
+          {
+           "value": "GUINEA",
+           "label": "GUINEA"
+          },
+          {
+           "value": "GUINEA-BISSAU",
+           "label": "GUINEA-BISSAU"
+          },
+          {
+           "value": "GUYANA",
+           "label": "GUYANA"
+          },
+          {
+           "value": "HAITI",
+           "label": "HAITI"
+          },
+          {
+           "value": "HOLY SEE",
+           "label": "HOLY SEE"
+          },
+          {
+           "value": "HONDURAS",
+           "label": "HONDURAS"
+          },
+          {
+           "value": "HONG KONG",
+           "label": "HONG KONG"
+          },
+          {
+           "value": "HUNGARY",
+           "label": "HUNGARY"
+          },
+          {
+           "value": "ICELAND",
+           "label": "ICELAND"
+          },
+          {
+           "value": "INDIA",
+           "label": "INDIA"
+          },
+          {
+           "value": "INDONESIA",
+           "label": "INDONESIA"
+          },
+          {
+           "value": "IRAN",
+           "label": "IRAN"
+          },
+          {
+           "value": "IRAQ",
+           "label": "IRAQ"
+          },
+          {
+           "value": "IRELAND",
+           "label": "IRELAND"
+          },
+          {
+           "value": "ISRAEL",
+           "label": "ISRAEL"
+          },
+          {
+           "value": "ITALY",
+           "label": "ITALY"
+          },
+          {
+           "value": "IVORY COAST",
+           "label": "IVORY COAST"
+          },
+          {
+           "value": "JAMAICA",
+           "label": "JAMAICA"
+          },
+          {
+           "value": "JAPAN",
+           "label": "JAPAN"
+          },
+          {
+           "value": "JORDAN",
+           "label": "JORDAN"
+          },
+          {
+           "value": "KAZAKHSTAN",
+           "label": "KAZAKHSTAN"
+          },
+          {
+           "value": "KENYA",
+           "label": "KENYA"
+          },
+          {
+           "value": "KIRIBATI",
+           "label": "KIRIBATI"
+          },
+          {
+           "value": "KOSOVO",
+           "label": "KOSOVO"
+          },
+          {
+           "value": "KUWAIT",
+           "label": "KUWAIT"
+          },
+          {
+           "value": "KYRGYZSTAN",
+           "label": "KYRGYZSTAN"
+          },
+          {
+           "value": "LAOS",
+           "label": "LAOS"
+          },
+          {
+           "value": "LATVIA",
+           "label": "LATVIA"
+          },
+          {
+           "value": "LEBANON",
+           "label": "LEBANON"
+          },
+          {
+           "value": "LESOTHO",
+           "label": "LESOTHO"
+          },
+          {
+           "value": "LIBERIA",
+           "label": "LIBERIA"
+          },
+          {
+           "value": "LIBYA",
+           "label": "LIBYA"
+          },
+          {
+           "value": "LIECHTENSTEIN",
+           "label": "LIECHTENSTEIN"
+          },
+          {
+           "value": "LITHUANIA",
+           "label": "LITHUANIA"
+          },
+          {
+           "value": "LUXEMBOURG",
+           "label": "LUXEMBOURG"
+          },
+          {
+           "value": "MACEDONIA",
+           "label": "MACEDONIA"
+          },
+          {
+           "value": "MADAGASCAR",
+           "label": "MADAGASCAR"
+          },
+          {
+           "value": "MALAWI",
+           "label": "MALAWI"
+          },
+          {
+           "value": "MALAYSIA",
+           "label": "MALAYSIA"
+          },
+          {
+           "value": "MALDIVES",
+           "label": "MALDIVES"
+          },
+          {
+           "value": "MALI",
+           "label": "MALI"
+          },
+          {
+           "value": "MALTA",
+           "label": "MALTA"
+          },
+          {
+           "value": "MAURITANIA",
+           "label": "MAURITANIA"
+          },
+          {
+           "value": "MAURITIUS",
+           "label": "MAURITIUS"
+          },
+          {
+           "value": "MEXICO",
+           "label": "MEXICO"
+          },
+          {
+           "value": "MICRONESIA",
+           "label": "MICRONESIA"
+          },
+          {
+           "value": "MOLDOVA",
+           "label": "MOLDOVA"
+          },
+          {
+           "value": "MONACO",
+           "label": "MONACO"
+          },
+          {
+           "value": "MONGOLIA",
+           "label": "MONGOLIA"
+          },
+          {
+           "value": "MONTENEGRO",
+           "label": "MONTENEGRO"
+          },
+          {
+           "value": "MOROCCO",
+           "label": "MOROCCO"
+          },
+          {
+           "value": "MOZAMBIQUE",
+           "label": "MOZAMBIQUE"
+          },
+          {
+           "value": "NAMIBIA",
+           "label": "NAMIBIA"
+          },
+          {
+           "value": "NAURU",
+           "label": "NAURU"
+          },
+          {
+           "value": "NEPAL",
+           "label": "NEPAL"
+          },
+          {
+           "value": "NETHERLANDS",
+           "label": "NETHERLANDS"
+          },
+          {
+           "value": "NEW ZEALAND",
+           "label": "NEW ZEALAND"
+          },
+          {
+           "value": "NICARAGUA",
+           "label": "NICARAGUA"
+          },
+          {
+           "value": "NIGER",
+           "label": "NIGER"
+          },
+          {
+           "value": "NIGERIA",
+           "label": "NIGERIA"
+          },
+          {
+           "value": "NORTH KOREA",
+           "label": "NORTH KOREA"
+          },
+          {
+           "value": "NORTH MACEDONIA",
+           "label": "NORTH MACEDONIA"
+          },
+          {
+           "value": "NORTHERN CYPRUS",
+           "label": "NORTHERN CYPRUS"
+          },
+          {
+           "value": "NORWAY",
+           "label": "NORWAY"
+          },
+          {
+           "value": "OMAN",
+           "label": "OMAN"
+          },
+          {
+           "value": "PAKISTAN",
+           "label": "PAKISTAN"
+          },
+          {
+           "value": "PALESTINE",
+           "label": "PALESTINE"
+          },
+          {
+           "value": "PANAMA",
+           "label": "PANAMA"
+          },
+          {
+           "value": "PAPUA NEW GUINEA",
+           "label": "PAPUA NEW GUINEA"
+          },
+          {
+           "value": "PARAGUAY",
+           "label": "PARAGUAY"
+          },
+          {
+           "value": "PERU",
+           "label": "PERU"
+          },
+          {
+           "value": "PHILIPPINES",
+           "label": "PHILIPPINES"
+          },
+          {
+           "value": "POLAND",
+           "label": "POLAND"
+          },
+          {
+           "value": "PORTUGAL",
+           "label": "PORTUGAL"
+          },
+          {
+           "value": "QATAR",
+           "label": "QATAR"
+          },
+          {
+           "value": "REPUBLIC OF CONGO",
+           "label": "REPUBLIC OF CONGO"
+          },
+          {
+           "value": "ROMANIA",
+           "label": "ROMANIA"
+          },
+          {
+           "value": "RUSSIA",
+           "label": "RUSSIA"
+          },
+          {
+           "value": "RWANDA",
+           "label": "RWANDA"
+          },
+          {
+           "value": "SAINT KITTS AND NEVIS",
+           "label": "SAINT KITTS AND NEVIS"
+          },
+          {
+           "value": "SAINT LUCIA",
+           "label": "SAINT LUCIA"
+          },
+          {
+           "value": "SAINT VINCENT AND THE GRENADINES",
+           "label": "SAINT VINCENT AND THE GRENADINES"
+          },
+          {
+           "value": "SAMOA",
+           "label": "SAMOA"
+          },
+          {
+           "value": "SAN MARINO",
+           "label": "SAN MARINO"
+          },
+          {
+           "value": "SAO TOME AND PRINCIPE",
+           "label": "SAO TOME AND PRINCIPE"
+          },
+          {
+           "value": "SAUDI ARABIA",
+           "label": "SAUDI ARABIA"
+          },
+          {
+           "value": "SENEGAL",
+           "label": "SENEGAL"
+          },
+          {
+           "value": "SERBIA",
+           "label": "SERBIA"
+          },
+          {
+           "value": "SEYCHELLES",
+           "label": "SEYCHELLES"
+          },
+          {
+           "value": "SIERRA LEONE",
+           "label": "SIERRA LEONE"
+          },
+          {
+           "value": "SINGAPORE",
+           "label": "SINGAPORE"
+          },
+          {
+           "value": "SLOVAKIA",
+           "label": "SLOVAKIA"
+          },
+          {
+           "value": "SLOVENIA",
+           "label": "SLOVENIA"
+          },
+          {
+           "value": "SOLOMON ISLANDS",
+           "label": "SOLOMON ISLANDS"
+          },
+          {
+           "value": "SOMALIA",
+           "label": "SOMALIA"
+          },
+          {
+           "value": "SOMALILAND",
+           "label": "SOMALILAND"
+          },
+          {
+           "value": "SOUTH AFRICA",
+           "label": "SOUTH AFRICA"
+          },
+          {
+           "value": "SOUTH KOREA",
+           "label": "SOUTH KOREA"
+          },
+          {
+           "value": "SOUTH OSSETIA",
+           "label": "SOUTH OSSETIA"
+          },
+          {
+           "value": "SOUTH SUDAN",
+           "label": "SOUTH SUDAN"
+          },
+          {
+           "value": "SPAIN",
+           "label": "SPAIN"
+          },
+          {
+           "value": "SRI LANKA",
+           "label": "SRI LANKA"
+          },
+          {
+           "value": "SUDAN",
+           "label": "SUDAN"
+          },
+          {
+           "value": "SURINAME",
+           "label": "SURINAME"
+          },
+          {
+           "value": "SWAZILAND",
+           "label": "SWAZILAND"
+          },
+          {
+           "value": "SWEDEN",
+           "label": "SWEDEN"
+          },
+          {
+           "value": "SWITZERLAND",
+           "label": "SWITZERLAND"
+          },
+          {
+           "value": "SYRIA",
+           "label": "SYRIA"
+          },
+          {
+           "value": "TAIWAN",
+           "label": "TAIWAN"
+          },
+          {
+           "value": "TAJIKISTAN",
+           "label": "TAJIKISTAN"
+          },
+          {
+           "value": "TANZANIA",
+           "label": "TANZANIA"
+          },
+          {
+           "value": "THAILAND",
+           "label": "THAILAND"
+          },
+          {
+           "value": "THE BAHAMAS",
+           "label": "THE BAHAMAS"
+          },
+          {
+           "value": "TIMOR-LESTE",
+           "label": "TIMOR-LESTE"
+          },
+          {
+           "value": "TOGO",
+           "label": "TOGO"
+          },
+          {
+           "value": "TONGA",
+           "label": "TONGA"
+          },
+          {
+           "value": "TRANSNISTRIA",
+           "label": "TRANSNISTRIA"
+          },
+          {
+           "value": "TRINIDAD AND TOBAGO",
+           "label": "TRINIDAD AND TOBAGO"
+          },
+          {
+           "value": "TUNISIA",
+           "label": "TUNISIA"
+          },
+          {
+           "value": "TURKEY",
+           "label": "TURKEY"
+          },
+          {
+           "value": "TURKMENISTAN",
+           "label": "TURKMENISTAN"
+          },
+          {
+           "value": "TUVALU",
+           "label": "TUVALU"
+          },
+          {
+           "value": "UGANDA",
+           "label": "UGANDA"
+          },
+          {
+           "value": "UKRAINE",
+           "label": "UKRAINE"
+          },
+          {
+           "value": "UNITED ARAB EMIRATES",
+           "label": "UNITED ARAB EMIRATES"
+          },
+          {
+           "value": "UNITED KINGDOM",
+           "label": "UNITED KINGDOM"
+          },
+          {
+           "value": "URUGUAY",
+           "label": "URUGUAY"
+          },
+          {
+           "value": "UZBEKISTAN",
+           "label": "UZBEKISTAN"
+          },
+          {
+           "value": "VANUATU",
+           "label": "VANUATU"
+          },
+          {
+           "value": "VATICAN CITY",
+           "label": "VATICAN CITY"
+          },
+          {
+           "value": "VENEZUELA",
+           "label": "VENEZUELA"
+          },
+          {
+           "value": "VIETNAM",
+           "label": "VIETNAM"
+          },
+          {
+           "value": "YEMEN",
+           "label": "YEMEN"
+          },
+          {
+           "value": "ZAMBIA",
+           "label": "ZAMBIA"
+          },
+          {
+           "value": "ZIMBABWE",
+           "label": "ZIMBABWE"
+          }
+         ],
+         "mapId": "D10"
+        },
+        {
+         "key": "attyCity",
+         "kind": "text",
+         "label": "D.7. City*Click tooltip for more information",
+         "box": "D.7",
+         "name": "attyCity",
+         "id": "attyCity",
+         "required": false,
+         "disabled": true,
+         "mapId": "D7"
+        },
+        {
+         "key": "attyState",
+         "kind": "select",
+         "label": "D.8. State §*Click tooltip for more information",
+         "box": "D.8",
+         "name": "attyState",
+         "id": "attyState",
+         "required": false,
+         "disabled": true,
+         "current": "- Select -",
+         "options": [
+          {
+           "value": "- Select -",
+           "label": "- Select -"
+          },
+          {
+           "value": "ALABAMA",
+           "label": "ALABAMA"
+          },
+          {
+           "value": "ALASKA",
+           "label": "ALASKA"
+          },
+          {
+           "value": "ARIZONA",
+           "label": "ARIZONA"
+          },
+          {
+           "value": "ARKANSAS",
+           "label": "ARKANSAS"
+          },
+          {
+           "value": "CALIFORNIA",
+           "label": "CALIFORNIA"
+          },
+          {
+           "value": "COLORADO",
+           "label": "COLORADO"
+          },
+          {
+           "value": "CONNECTICUT",
+           "label": "CONNECTICUT"
+          },
+          {
+           "value": "DELAWARE",
+           "label": "DELAWARE"
+          },
+          {
+           "value": "DISTRICT OF COLUMBIA",
+           "label": "DISTRICT OF COLUMBIA"
+          },
+          {
+           "value": "FLORIDA",
+           "label": "FLORIDA"
+          },
+          {
+           "value": "GEORGIA",
+           "label": "GEORGIA"
+          },
+          {
+           "value": "GUAM",
+           "label": "GUAM"
+          },
+          {
+           "value": "HAWAII",
+           "label": "HAWAII"
+          },
+          {
+           "value": "IDAHO",
+           "label": "IDAHO"
+          },
+          {
+           "value": "ILLINOIS",
+           "label": "ILLINOIS"
+          },
+          {
+           "value": "INDIANA",
+           "label": "INDIANA"
+          },
+          {
+           "value": "IOWA",
+           "label": "IOWA"
+          },
+          {
+           "value": "KANSAS",
+           "label": "KANSAS"
+          },
+          {
+           "value": "KENTUCKY",
+           "label": "KENTUCKY"
+          },
+          {
+           "value": "LOUISIANA",
+           "label": "LOUISIANA"
+          },
+          {
+           "value": "MAINE",
+           "label": "MAINE"
+          },
+          {
+           "value": "MARYLAND",
+           "label": "MARYLAND"
+          },
+          {
+           "value": "MASSACHUSETTS",
+           "label": "MASSACHUSETTS"
+          },
+          {
+           "value": "MICHIGAN",
+           "label": "MICHIGAN"
+          },
+          {
+           "value": "MINNESOTA",
+           "label": "MINNESOTA"
+          },
+          {
+           "value": "MISSISSIPPI",
+           "label": "MISSISSIPPI"
+          },
+          {
+           "value": "MISSOURI",
+           "label": "MISSOURI"
+          },
+          {
+           "value": "MONTANA",
+           "label": "MONTANA"
+          },
+          {
+           "value": "NEBRASKA",
+           "label": "NEBRASKA"
+          },
+          {
+           "value": "NEVADA",
+           "label": "NEVADA"
+          },
+          {
+           "value": "NEW HAMPSHIRE",
+           "label": "NEW HAMPSHIRE"
+          },
+          {
+           "value": "NEW JERSEY",
+           "label": "NEW JERSEY"
+          },
+          {
+           "value": "NEW MEXICO",
+           "label": "NEW MEXICO"
+          },
+          {
+           "value": "NEW YORK",
+           "label": "NEW YORK"
+          },
+          {
+           "value": "NORTH CAROLINA",
+           "label": "NORTH CAROLINA"
+          },
+          {
+           "value": "NORTH DAKOTA",
+           "label": "NORTH DAKOTA"
+          },
+          {
+           "value": "NORTHERN MARIANA ISLANDS",
+           "label": "NORTHERN MARIANA ISLANDS"
+          },
+          {
+           "value": "OHIO",
+           "label": "OHIO"
+          },
+          {
+           "value": "OKLAHOMA",
+           "label": "OKLAHOMA"
+          },
+          {
+           "value": "OREGON",
+           "label": "OREGON"
+          },
+          {
+           "value": "PENNSYLVANIA",
+           "label": "PENNSYLVANIA"
+          },
+          {
+           "value": "PUERTO RICO",
+           "label": "PUERTO RICO"
+          },
+          {
+           "value": "RHODE ISLAND",
+           "label": "RHODE ISLAND"
+          },
+          {
+           "value": "SOUTH CAROLINA",
+           "label": "SOUTH CAROLINA"
+          },
+          {
+           "value": "SOUTH DAKOTA",
+           "label": "SOUTH DAKOTA"
+          },
+          {
+           "value": "TENNESSEE",
+           "label": "TENNESSEE"
+          },
+          {
+           "value": "TEXAS",
+           "label": "TEXAS"
+          },
+          {
+           "value": "UTAH",
+           "label": "UTAH"
+          },
+          {
+           "value": "VERMONT",
+           "label": "VERMONT"
+          },
+          {
+           "value": "VIRGIN ISLANDS",
+           "label": "VIRGIN ISLANDS"
+          },
+          {
+           "value": "VIRGINIA",
+           "label": "VIRGINIA"
+          },
+          {
+           "value": "WASHINGTON",
+           "label": "WASHINGTON"
+          },
+          {
+           "value": "WEST VIRGINIA",
+           "label": "WEST VIRGINIA"
+          },
+          {
+           "value": "WISCONSIN",
+           "label": "WISCONSIN"
+          },
+          {
+           "value": "WYOMING",
+           "label": "WYOMING"
+          }
+         ],
+         "mapId": "D8"
+        },
+        {
+         "key": "attyPostcode",
+         "kind": "text",
+         "label": "D.9. Postal codeClick tooltip for more information",
+         "box": "D.9",
+         "name": "attyPostcode",
+         "id": "attyPostcode",
+         "required": false,
+         "disabled": true,
+         "mapId": "D9"
+        },
+        {
+         "key": "attyPhoneCountry",
+         "kind": "select",
+         "label": "D.12. Telephone number*Click tooltip for more information",
+         "box": "D.12",
+         "name": "attyPhoneCountry",
+         "id": null,
+         "required": false,
+         "disabled": false,
+         "current": "US",
+         "options": [
+          {
+           "value": "ZZ",
+           "label": "International"
+          },
+          {
+           "value": "AF",
+           "label": "Afghanistan"
+          },
+          {
+           "value": "AX",
+           "label": "Åland Islands"
+          },
+          {
+           "value": "AL",
+           "label": "Albania"
+          },
+          {
+           "value": "DZ",
+           "label": "Algeria"
+          },
+          {
+           "value": "AS",
+           "label": "American Samoa"
+          },
+          {
+           "value": "AD",
+           "label": "Andorra"
+          },
+          {
+           "value": "AO",
+           "label": "Angola"
+          },
+          {
+           "value": "AI",
+           "label": "Anguilla"
+          },
+          {
+           "value": "AG",
+           "label": "Antigua and Barbuda"
+          },
+          {
+           "value": "AR",
+           "label": "Argentina"
+          },
+          {
+           "value": "AM",
+           "label": "Armenia"
+          },
+          {
+           "value": "AW",
+           "label": "Aruba"
+          },
+          {
+           "value": "AC",
+           "label": "Ascension Island"
+          },
+          {
+           "value": "AU",
+           "label": "Australia"
+          },
+          {
+           "value": "AT",
+           "label": "Austria"
+          },
+          {
+           "value": "AZ",
+           "label": "Azerbaijan"
+          },
+          {
+           "value": "BS",
+           "label": "Bahamas"
+          },
+          {
+           "value": "BH",
+           "label": "Bahrain"
+          },
+          {
+           "value": "BD",
+           "label": "Bangladesh"
+          },
+          {
+           "value": "BB",
+           "label": "Barbados"
+          },
+          {
+           "value": "BY",
+           "label": "Belarus"
+          },
+          {
+           "value": "BE",
+           "label": "Belgium"
+          },
+          {
+           "value": "BZ",
+           "label": "Belize"
+          },
+          {
+           "value": "BJ",
+           "label": "Benin"
+          },
+          {
+           "value": "BM",
+           "label": "Bermuda"
+          },
+          {
+           "value": "BT",
+           "label": "Bhutan"
+          },
+          {
+           "value": "BO",
+           "label": "Bolivia"
+          },
+          {
+           "value": "BQ",
+           "label": "Bonaire, Sint Eustatius and Saba"
+          },
+          {
+           "value": "BA",
+           "label": "Bosnia and Herzegovina"
+          },
+          {
+           "value": "BW",
+           "label": "Botswana"
+          },
+          {
+           "value": "BR",
+           "label": "Brazil"
+          },
+          {
+           "value": "IO",
+           "label": "British Indian Ocean Territory"
+          },
+          {
+           "value": "BN",
+           "label": "Brunei Darussalam"
+          },
+          {
+           "value": "BG",
+           "label": "Bulgaria"
+          },
+          {
+           "value": "BF",
+           "label": "Burkina Faso"
+          },
+          {
+           "value": "MM",
+           "label": "Burma"
+          },
+          {
+           "value": "BI",
+           "label": "Burundi"
+          },
+          {
+           "value": "KH",
+           "label": "Cambodia"
+          },
+          {
+           "value": "CM",
+           "label": "Cameroon"
+          },
+          {
+           "value": "CA",
+           "label": "Canada"
+          },
+          {
+           "value": "CV",
+           "label": "Cape Verde"
+          },
+          {
+           "value": "KY",
+           "label": "Cayman Islands"
+          },
+          {
+           "value": "CF",
+           "label": "Central African Republic"
+          },
+          {
+           "value": "TD",
+           "label": "Chad"
+          },
+          {
+           "value": "CL",
+           "label": "Chile"
+          },
+          {
+           "value": "CN",
+           "label": "China"
+          },
+          {
+           "value": "CX",
+           "label": "Christmas Island"
+          },
+          {
+           "value": "CC",
+           "label": "Cocos (Keeling) Islands"
+          },
+          {
+           "value": "CO",
+           "label": "Colombia"
+          },
+          {
+           "value": "KM",
+           "label": "Comoros"
+          },
+          {
+           "value": "CG",
+           "label": "Congo"
+          },
+          {
+           "value": "CD",
+           "label": "Congo, Democratic Republic of the"
+          },
+          {
+           "value": "CK",
+           "label": "Cook Islands"
+          },
+          {
+           "value": "CR",
+           "label": "Costa Rica"
+          },
+          {
+           "value": "CI",
+           "label": "Cote d'Ivoire"
+          },
+          {
+           "value": "HR",
+           "label": "Croatia"
+          },
+          {
+           "value": "CU",
+           "label": "Cuba"
+          },
+          {
+           "value": "CW",
+           "label": "Curaçao"
+          },
+          {
+           "value": "CY",
+           "label": "Cyprus"
+          },
+          {
+           "value": "CZ",
+           "label": "Czech Republic"
+          },
+          {
+           "value": "DK",
+           "label": "Denmark"
+          },
+          {
+           "value": "DJ",
+           "label": "Djibouti"
+          },
+          {
+           "value": "DM",
+           "label": "Dominica"
+          },
+          {
+           "value": "DO",
+           "label": "Dominican Republic"
+          },
+          {
+           "value": "EC",
+           "label": "Ecuador"
+          },
+          {
+           "value": "EG",
+           "label": "Egypt"
+          },
+          {
+           "value": "SV",
+           "label": "El Salvador"
+          },
+          {
+           "value": "GQ",
+           "label": "Equatorial Guinea"
+          },
+          {
+           "value": "ER",
+           "label": "Eritrea"
+          },
+          {
+           "value": "EE",
+           "label": "Estonia"
+          },
+          {
+           "value": "ET",
+           "label": "Ethiopia"
+          },
+          {
+           "value": "FK",
+           "label": "Falkland Islands"
+          },
+          {
+           "value": "FO",
+           "label": "Faroe Islands"
+          },
+          {
+           "value": "FM",
+           "label": "Federated States of Micronesia"
+          },
+          {
+           "value": "FJ",
+           "label": "Fiji"
+          },
+          {
+           "value": "FI",
+           "label": "Finland"
+          },
+          {
+           "value": "FR",
+           "label": "France"
+          },
+          {
+           "value": "GF",
+           "label": "French Guiana"
+          },
+          {
+           "value": "PF",
+           "label": "French Polynesia"
+          },
+          {
+           "value": "GA",
+           "label": "Gabon"
+          },
+          {
+           "value": "GM",
+           "label": "Gambia"
+          },
+          {
+           "value": "GE",
+           "label": "Georgia"
+          },
+          {
+           "value": "DE",
+           "label": "Germany"
+          },
+          {
+           "value": "GH",
+           "label": "Ghana"
+          },
+          {
+           "value": "GI",
+           "label": "Gibraltar"
+          },
+          {
+           "value": "GR",
+           "label": "Greece"
+          },
+          {
+           "value": "GL",
+           "label": "Greenland"
+          },
+          {
+           "value": "GD",
+           "label": "Grenada"
+          },
+          {
+           "value": "GP",
+           "label": "Guadeloupe"
+          },
+          {
+           "value": "GU",
+           "label": "Guam"
+          },
+          {
+           "value": "GT",
+           "label": "Guatemala"
+          },
+          {
+           "value": "GG",
+           "label": "Guernsey"
+          },
+          {
+           "value": "GN",
+           "label": "Guinea"
+          },
+          {
+           "value": "GW",
+           "label": "Guinea-Bissau"
+          },
+          {
+           "value": "GY",
+           "label": "Guyana"
+          },
+          {
+           "value": "HT",
+           "label": "Haiti"
+          },
+          {
+           "value": "VA",
+           "label": "Holy See (Vatican City State)"
+          },
+          {
+           "value": "HN",
+           "label": "Honduras"
+          },
+          {
+           "value": "HK",
+           "label": "Hong Kong"
+          },
+          {
+           "value": "HU",
+           "label": "Hungary"
+          },
+          {
+           "value": "IS",
+           "label": "Iceland"
+          },
+          {
+           "value": "IN",
+           "label": "India"
+          },
+          {
+           "value": "ID",
+           "label": "Indonesia"
+          },
+          {
+           "value": "IR",
+           "label": "Iran"
+          },
+          {
+           "value": "IQ",
+           "label": "Iraq"
+          },
+          {
+           "value": "IE",
+           "label": "Ireland"
+          },
+          {
+           "value": "IM",
+           "label": "Isle of Man"
+          },
+          {
+           "value": "IL",
+           "label": "Israel"
+          },
+          {
+           "value": "IT",
+           "label": "Italy"
+          },
+          {
+           "value": "JM",
+           "label": "Jamaica"
+          },
+          {
+           "value": "JP",
+           "label": "Japan"
+          },
+          {
+           "value": "JE",
+           "label": "Jersey"
+          },
+          {
+           "value": "JO",
+           "label": "Jordan"
+          },
+          {
+           "value": "KZ",
+           "label": "Kazakhstan"
+          },
+          {
+           "value": "KE",
+           "label": "Kenya"
+          },
+          {
+           "value": "KI",
+           "label": "Kiribati"
+          },
+          {
+           "value": "XK",
+           "label": "Kosovo"
+          },
+          {
+           "value": "KW",
+           "label": "Kuwait"
+          },
+          {
+           "value": "KG",
+           "label": "Kyrgyzstan"
+          },
+          {
+           "value": "LA",
+           "label": "Laos"
+          },
+          {
+           "value": "LV",
+           "label": "Latvia"
+          },
+          {
+           "value": "LB",
+           "label": "Lebanon"
+          },
+          {
+           "value": "LS",
+           "label": "Lesotho"
+          },
+          {
+           "value": "LR",
+           "label": "Liberia"
+          },
+          {
+           "value": "LY",
+           "label": "Libya"
+          },
+          {
+           "value": "LI",
+           "label": "Liechtenstein"
+          },
+          {
+           "value": "LT",
+           "label": "Lithuania"
+          },
+          {
+           "value": "LU",
+           "label": "Luxembourg"
+          },
+          {
+           "value": "MO",
+           "label": "Macao"
+          },
+          {
+           "value": "MG",
+           "label": "Madagascar"
+          },
+          {
+           "value": "MW",
+           "label": "Malawi"
+          },
+          {
+           "value": "MY",
+           "label": "Malaysia"
+          },
+          {
+           "value": "MV",
+           "label": "Maldives"
+          },
+          {
+           "value": "ML",
+           "label": "Mali"
+          },
+          {
+           "value": "MT",
+           "label": "Malta"
+          },
+          {
+           "value": "MH",
+           "label": "Marshall Islands"
+          },
+          {
+           "value": "MQ",
+           "label": "Martinique"
+          },
+          {
+           "value": "MR",
+           "label": "Mauritania"
+          },
+          {
+           "value": "MU",
+           "label": "Mauritius"
+          },
+          {
+           "value": "YT",
+           "label": "Mayotte"
+          },
+          {
+           "value": "MX",
+           "label": "Mexico"
+          },
+          {
+           "value": "MD",
+           "label": "Moldova"
+          },
+          {
+           "value": "MC",
+           "label": "Monaco"
+          },
+          {
+           "value": "MN",
+           "label": "Mongolia"
+          },
+          {
+           "value": "ME",
+           "label": "Montenegro"
+          },
+          {
+           "value": "MS",
+           "label": "Montserrat"
+          },
+          {
+           "value": "MA",
+           "label": "Morocco"
+          },
+          {
+           "value": "MZ",
+           "label": "Mozambique"
+          },
+          {
+           "value": "NA",
+           "label": "Namibia"
+          },
+          {
+           "value": "NR",
+           "label": "Nauru"
+          },
+          {
+           "value": "NP",
+           "label": "Nepal"
+          },
+          {
+           "value": "NL",
+           "label": "Netherlands"
+          },
+          {
+           "value": "NC",
+           "label": "New Caledonia"
+          },
+          {
+           "value": "NZ",
+           "label": "New Zealand"
+          },
+          {
+           "value": "NI",
+           "label": "Nicaragua"
+          },
+          {
+           "value": "NE",
+           "label": "Niger"
+          },
+          {
+           "value": "NG",
+           "label": "Nigeria"
+          },
+          {
+           "value": "NU",
+           "label": "Niue"
+          },
+          {
+           "value": "NF",
+           "label": "Norfolk Island"
+          },
+          {
+           "value": "KP",
+           "label": "North Korea"
+          },
+          {
+           "value": "MK",
+           "label": "North Macedonia"
+          },
+          {
+           "value": "MP",
+           "label": "Northern Mariana Islands"
+          },
+          {
+           "value": "NO",
+           "label": "Norway"
+          },
+          {
+           "value": "OM",
+           "label": "Oman"
+          },
+          {
+           "value": "PK",
+           "label": "Pakistan"
+          },
+          {
+           "value": "PW",
+           "label": "Palau"
+          },
+          {
+           "value": "PS",
+           "label": "Palestine"
+          },
+          {
+           "value": "PA",
+           "label": "Panama"
+          },
+          {
+           "value": "PG",
+           "label": "Papua New Guinea"
+          },
+          {
+           "value": "PY",
+           "label": "Paraguay"
+          },
+          {
+           "value": "PE",
+           "label": "Peru"
+          },
+          {
+           "value": "PH",
+           "label": "Philippines"
+          },
+          {
+           "value": "PL",
+           "label": "Poland"
+          },
+          {
+           "value": "PT",
+           "label": "Portugal"
+          },
+          {
+           "value": "PR",
+           "label": "Puerto Rico"
+          },
+          {
+           "value": "QA",
+           "label": "Qatar"
+          },
+          {
+           "value": "RE",
+           "label": "Reunion"
+          },
+          {
+           "value": "RO",
+           "label": "Romania"
+          },
+          {
+           "value": "RU",
+           "label": "Russia"
+          },
+          {
+           "value": "RW",
+           "label": "Rwanda"
+          },
+          {
+           "value": "BL",
+           "label": "Saint Barthélemy"
+          },
+          {
+           "value": "SH",
+           "label": "Saint Helena"
+          },
+          {
+           "value": "KN",
+           "label": "Saint Kitts and Nevis"
+          },
+          {
+           "value": "LC",
+           "label": "Saint Lucia"
+          },
+          {
+           "value": "MF",
+           "label": "Saint Martin (French Part)"
+          },
+          {
+           "value": "PM",
+           "label": "Saint Pierre and Miquelon"
+          },
+          {
+           "value": "VC",
+           "label": "Saint Vincent and the Grenadines"
+          },
+          {
+           "value": "WS",
+           "label": "Samoa"
+          },
+          {
+           "value": "SM",
+           "label": "San Marino"
+          },
+          {
+           "value": "ST",
+           "label": "Sao Tome and Principe"
+          },
+          {
+           "value": "SA",
+           "label": "Saudi Arabia"
+          },
+          {
+           "value": "SN",
+           "label": "Senegal"
+          },
+          {
+           "value": "RS",
+           "label": "Serbia"
+          },
+          {
+           "value": "SC",
+           "label": "Seychelles"
+          },
+          {
+           "value": "SL",
+           "label": "Sierra Leone"
+          },
+          {
+           "value": "SG",
+           "label": "Singapore"
+          },
+          {
+           "value": "SX",
+           "label": "Sint Maarten"
+          },
+          {
+           "value": "SK",
+           "label": "Slovakia"
+          },
+          {
+           "value": "SI",
+           "label": "Slovenia"
+          },
+          {
+           "value": "SB",
+           "label": "Solomon Islands"
+          },
+          {
+           "value": "SO",
+           "label": "Somalia"
+          },
+          {
+           "value": "ZA",
+           "label": "South Africa"
+          },
+          {
+           "value": "KR",
+           "label": "South Korea"
+          },
+          {
+           "value": "SS",
+           "label": "South Sudan"
+          },
+          {
+           "value": "ES",
+           "label": "Spain"
+          },
+          {
+           "value": "LK",
+           "label": "Sri Lanka"
+          },
+          {
+           "value": "SD",
+           "label": "Sudan"
+          },
+          {
+           "value": "SR",
+           "label": "Suriname"
+          },
+          {
+           "value": "SJ",
+           "label": "Svalbard and Jan Mayen"
+          },
+          {
+           "value": "SZ",
+           "label": "Swaziland"
+          },
+          {
+           "value": "SE",
+           "label": "Sweden"
+          },
+          {
+           "value": "CH",
+           "label": "Switzerland"
+          },
+          {
+           "value": "SY",
+           "label": "Syria"
+          },
+          {
+           "value": "TW",
+           "label": "Taiwan"
+          },
+          {
+           "value": "TJ",
+           "label": "Tajikistan"
+          },
+          {
+           "value": "TZ",
+           "label": "Tanzania"
+          },
+          {
+           "value": "TH",
+           "label": "Thailand"
+          },
+          {
+           "value": "TL",
+           "label": "Timor-Leste"
+          },
+          {
+           "value": "TG",
+           "label": "Togo"
+          },
+          {
+           "value": "TK",
+           "label": "Tokelau"
+          },
+          {
+           "value": "TO",
+           "label": "Tonga"
+          },
+          {
+           "value": "TT",
+           "label": "Trinidad and Tobago"
+          },
+          {
+           "value": "TA",
+           "label": "Tristan da Cunha"
+          },
+          {
+           "value": "TN",
+           "label": "Tunisia"
+          },
+          {
+           "value": "TR",
+           "label": "Turkey"
+          },
+          {
+           "value": "TM",
+           "label": "Turkmenistan"
+          },
+          {
+           "value": "TC",
+           "label": "Turks and Caicos Islands"
+          },
+          {
+           "value": "TV",
+           "label": "Tuvalu"
+          },
+          {
+           "value": "UG",
+           "label": "Uganda"
+          },
+          {
+           "value": "UA",
+           "label": "Ukraine"
+          },
+          {
+           "value": "AE",
+           "label": "United Arab Emirates"
+          },
+          {
+           "value": "GB",
+           "label": "United Kingdom"
+          },
+          {
+           "value": "US",
+           "label": "United States"
+          },
+          {
+           "value": "UY",
+           "label": "Uruguay"
+          },
+          {
+           "value": "UZ",
+           "label": "Uzbekistan"
+          },
+          {
+           "value": "VU",
+           "label": "Vanuatu"
+          },
+          {
+           "value": "VE",
+           "label": "Venezuela"
+          },
+          {
+           "value": "VN",
+           "label": "Vietnam"
+          },
+          {
+           "value": "VG",
+           "label": "Virgin Islands, British"
+          },
+          {
+           "value": "VI",
+           "label": "Virgin Islands, U.S."
+          },
+          {
+           "value": "WF",
+           "label": "Wallis and Futuna"
+          },
+          {
+           "value": "EH",
+           "label": "Western Sahara"
+          },
+          {
+           "value": "YE",
+           "label": "Yemen"
+          },
+          {
+           "value": "ZM",
+           "label": "Zambia"
+          },
+          {
+           "value": "ZW",
+           "label": "Zimbabwe"
+          }
+         ],
+         "mapId": "D12"
+        },
+        {
+         "key": "attyPhone",
+         "kind": "tel",
+         "label": "D.12. Telephone number*Click tooltip for more information",
+         "box": "D.12",
+         "name": "attyPhone",
+         "id": "attyPhone",
+         "required": false,
+         "disabled": false,
+         "mapId": "D12"
+        },
+        {
+         "key": "attyPhoneext",
+         "kind": "text",
+         "label": "D.13. ExtensionClick tooltip for more information",
+         "box": "D.13",
+         "name": "attyPhoneext",
+         "id": "attyPhoneext",
+         "required": false,
+         "disabled": false,
+         "mapId": "D13"
+        },
+        {
+         "key": "attyEmail",
+         "kind": "text",
+         "label": "D.14. Law firm/business e-mail address*Click tooltip for more information",
+         "box": "D.14",
+         "name": "attyEmail",
+         "id": "attyEmail",
+         "required": false,
+         "disabled": false,
+         "mapId": "D14"
+        },
+        {
+         "key": "attyBizname",
+         "kind": "text",
+         "label": "D.15. Law firm/business name*Click tooltip for more information",
+         "box": "D.15",
+         "name": "attyBizname",
+         "id": "attyBizname",
+         "required": false,
+         "disabled": false,
+         "mapId": "D15"
+        },
+        {
+         "key": "attyFein",
+         "kind": "text",
+         "label": "D.16. Law firm/business FEINClick tooltip for more information",
+         "box": "D.16",
+         "name": "attyFein",
+         "id": "attyFein",
+         "required": false,
+         "disabled": false,
+         "mapId": "D16"
+        }
+       ]
+      },
+      {
+       "value": "Agent",
+       "label": "Agent",
+       "revealed": [],
+       "revealedFields": []
+      },
+      {
+       "value": "None",
+       "label": "None",
+       "revealed": [],
+       "revealedFields": []
+      }
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "addButtonText": "Add Data",
+     "added": [],
+     "addedFields": [],
+     "inModal": true
+    }
+   ],
+   "navChanged": true
+  },
+  {
+   "name": "Wage Source Information",
+   "fields": [
+    {
+     "key": "coveredByAcwia",
+     "kind": "radio",
+     "label": "Yes",
+     "box": null,
+     "options": [
+      {
+       "value": "1",
+       "label": "Yes",
+       "id": "coveredByAcwia_Yes"
+      },
+      {
+       "value": "No",
+       "label": "No",
+       "id": "coveredByAcwia_No"
+      },
+      {
+       "value": "2",
+       "label": "N/A",
+       "id": "coveredByAcwia_N/A"
+      }
+     ],
+     "checked": null,
+     "context": "E.1. Is the employer covered by ACWIA, as described in 20 CFR 656.40(e)(1)? * (Not applicable for H-2B)Click tooltip for more information YesNoN/AThis field is required.E.2. Is the position covered by a Professional Sports League Rules or Regulations? §Click tooltip for more information YesNoThis field is required.E.3. Is the position covered by a Collective Bargaining Agreement (CBA)? §Click tool",
+     "boxCandidates": [
+      "E.1",
+      "E.2",
+      "E.3"
+     ]
+    },
+    {
+     "key": "sportsLeague",
+     "kind": "radio",
+     "label": "Yes",
+     "box": null,
+     "options": [
+      {
+       "value": "1",
+       "label": "Yes",
+       "id": "sportsLeague_Yes"
+      },
+      {
+       "value": "No",
+       "label": "No",
+       "id": "sportsLeague_No"
+      }
+     ],
+     "checked": null,
+     "context": "E.1. Is the employer covered by ACWIA, as described in 20 CFR 656.40(e)(1)? * (Not applicable for H-2B)Click tooltip for more information YesNoN/AThis field is required.E.2. Is the position covered by a Professional Sports League Rules or Regulations? §Click tooltip for more information YesNoThis field is required.E.3. Is the position covered by a Collective Bargaining Agreement (CBA)? §Click tool",
+     "boxCandidates": [
+      "E.1",
+      "E.2",
+      "E.3"
+     ]
+    },
+    {
+     "key": "cba",
+     "kind": "radio",
+     "label": "Yes",
+     "box": null,
+     "options": [
+      {
+       "value": "1",
+       "label": "Yes",
+       "id": "cba_Yes"
+      },
+      {
+       "value": "No",
+       "label": "No",
+       "id": "cba_No"
+      },
+      {
+       "value": "2",
+       "label": "N/A",
+       "id": "cba_N/A"
+      }
+     ],
+     "checked": null,
+     "context": "E.1. Is the employer covered by ACWIA, as described in 20 CFR 656.40(e)(1)? * (Not applicable for H-2B)Click tooltip for more information YesNoN/AThis field is required.E.2. Is the position covered by a Professional Sports League Rules or Regulations? §Click tooltip for more information YesNoThis field is required.E.3. Is the position covered by a Collective Bargaining Agreement (CBA)? §Click tool",
+     "boxCandidates": [
+      "E.1",
+      "E.2",
+      "E.3"
+     ]
+    },
+    {
+     "key": "pre_dbaSca",
+     "kind": "radio",
+     "label": "Yes",
+     "box": null,
+     "options": [
+      {
+       "value": "1",
+       "label": "Yes",
+       "id": "pre_dbaSca_Yes"
+      },
+      {
+       "value": "No",
+       "label": "No",
+       "id": "pre_dbaSca_No"
+      }
+     ],
+     "checked": null,
+     "context": "E.4. Is the employer requesting a prevailing wage based on the Davis-Bacon Act (DBA) or McNamara Service Contract Act (SCA) (Not applicable for H-2B)?*Click tooltip for more information YesNoThis field is required.E.5. Is the employer requesting consideration of a survey as a wage source in determining the prevailing wage?*Click tooltip for more information YesNoThis field is required.",
+     "boxCandidates": [
+      "E.4",
+      "E.5"
+     ]
+    },
+    {
+     "key": "dbaSurvey",
+     "kind": "radio",
+     "label": "Yes",
+     "box": null,
+     "options": [
+      {
+       "value": "1",
+       "label": "Yes",
+       "id": "dbaSurvey_Yes"
+      },
+      {
+       "value": "No",
+       "label": "No",
+       "id": "dbaSurvey_No"
+      }
+     ],
+     "checked": null,
+     "context": "E.4. Is the employer requesting a prevailing wage based on the Davis-Bacon Act (DBA) or McNamara Service Contract Act (SCA) (Not applicable for H-2B)?*Click tooltip for more information YesNoThis field is required.E.5. Is the employer requesting consideration of a survey as a wage source in determining the prevailing wage?*Click tooltip for more information YesNoThis field is required.",
+     "boxCandidates": [
+      "E.4",
+      "E.5"
+     ]
+    }
+   ],
+   "buttons": [
+    "Skip to main content",
+    "Add Data",
+    "Click tooltip for more information",
+    "Save & Quit",
+    "Back",
+    "Continue"
+   ],
+   "reveals": [],
+   "rows": [
+    {
+     "addButtonText": "Add Data",
+     "added": [],
+     "addedFields": [],
+     "inModal": true
+    }
+   ],
+   "navChanged": true
+  },
+  {
+   "name": "Job Description",
+   "fields": [
+    {
+     "key": "jobTitle",
+     "kind": "text",
+     "label": "F.a.1. Job title*Click tooltip for more information",
+     "box": "F.a.1",
+     "name": "jobTitle",
+     "id": "jobTitle",
+     "required": false,
+     "disabled": false,
+     "mapId": "Fa1"
+    },
+    {
+     "key": "jobDuties",
+     "kind": "textarea",
+     "label": "F.a.2. Job duties: Description of the specific services or labor to be performed. (All job duties must be disclosed. A description of the job duties MUST begin in this space.)*Click tooltip for more information",
+     "box": "F.a.2",
+     "name": "jobDuties",
+     "id": "jobDuties",
+     "required": false,
+     "disabled": false,
+     "mapId": "Fa2"
+    },
+    {
+     "key": "superviseOtherEmp",
+     "kind": "radio",
+     "label": "Yes",
+     "box": null,
+     "options": [
+      {
+       "value": "1",
+       "label": "Yes",
+       "id": "superviseOtherEmp_Yes"
+      },
+      {
+       "value": "No",
+       "label": "No",
+       "id": "superviseOtherEmp_No"
+      }
+     ],
+     "checked": null,
+     "context": "F.a.1. Job title*Click tooltip for more informationThis field is required.F.a.2. Job duties: Description of the specific services or labor to be performed. (All job duties must be disclosed. A description of the job duties MUST begin in this space.)*Click tooltip for more information0 / 4000 character limitThis field is required.F.a.3. Does this position supervise the work of other employees?*Clic",
+     "boxCandidates": [
+      "F.a.1",
+      "F.a.2",
+      "F.a.3"
+     ]
+    }
+   ],
+   "buttons": [
+    "Skip to main content",
+    "Add Data",
+    "Click tooltip for more information",
+    "Save & Quit",
+    "Back",
+    "Continue"
+   ],
+   "reveals": [],
+   "rows": [
+    {
+     "addButtonText": "Add Data",
+     "added": [],
+     "addedFields": [],
+     "inModal": true
+    }
+   ],
+   "navChanged": true
+  },
+  {
+   "name": "Minimum Job Requirements and/or Alternative Job Requirements",
+   "fields": [
+    {
+     "key": "otherEducation",
+     "kind": "textarea",
+     "label": "F.b.1.a. If “Other degree” in question 1, specify the U.S. degree required (e.g., J.D., M.D., D.D.S., etc.). §Click tooltip for more information",
+     "box": "F.b.1.a",
+     "name": "otherEducation",
+     "id": "otherEducation",
+     "required": false,
+     "disabled": false,
+     "mapId": "Fb1a"
+    },
+    {
+     "key": "major",
+     "kind": "textarea",
+     "label": "F.b.1.b. Indicate the major(s) and/or field(s) of study required § (May list more than one related major and more than one field)Click tooltip for more information",
+     "box": "F.b.1.b",
+     "name": "major",
+     "id": "major",
+     "required": false,
+     "disabled": false,
+     "mapId": "Fb1b"
+    },
+    {
+     "key": "primaryEducationLevel",
+     "kind": "radio",
+     "label": "None",
+     "box": null,
+     "options": [
+      {
+       "value": "NONE",
+       "label": "None",
+       "id": "primaryEducationLevel_None"
+      },
+      {
+       "value": "HIGHSCHOOLGED",
+       "label": "High School/GED",
+       "id": "primaryEducationLevel_High School/GED"
+      },
+      {
+       "value": "ASSOCIATES",
+       "label": "Associate's",
+       "id": "primaryEducationLevel_Associate's"
+      },
+      {
+       "value": "BACHELORS",
+       "label": "Bachelor's",
+       "id": "primaryEducationLevel_Bachelor's"
+      },
+      {
+       "value": "MASTERS",
+       "label": "Master's",
+       "id": "primaryEducationLevel_Master's"
+      },
+      {
+       "value": "DOCTORATEPHD",
+       "label": "Doctorate (Ph.D.)",
+       "id": "primaryEducationLevel_Doctorate (Ph.D.)"
+      },
+      {
+       "value": "OTHERDEGREE",
+       "label": "Other degree (J.D., M.D., etc.)",
+       "id": "primaryEducationLevel_Other degree (J.D., M.D., etc.)"
+      }
+     ],
+     "checked": "OTHERDEGREE",
+     "context": "Minimum Job RequirementsNote: This section must only include a single set of requirements, the employer’s minimum requirements for each question. If the employer will accept alternative requirements, the alternative requirements must be entered in Section F.c.F.b.1. Education: Minimum U.S. degree required*Click tooltip for more information NoneHigh School/GEDAssociate'sBachelor'sMaster'sDoctorate ",
+     "boxCandidates": [
+      "F.b.1"
+     ]
+    },
+    {
+     "key": "secondDiploma",
+     "kind": "radio",
+     "label": "Yes",
+     "box": null,
+     "options": [
+      {
+       "value": "1",
+       "label": "Yes",
+       "id": "secondDiploma_Yes"
+      },
+      {
+       "value": "No",
+       "label": "No",
+       "id": "secondDiploma_No"
+      }
+     ],
+     "checked": null,
+     "context": "Minimum Job RequirementsNote: This section must only include a single set of requirements, the employer’s minimum requirements for each question. If the employer will accept alternative requirements, the alternative requirements must be entered in Section F.c.F.b.1. Education: Minimum U.S. degree required*Click tooltip for more information NoneHigh School/GEDAssociate'sBachelor'sMaster'sDoctorate ",
+     "boxCandidates": [
+      "F.b.1"
+     ]
+    },
+    {
+     "key": "trainingRequired",
+     "kind": "radio",
+     "label": "Yes",
+     "box": null,
+     "options": [
+      {
+       "value": "1",
+       "label": "Yes",
+       "id": "trainingRequired_Yes"
+      },
+      {
+       "value": "No",
+       "label": "No",
+       "id": "trainingRequired_No"
+      }
+     ],
+     "checked": null,
+     "context": "Minimum Job RequirementsNote: This section must only include a single set of requirements, the employer’s minimum requirements for each question. If the employer will accept alternative requirements, the alternative requirements must be entered in Section F.c.F.b.1. Education: Minimum U.S. degree required*Click tooltip for more information NoneHigh School/GEDAssociate'sBachelor'sMaster'sDoctorate ",
+     "boxCandidates": [
+      "F.b.1"
+     ]
+    },
+    {
+     "key": "empExperienceRequired",
+     "kind": "radio",
+     "label": "Yes",
+     "box": null,
+     "options": [
+      {
+       "value": "1",
+       "label": "Yes",
+       "id": "empExperienceRequired_Yes"
+      },
+      {
+       "value": "No",
+       "label": "No",
+       "id": "empExperienceRequired_No"
+      }
+     ],
+     "checked": null,
+     "context": "Minimum Job RequirementsNote: This section must only include a single set of requirements, the employer’s minimum requirements for each question. If the employer will accept alternative requirements, the alternative requirements must be entered in Section F.c.F.b.1. Education: Minimum U.S. degree required*Click tooltip for more information NoneHigh School/GEDAssociate'sBachelor'sMaster'sDoctorate ",
+     "boxCandidates": [
+      "F.b.1"
+     ]
+    },
+    {
+     "key": "isSpecialRequirements",
+     "kind": "radio",
+     "label": "Yes",
+     "box": null,
+     "options": [
+      {
+       "value": "1",
+       "label": "Yes",
+       "id": "isSpecialRequirements_Yes"
+      },
+      {
+       "value": "No",
+       "label": "No",
+       "id": "isSpecialRequirements_No"
+      }
+     ],
+     "checked": null,
+     "context": "Minimum Job RequirementsNote: This section must only include a single set of requirements, the employer’s minimum requirements for each question. If the employer will accept alternative requirements, the alternative requirements must be entered in Section F.c.F.b.1. Education: Minimum U.S. degree required*Click tooltip for more information NoneHigh School/GEDAssociate'sBachelor'sMaster'sDoctorate ",
+     "boxCandidates": [
+      "F.b.1"
+     ]
+    },
+    {
+     "key": "altJobRequirement",
+     "kind": "radio",
+     "label": "Yes",
+     "box": null,
+     "options": [
+      {
+       "value": "1",
+       "label": "Yes",
+       "id": "altJobRequirement_Yes"
+      },
+      {
+       "value": "No",
+       "label": "No",
+       "id": "altJobRequirement_No"
+      }
+     ],
+     "checked": null,
+     "context": "Alternative Job RequirementsWhile an employer may specify alternative requirements, the substantial equivalency of the alternative requirements to minimum requirements will not be evaluated. If there are alternative sets of Education, Training, and/or Experience requirements, all fields in this section (Section F.c.) must be completed. Note: This section is not applicable for H-2B applications.F.c",
+     "boxCandidates": []
+    }
+   ],
+   "buttons": [
+    "Skip to main content",
+    "Add Data",
+    "Click tooltip for more information",
+    "Save & Quit",
+    "Back",
+    "Continue",
+    "Close modal",
+    "Save as Initiated",
+    "Delete Case?"
+   ],
+   "reveals": [
+    {
+     "gate": "primaryEducationLevel",
+     "gateLabel": "None",
+     "answers": [
+      {
+       "value": "NONE",
+       "label": "None",
+       "revealed": [],
+       "revealedFields": []
+      },
+      {
+       "value": "HIGHSCHOOLGED",
+       "label": "High School/GED",
+       "revealed": [],
+       "revealedFields": []
+      },
+      {
+       "value": "ASSOCIATES",
+       "label": "Associate's",
+       "revealed": [
+        "major"
+       ],
+       "revealedFields": [
+        {
+         "key": "major",
+         "kind": "textarea",
+         "label": "F.b.1.b. Indicate the major(s) and/or field(s) of study required § (May list more than one related major and more than one field)Click tooltip for more information",
+         "box": "F.b.1.b",
+         "name": "major",
+         "id": "major",
+         "required": false,
+         "disabled": false,
+         "mapId": "Fb1b"
+        }
+       ]
+      },
+      {
+       "value": "BACHELORS",
+       "label": "Bachelor's",
+       "revealed": [],
+       "revealedFields": []
+      },
+      {
+       "value": "MASTERS",
+       "label": "Master's",
+       "revealed": [],
+       "revealedFields": []
+      },
+      {
+       "value": "DOCTORATEPHD",
+       "label": "Doctorate (Ph.D.)",
+       "revealed": [],
+       "revealedFields": []
+      },
+      {
+       "value": "OTHERDEGREE",
+       "label": "Other degree (J.D., M.D., etc.)",
+       "revealed": [
+        "otherEducation"
+       ],
+       "revealedFields": [
+        {
+         "key": "otherEducation",
+         "kind": "textarea",
+         "label": "F.b.1.a. If “Other degree” in question 1, specify the U.S. degree required (e.g., J.D., M.D., D.D.S., etc.). §Click tooltip for more information",
+         "box": "F.b.1.a",
+         "name": "otherEducation",
+         "id": "otherEducation",
+         "required": false,
+         "disabled": false,
+         "mapId": "Fb1a"
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "addButtonText": "Add Data",
+     "added": [],
+     "addedFields": [],
+     "inModal": true
+    }
+   ],
+   "navChanged": true
+  },
+  {
+   "name": "Other Information",
+   "fields": [
+    {
+     "key": "combobox@F.d.1. Suggested SOC (O*NET/OEWS) code*Click tooltip for more information",
+     "kind": "search",
+     "label": "F.d.1. Suggested SOC (O*NET/OEWS) code*Click tooltip for more information",
+     "box": "F.d.1",
+     "name": null,
+     "id": null,
+     "required": false,
+     "mapId": "Fd1"
+    },
+    {
+     "key": "supervisorJobTitle",
+     "kind": "text",
+     "label": "F.d.2. Job title of the official the employee will report to for this job opportunity (if applicable) §Click tooltip for more information",
+     "box": "F.d.2",
+     "name": "supervisorJobTitle",
+     "id": "supervisorJobTitle",
+     "required": false,
+     "disabled": false,
+     "mapId": "Fd2"
+    },
+    {
+     "key": "travelDetails",
+     "kind": "textarea",
+     "label": "F.d.3.a. If “Yes,” provide geographic location and frequency of the travel. §",
+     "box": "F.d.3.a",
+     "name": "travelDetails",
+     "id": "travelDetails",
+     "required": false,
+     "disabled": false,
+     "mapId": "Fd3a"
+    },
+    {
+     "key": "travelRequired",
+     "kind": "radio",
+     "label": "Yes",
+     "box": null,
+     "options": [
+      {
+       "value": "1",
+       "label": "Yes",
+       "id": "travelRequired_Yes"
+      },
+      {
+       "value": "No",
+       "label": "No",
+       "id": "travelRequired_No"
+      }
+     ],
+     "checked": null,
+     "context": "F.d.1. Suggested SOC (O*NET/OEWS) code*Click tooltip for more informationThis field is required.F.d.1. Suggested SOC (O*NET/OEWS) occupation titleF.d.2. Job title of the official the employee will report to for this job opportunity (if applicable) §Click tooltip for more informationF.d.3. Will travel be required in order to perform the job duties?*Click tooltip for more information YesNoF.d.3.a. I",
+     "boxCandidates": [
+      "F.d.1",
+      "F.d.2",
+      "F.d.3",
+      "F.d.3.a"
+     ]
+    }
+   ],
+   "buttons": [
+    "Skip to main content",
+    "Add Data",
+    "Click tooltip for more information",
+    "Save & Quit",
+    "Back",
+    "Continue"
+   ],
+   "reveals": [],
+   "rows": [
+    {
+     "addButtonText": "Add Data",
+     "added": [],
+     "addedFields": [],
+     "inModal": true
+    }
+   ],
+   "navChanged": true
+  },
+  {
+   "name": "Place of Employment Information",
+   "fields": [
+    {
+     "key": "primaryWorksiteAddr1",
+     "kind": "text",
+     "label": "F.e.1. Worksite address 1*Click tooltip for more information",
+     "box": "F.e.1",
+     "name": "primaryWorksiteAddr1",
+     "id": "primaryWorksiteAddr1",
+     "required": false,
+     "disabled": false,
+     "mapId": "Fe1"
+    },
+    {
+     "key": "primaryWorksiteAddr2",
+     "kind": "text",
+     "label": "F.e.2. Address 2Click tooltip for more information",
+     "box": "F.e.2",
+     "name": "primaryWorksiteAddr2",
+     "id": "primaryWorksiteAddr2",
+     "required": false,
+     "disabled": false,
+     "mapId": "Fe2"
+    },
+    {
+     "key": "primaryWorksiteCity",
+     "kind": "text",
+     "label": "F.e.3. City*Click tooltip for more information",
+     "box": "F.e.3",
+     "name": "primaryWorksiteCity",
+     "id": "primaryWorksiteCity",
+     "required": false,
+     "disabled": false,
+     "mapId": "Fe3"
+    },
+    {
+     "key": "primaryWorksiteState",
+     "kind": "select",
+     "label": "F.e.4. State*Click tooltip for more information",
+     "box": "F.e.4",
+     "name": "primaryWorksiteState",
+     "id": "primaryWorksiteState",
+     "required": false,
+     "disabled": false,
+     "current": "- Select -",
+     "options": [
+      {
+       "value": "- Select -",
+       "label": "- Select -"
+      },
+      {
+       "value": "ALABAMA",
+       "label": "ALABAMA"
+      },
+      {
+       "value": "ALASKA",
+       "label": "ALASKA"
+      },
+      {
+       "value": "ARIZONA",
+       "label": "ARIZONA"
+      },
+      {
+       "value": "ARKANSAS",
+       "label": "ARKANSAS"
+      },
+      {
+       "value": "CALIFORNIA",
+       "label": "CALIFORNIA"
+      },
+      {
+       "value": "COLORADO",
+       "label": "COLORADO"
+      },
+      {
+       "value": "CONNECTICUT",
+       "label": "CONNECTICUT"
+      },
+      {
+       "value": "DELAWARE",
+       "label": "DELAWARE"
+      },
+      {
+       "value": "DISTRICT OF COLUMBIA",
+       "label": "DISTRICT OF COLUMBIA"
+      },
+      {
+       "value": "FLORIDA",
+       "label": "FLORIDA"
+      },
+      {
+       "value": "GEORGIA",
+       "label": "GEORGIA"
+      },
+      {
+       "value": "GUAM",
+       "label": "GUAM"
+      },
+      {
+       "value": "HAWAII",
+       "label": "HAWAII"
+      },
+      {
+       "value": "IDAHO",
+       "label": "IDAHO"
+      },
+      {
+       "value": "ILLINOIS",
+       "label": "ILLINOIS"
+      },
+      {
+       "value": "INDIANA",
+       "label": "INDIANA"
+      },
+      {
+       "value": "IOWA",
+       "label": "IOWA"
+      },
+      {
+       "value": "KANSAS",
+       "label": "KANSAS"
+      },
+      {
+       "value": "KENTUCKY",
+       "label": "KENTUCKY"
+      },
+      {
+       "value": "LOUISIANA",
+       "label": "LOUISIANA"
+      },
+      {
+       "value": "MAINE",
+       "label": "MAINE"
+      },
+      {
+       "value": "MARYLAND",
+       "label": "MARYLAND"
+      },
+      {
+       "value": "MASSACHUSETTS",
+       "label": "MASSACHUSETTS"
+      },
+      {
+       "value": "MICHIGAN",
+       "label": "MICHIGAN"
+      },
+      {
+       "value": "MINNESOTA",
+       "label": "MINNESOTA"
+      },
+      {
+       "value": "MISSISSIPPI",
+       "label": "MISSISSIPPI"
+      },
+      {
+       "value": "MISSOURI",
+       "label": "MISSOURI"
+      },
+      {
+       "value": "MONTANA",
+       "label": "MONTANA"
+      },
+      {
+       "value": "NEBRASKA",
+       "label": "NEBRASKA"
+      },
+      {
+       "value": "NEVADA",
+       "label": "NEVADA"
+      },
+      {
+       "value": "NEW HAMPSHIRE",
+       "label": "NEW HAMPSHIRE"
+      },
+      {
+       "value": "NEW JERSEY",
+       "label": "NEW JERSEY"
+      },
+      {
+       "value": "NEW MEXICO",
+       "label": "NEW MEXICO"
+      },
+      {
+       "value": "NEW YORK",
+       "label": "NEW YORK"
+      },
+      {
+       "value": "NORTH CAROLINA",
+       "label": "NORTH CAROLINA"
+      },
+      {
+       "value": "NORTH DAKOTA",
+       "label": "NORTH DAKOTA"
+      },
+      {
+       "value": "NORTHERN MARIANA ISLANDS",
+       "label": "NORTHERN MARIANA ISLANDS"
+      },
+      {
+       "value": "OHIO",
+       "label": "OHIO"
+      },
+      {
+       "value": "OKLAHOMA",
+       "label": "OKLAHOMA"
+      },
+      {
+       "value": "OREGON",
+       "label": "OREGON"
+      },
+      {
+       "value": "PENNSYLVANIA",
+       "label": "PENNSYLVANIA"
+      },
+      {
+       "value": "PUERTO RICO",
+       "label": "PUERTO RICO"
+      },
+      {
+       "value": "RHODE ISLAND",
+       "label": "RHODE ISLAND"
+      },
+      {
+       "value": "SOUTH CAROLINA",
+       "label": "SOUTH CAROLINA"
+      },
+      {
+       "value": "SOUTH DAKOTA",
+       "label": "SOUTH DAKOTA"
+      },
+      {
+       "value": "TENNESSEE",
+       "label": "TENNESSEE"
+      },
+      {
+       "value": "TEXAS",
+       "label": "TEXAS"
+      },
+      {
+       "value": "UTAH",
+       "label": "UTAH"
+      },
+      {
+       "value": "VERMONT",
+       "label": "VERMONT"
+      },
+      {
+       "value": "VIRGIN ISLANDS",
+       "label": "VIRGIN ISLANDS"
+      },
+      {
+       "value": "VIRGINIA",
+       "label": "VIRGINIA"
+      },
+      {
+       "value": "WASHINGTON",
+       "label": "WASHINGTON"
+      },
+      {
+       "value": "WEST VIRGINIA",
+       "label": "WEST VIRGINIA"
+      },
+      {
+       "value": "WISCONSIN",
+       "label": "WISCONSIN"
+      },
+      {
+       "value": "WYOMING",
+       "label": "WYOMING"
+      }
+     ],
+     "mapId": "Fe4"
+    },
+    {
+     "key": "primaryWorksiteCounty",
+     "kind": "search",
+     "label": "F.e.5. County*Click tooltip for more information",
+     "box": "F.e.5",
+     "name": null,
+     "id": "primaryWorksiteCounty",
+     "required": false,
+     "disabled": false,
+     "mapId": "Fe5"
+    },
+    {
+     "key": "primaryWorksitePostalCode",
+     "kind": "text",
+     "label": "F.e.6. Postal code*Click tooltip for more information",
+     "box": "F.e.6",
+     "name": "primaryWorksitePostalCode",
+     "id": "primaryWorksitePostalCode",
+     "required": false,
+     "disabled": false,
+     "mapId": "Fe6"
+    },
+    {
+     "key": "otherWorksiteLocation",
+     "kind": "radio",
+     "label": "Yes",
+     "box": null,
+     "options": [
+      {
+       "value": "1",
+       "label": "Yes",
+       "id": "otherWorksiteLocation_Yes"
+      },
+      {
+       "value": "No",
+       "label": "No",
+       "id": "otherWorksiteLocation_No"
+      }
+     ],
+     "checked": null,
+     "context": "Important Note: Where work will be performed in any BLS Area other than the BLS Area that includes the worksite address in question 1, the employer must complete Appendix A of the Form ETA-9141 by identifying the additional BLS Area(s) where the services or labor will be performed. In the case of a BLS Area in which there are different county-level prevailing wages, the employer must complete Appe",
+     "boxCandidates": []
+    }
+   ],
+   "buttons": [
+    "Skip to main content",
+    "Add Data",
+    "Click tooltip for more information",
+    "Save & Quit",
+    "Back",
+    "Continue"
+   ],
+   "reveals": [],
+   "rows": [
+    {
+     "addButtonText": "Add Data",
+     "added": [],
+     "addedFields": [],
+     "inModal": true
+    }
+   ],
+   "navChanged": true
+  },
+  {
+   "name": "Additional Worksites",
+   "fields": [],
+   "buttons": [
+    "Skip to main content",
+    "Add Data",
+    "Save & Quit",
+    "Back",
+    "Continue"
+   ],
+   "reveals": [],
+   "rows": [
+    {
+     "addButtonText": "Add Data",
+     "added": [],
+     "addedFields": [],
+     "inModal": true
+    }
+   ],
+   "navChanged": true
+  },
+  {
+   "name": "Application Documents",
+   "fields": [],
+   "buttons": [
+    "Skip to main content",
+    "Add Data",
+    "Save & Quit",
+    "Back",
+    "Continue"
+   ],
+   "reveals": [],
+   "rows": [
+    {
+     "addButtonText": "Add Data",
+     "added": [],
+     "addedFields": [],
+     "inModal": true
+    }
+   ],
+   "navChanged": false
+  }
+ ],
+ "warnings": [
+  "\"Application Documents\" rendered no inputs and no Add control — either not a section link, or a section that stays empty until an upstream answer opens it. Recorded as empty."
+ ]
+}

@@ -1,0 +1,1136 @@
+{
+ "_doc": "Map entry id in eta/maps.py -> the FLAG DOM field that box is rendered as. `kind` is how the extension must DRIVE the input, not what HTML tag it is.",
+ "_source": "Live DOM capture of flag.dol.gov/dashboard/application/{9141,9089}/<id>, 2026-07-16.",
+ "_key": "The key is the map entry id (A1, Fa8a, Hc2b), NOT the box number printed on the form. A BOX NUMBER IS NOT UNIQUE ON THE ETA-9089: Section A is Employer Information numbered A.1-A.17, and Appendix A.A is Foreign Worker Contact Information numbered A.1-A.15 all over again. Keying on the bare box number silently pointed A.1 at the foreign worker's last-name input, so the feed would have typed the employer's legal business name into the beneficiary's name box on a federal form -- no error, no blank, just wrong. The generated key therefore carries the APX prefix from the field's nav section, and the test asserts every key resolves to a real map entry in both directions.",
+ "_coverage": "Text, select and textarea boxes only. NO RADIO is listed, and that is a statement of what has been observed rather than a preference: a FLAG radio carries its box number on the fieldset legend, and the capture this was built from recorded only the per-option label ('Yes'). The option `value` attributes are unknown -- circumstantial evidence in that capture points at numeric codes ('1'/'2'). Writing a value a React-controlled radio does not offer is ignored rather than raised, so nothing is emitted for a radio until the values are observed by the reveal-pass capture (tools/flag-capture.js in the family-ext repo).",
+ "_orphans_doc": "FLAG inputs that exist on the portal and have NO map entry to fill them. All 15 are ETA-9089 Appendix A.A -- the foreign worker's own name, address, date of birth, class of admission, alien number and countries of birth/citizenship. The map covers Sections A-J and stops; the appendices were never mapped. This is the cheapest coverage left on the form, because the beneficiary's identity is data the product certainly holds. Recorded here rather than deleted so it stays a known gap instead of an absence.",
+ "forms": {
+  "ETA-9141": {
+   "A1": {
+    "map_id": "A1",
+    "box": "A.1",
+    "name": "visaType",
+    "kind": "select"
+   },
+   "B1": {
+    "map_id": "B1",
+    "box": "B.1",
+    "name": "requestorPocLastName",
+    "kind": "text"
+   },
+   "B10": {
+    "map_id": "B10",
+    "box": "B.10",
+    "name": "requestorPocCountry",
+    "kind": "select"
+   },
+   "B11": {
+    "map_id": "B11",
+    "box": "B.11",
+    "name": "requestorPocProvince",
+    "kind": "text"
+   },
+   "B12": {
+    "map_id": "B12",
+    "box": "B.12",
+    "name": "requestorPocPhone",
+    "kind": "text"
+   },
+   "B13": {
+    "map_id": "B13",
+    "box": "B.13",
+    "name": "requestorPocPhoneExt",
+    "kind": "text"
+   },
+   "B14": {
+    "map_id": "B14",
+    "box": "B.14",
+    "name": "requestorPocEmail",
+    "kind": "text"
+   },
+   "B2": {
+    "map_id": "B2",
+    "box": "B.2",
+    "name": "requestorPocFirstName",
+    "kind": "text"
+   },
+   "B3": {
+    "map_id": "B3",
+    "box": "B.3",
+    "name": "requestorPocMiddleName",
+    "kind": "text"
+   },
+   "B4": {
+    "map_id": "B4",
+    "box": "B.4",
+    "name": "requestorPocJobTitle",
+    "kind": "text"
+   },
+   "B5": {
+    "map_id": "B5",
+    "box": "B.5",
+    "name": "requestorPocAddr1",
+    "kind": "text"
+   },
+   "B6": {
+    "map_id": "B6",
+    "box": "B.6",
+    "name": "requestorPocAddr2",
+    "kind": "text"
+   },
+   "B7": {
+    "map_id": "B7",
+    "box": "B.7",
+    "name": "requestorPocCity",
+    "kind": "text"
+   },
+   "B8": {
+    "map_id": "B8",
+    "box": "B.8",
+    "name": "requestorPocState",
+    "kind": "select"
+   },
+   "B9": {
+    "map_id": "B9",
+    "box": "B.9",
+    "name": "requestorPocPostalCode",
+    "kind": "text"
+   },
+   "C1": {
+    "map_id": "C1",
+    "box": "C.1",
+    "name": "empBusinessName",
+    "kind": "text"
+   },
+   "C10": {
+    "map_id": "C10",
+    "box": "C.10",
+    "name": "empPhone",
+    "kind": "text"
+   },
+   "C11": {
+    "map_id": "C11",
+    "box": "C.11",
+    "name": "empPhoneext",
+    "kind": "text"
+   },
+   "C12": {
+    "map_id": "C12",
+    "box": "C.12",
+    "name": "empFein",
+    "kind": "text"
+   },
+   "C2": {
+    "map_id": "C2",
+    "box": "C.2",
+    "name": "empTradeName",
+    "kind": "text"
+   },
+   "C3": {
+    "map_id": "C3",
+    "box": "C.3",
+    "name": "empAddr1",
+    "kind": "text"
+   },
+   "C4": {
+    "map_id": "C4",
+    "box": "C.4",
+    "name": "empAddr2",
+    "kind": "text"
+   },
+   "C5": {
+    "map_id": "C5",
+    "box": "C.5",
+    "name": "empCity",
+    "kind": "text"
+   },
+   "C6": {
+    "map_id": "C6",
+    "box": "C.6",
+    "name": "empState",
+    "kind": "select"
+   },
+   "C7": {
+    "map_id": "C7",
+    "box": "C.7",
+    "name": "empPostcode",
+    "kind": "text"
+   },
+   "C8": {
+    "map_id": "C8",
+    "box": "C.8",
+    "name": "empCountry",
+    "kind": "select"
+   },
+   "C9": {
+    "map_id": "C9",
+    "box": "C.9",
+    "name": "empProvince",
+    "kind": "text"
+   },
+   "D1": {
+    "map_id": "D1",
+    "box": null,
+    "name": "attyRepresentType",
+    "kind": "radio",
+    "options": {
+     "Attorney": "Attorney",
+     "Agent": "Agent",
+     "None": "None"
+    }
+   },
+   "D10": {
+    "map_id": "D10",
+    "box": "D.10",
+    "name": "attyCountry",
+    "kind": "select"
+   },
+   "D12": {
+    "map_id": "D12",
+    "box": "D.12",
+    "name": "attyPhone",
+    "kind": "text"
+   },
+   "D13": {
+    "map_id": "D13",
+    "box": "D.13",
+    "name": "attyPhoneext",
+    "kind": "text"
+   },
+   "D14": {
+    "map_id": "D14",
+    "box": "D.14",
+    "name": "attyEmail",
+    "kind": "text"
+   },
+   "D15": {
+    "map_id": "D15",
+    "box": "D.15",
+    "name": "attyBizname",
+    "kind": "text"
+   },
+   "D16": {
+    "map_id": "D16",
+    "box": "D.16",
+    "name": "attyFein",
+    "kind": "text"
+   },
+   "D2": {
+    "map_id": "D2",
+    "box": "D.2",
+    "name": "attyLastname",
+    "kind": "text"
+   },
+   "D3": {
+    "map_id": "D3",
+    "box": "D.3",
+    "name": "attyFirstname",
+    "kind": "text"
+   },
+   "D4": {
+    "map_id": "D4",
+    "box": "D.4",
+    "name": "attyMiddlename",
+    "kind": "text"
+   },
+   "D5": {
+    "map_id": "D5",
+    "box": "D.5",
+    "name": "attyAddr1",
+    "kind": "text"
+   },
+   "D6": {
+    "map_id": "D6",
+    "box": "D.6",
+    "name": "attyAddr2",
+    "kind": "text"
+   },
+   "D7": {
+    "map_id": "D7",
+    "box": "D.7",
+    "name": "attyCity",
+    "kind": "text"
+   },
+   "D8": {
+    "map_id": "D8",
+    "box": "D.8",
+    "name": "attyState",
+    "kind": "select"
+   },
+   "D9": {
+    "map_id": "D9",
+    "box": "D.9",
+    "name": "attyPostcode",
+    "kind": "text"
+   },
+   "E1": {
+    "map_id": "E1",
+    "box": null,
+    "name": "coveredByAcwia",
+    "kind": "radio",
+    "options": {
+     "Yes": "1",
+     "No": "No",
+     "N/A": "2"
+    }
+   },
+   "E2": {
+    "map_id": "E2",
+    "box": null,
+    "name": "sportsLeague",
+    "kind": "radio",
+    "options": {
+     "Yes": "1",
+     "No": "No"
+    }
+   },
+   "E3": {
+    "map_id": "E3",
+    "box": null,
+    "name": "cba",
+    "kind": "radio",
+    "options": {
+     "Yes": "1",
+     "No": "No",
+     "N/A": "2"
+    }
+   },
+   "E4": {
+    "map_id": "E4",
+    "box": null,
+    "name": "pre_dbaSca",
+    "kind": "radio",
+    "options": {
+     "Yes": "1",
+     "No": "No"
+    }
+   },
+   "E5": {
+    "map_id": "E5",
+    "box": null,
+    "name": "dbaSurvey",
+    "kind": "radio",
+    "options": {
+     "Yes": "1",
+     "No": "No"
+    }
+   },
+   "FA1": {
+    "map_id": "Fa1",
+    "box": "F.a.1",
+    "name": "jobTitle",
+    "kind": "text"
+   },
+   "FA2": {
+    "map_id": "Fa2",
+    "box": "F.a.2",
+    "name": "jobDuties",
+    "kind": "textarea"
+   },
+   "FA3": {
+    "map_id": "FA3",
+    "box": null,
+    "name": "superviseOtherEmp",
+    "kind": "radio",
+    "options": {
+     "Yes": "1",
+     "No": "No"
+    }
+   },
+   "FB1": {
+    "map_id": "FB1",
+    "box": null,
+    "name": "primaryEducationLevel",
+    "kind": "radio",
+    "options": {
+     "none": "NONE",
+     "high_school": "HIGHSCHOOLGED",
+     "associates": "ASSOCIATES",
+     "bachelors": "BACHELORS",
+     "masters": "MASTERS",
+     "doctorate": "DOCTORATEPHD",
+     "other": "OTHERDEGREE"
+    }
+   },
+   "FB1A": {
+    "map_id": "Fb1a",
+    "box": "F.b.1.a",
+    "name": "otherEducation",
+    "kind": "textarea"
+   },
+   "FB1B": {
+    "map_id": "Fb1b",
+    "box": "F.b.1.b",
+    "name": "major",
+    "kind": "textarea"
+   },
+   "FB2": {
+    "map_id": "FB2",
+    "box": null,
+    "name": "secondDiploma",
+    "kind": "radio",
+    "options": {
+     "Yes": "1",
+     "No": "No"
+    }
+   },
+   "FB3": {
+    "map_id": "FB3",
+    "box": null,
+    "name": "trainingRequired",
+    "kind": "radio",
+    "options": {
+     "Yes": "1",
+     "No": "No"
+    }
+   },
+   "FB4": {
+    "map_id": "FB4",
+    "box": null,
+    "name": "empExperienceRequired",
+    "kind": "radio",
+    "options": {
+     "Yes": "1",
+     "No": "No"
+    }
+   },
+   "FB5": {
+    "map_id": "FB5",
+    "box": null,
+    "name": "isSpecialRequirements",
+    "kind": "radio",
+    "options": {
+     "Yes": "1",
+     "No": "No"
+    }
+   },
+   "FC1": {
+    "map_id": "FC1",
+    "box": null,
+    "name": "altJobRequirement",
+    "kind": "radio",
+    "options": {
+     "Yes": "1",
+     "No": "No"
+    }
+   },
+   "FD2": {
+    "map_id": "Fd2",
+    "box": "F.d.2",
+    "name": "supervisorJobTitle",
+    "kind": "text"
+   },
+   "FD3": {
+    "map_id": "FD3",
+    "box": null,
+    "name": "travelRequired",
+    "kind": "radio",
+    "options": {
+     "Yes": "1",
+     "No": "No"
+    }
+   },
+   "FD3A": {
+    "map_id": "Fd3a",
+    "box": "F.d.3.a",
+    "name": "travelDetails",
+    "kind": "textarea"
+   },
+   "FE1": {
+    "map_id": "Fe1",
+    "box": "F.e.1",
+    "name": "primaryWorksiteAddr1",
+    "kind": "text"
+   },
+   "FE2": {
+    "map_id": "Fe2",
+    "box": "F.e.2",
+    "name": "primaryWorksiteAddr2",
+    "kind": "text"
+   },
+   "FE3": {
+    "map_id": "Fe3",
+    "box": "F.e.3",
+    "name": "primaryWorksiteCity",
+    "kind": "text"
+   },
+   "FE4": {
+    "map_id": "Fe4",
+    "box": "F.e.4",
+    "name": "primaryWorksiteState",
+    "kind": "select"
+   },
+   "FE5": {
+    "map_id": "Fe5",
+    "box": "F.e.5",
+    "name": "primaryWorksiteCounty",
+    "kind": "text"
+   },
+   "FE6": {
+    "map_id": "Fe6",
+    "box": "F.e.6",
+    "name": "primaryWorksitePostalCode",
+    "kind": "text"
+   },
+   "FE7": {
+    "map_id": "FE7",
+    "box": null,
+    "name": "otherWorksiteLocation",
+    "kind": "radio",
+    "options": {
+     "Yes": "1",
+     "No": "No"
+    }
+   }
+  },
+  "ETA-9089": {
+   "A1": {
+    "map_id": "A1",
+    "box": "A.1",
+    "name": "empBusinessName",
+    "kind": "text"
+   },
+   "A10": {
+    "map_id": "A10",
+    "box": "A.10",
+    "name": "empPhone",
+    "kind": "text"
+   },
+   "A11": {
+    "map_id": "A11",
+    "box": "A.11",
+    "name": "empPhoneext",
+    "kind": "text"
+   },
+   "A12": {
+    "map_id": "A12",
+    "box": "A.12",
+    "name": "empFein",
+    "kind": "text"
+   },
+   "A14": {
+    "map_id": "A14",
+    "box": "A.14",
+    "name": "empNumPayroll",
+    "kind": "text"
+   },
+   "A15": {
+    "map_id": "A15",
+    "box": "A.15",
+    "name": "empYearCommenced",
+    "kind": "text"
+   },
+   "A16": {
+    "map_id": "A16",
+    "box": null,
+    "name": "empWorkerInterest",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No"
+    }
+   },
+   "A17": {
+    "map_id": "A17",
+    "box": null,
+    "name": "empRelationshipWorker",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No"
+    }
+   },
+   "A2": {
+    "map_id": "A2",
+    "box": "A.2",
+    "name": "empTradeName",
+    "kind": "text"
+   },
+   "A3": {
+    "map_id": "A3",
+    "box": "A.3",
+    "name": "empAddr1",
+    "kind": "text"
+   },
+   "A4": {
+    "map_id": "A4",
+    "box": "A.4",
+    "name": "empAddr2",
+    "kind": "text"
+   },
+   "A5": {
+    "map_id": "A5",
+    "box": "A.5",
+    "name": "empCity",
+    "kind": "text"
+   },
+   "A6": {
+    "map_id": "A6",
+    "box": "A.6",
+    "name": "empState",
+    "kind": "select"
+   },
+   "A7": {
+    "map_id": "A7",
+    "box": "A.7",
+    "name": "empPostcode",
+    "kind": "text"
+   },
+   "A8": {
+    "map_id": "A8",
+    "box": "A.8",
+    "name": "empCountry",
+    "kind": "select"
+   },
+   "A9": {
+    "map_id": "A9",
+    "box": "A.9",
+    "name": "empProvince",
+    "kind": "text"
+   },
+   "B1": {
+    "map_id": "B1",
+    "box": "B.1",
+    "name": "empPocLastName",
+    "kind": "text"
+   },
+   "B10": {
+    "map_id": "B10",
+    "box": "B.10",
+    "name": "empPocCountry",
+    "kind": "select"
+   },
+   "B11": {
+    "map_id": "B11",
+    "box": "B.11",
+    "name": "empPocProvince",
+    "kind": "text"
+   },
+   "B12": {
+    "map_id": "B12",
+    "box": "B.12",
+    "name": "empPocPhone",
+    "kind": "text"
+   },
+   "B13": {
+    "map_id": "B13",
+    "box": "B.13",
+    "name": "empPocPhoneExt",
+    "kind": "text"
+   },
+   "B14": {
+    "map_id": "B14",
+    "box": "B.14",
+    "name": "empPocEmail",
+    "kind": "text"
+   },
+   "B2": {
+    "map_id": "B2",
+    "box": "B.2",
+    "name": "empPocFirstName",
+    "kind": "text"
+   },
+   "B3": {
+    "map_id": "B3",
+    "box": "B.3",
+    "name": "empPocMiddleName",
+    "kind": "text"
+   },
+   "B4": {
+    "map_id": "B4",
+    "box": "B.4",
+    "name": "empPocJobTitle",
+    "kind": "text"
+   },
+   "B5": {
+    "map_id": "B5",
+    "box": "B.5",
+    "name": "empPocAddr1",
+    "kind": "text"
+   },
+   "B6": {
+    "map_id": "B6",
+    "box": "B.6",
+    "name": "empPocAddr2",
+    "kind": "text"
+   },
+   "B7": {
+    "map_id": "B7",
+    "box": "B.7",
+    "name": "empPocCity",
+    "kind": "text"
+   },
+   "B8": {
+    "map_id": "B8",
+    "box": "B.8",
+    "name": "empPocState",
+    "kind": "select"
+   },
+   "B9": {
+    "map_id": "B9",
+    "box": "B.9",
+    "name": "empPocPostalCode",
+    "kind": "text"
+   },
+   "C1": {
+    "map_id": "C1",
+    "box": null,
+    "name": "attyAgRepType",
+    "kind": "radio",
+    "options": {
+     "Attorney": "Attorney",
+     "Agent": "Agent",
+     "None": "None"
+    }
+   },
+   "C10": {
+    "map_id": "C10",
+    "box": "C.10",
+    "name": "attyAgCountry",
+    "kind": "select"
+   },
+   "C12": {
+    "map_id": "C12",
+    "box": "C.12",
+    "name": "attyAgPhone",
+    "kind": "text"
+   },
+   "C13": {
+    "map_id": "C13",
+    "box": "C.13",
+    "name": "attyAgPhoneExt",
+    "kind": "text"
+   },
+   "C14": {
+    "map_id": "C14",
+    "box": "C.14",
+    "name": "attyAgEmail",
+    "kind": "text"
+   },
+   "C15": {
+    "map_id": "C15",
+    "box": "C.15",
+    "name": "attyAgLawFirmName",
+    "kind": "text"
+   },
+   "C16": {
+    "map_id": "C16",
+    "box": "C.16",
+    "name": "attyAgFEIN",
+    "kind": "text"
+   },
+   "C17": {
+    "map_id": "C17",
+    "box": "C.17",
+    "name": "attyAgStateBarNumber",
+    "kind": "text"
+   },
+   "C18": {
+    "map_id": "C18",
+    "box": "C.18",
+    "name": "attyAgGoodStandingState",
+    "kind": "select"
+   },
+   "C19": {
+    "map_id": "C19",
+    "box": "C.19",
+    "name": "attyAgGoodStandingAttorney",
+    "kind": "text"
+   },
+   "C2": {
+    "map_id": "C2",
+    "box": "C.2",
+    "name": "attyAgLastName",
+    "kind": "text"
+   },
+   "C3": {
+    "map_id": "C3",
+    "box": "C.3",
+    "name": "attyAgFirstName",
+    "kind": "text"
+   },
+   "C4": {
+    "map_id": "C4",
+    "box": "C.4",
+    "name": "attyAgMiddleName",
+    "kind": "text"
+   },
+   "C5": {
+    "map_id": "C5",
+    "box": "C.5",
+    "name": "attyAgAddress1",
+    "kind": "text"
+   },
+   "C6": {
+    "map_id": "C6",
+    "box": "C.6",
+    "name": "attyAgAddress2",
+    "kind": "text"
+   },
+   "C7": {
+    "map_id": "C7",
+    "box": "C.7",
+    "name": "attyAgCity",
+    "kind": "text"
+   },
+   "C8": {
+    "map_id": "C8",
+    "box": "C.8",
+    "name": "attyAgState",
+    "kind": "select"
+   },
+   "C9": {
+    "map_id": "C9",
+    "box": "C.9",
+    "name": "attyAgPostalCode",
+    "kind": "text"
+   },
+   "D2": {
+    "map_id": "D2",
+    "box": null,
+    "name": "fwInfoAttyorAgent",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No"
+    },
+    "confirm": "D.1 is a statement with a 'Go to Appendix A' link, not an input, so this Yes/No is read as D.2. Confirm against the live form before this box is ever emitted."
+   },
+   "E1": {
+    "map_id": "E1",
+    "box": "E.1",
+    "name": "jobOppPWDNumber",
+    "kind": "text"
+   },
+   "E2": {
+    "map_id": "E2",
+    "box": null,
+    "name": "jobOppPWDAttached",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No",
+     "N/A": "N/A"
+    },
+    "confirm": "The only remaining radio in section E; the map's E.2 wording ('PWD not obtained because of supervised recruitment') does not obviously match the field name jobOppPWDAttached. Confirm before emitting."
+   },
+   "E4": {
+    "map_id": "E4",
+    "box": null,
+    "name": "jobOppWagePer",
+    "kind": "radio",
+    "options": {
+     "hour": "Hour",
+     "week": "Week",
+     "biweekly": "Bi-Weekly",
+     "month": "Month",
+     "year": "Year"
+    }
+   },
+   "E5": {
+    "map_id": "E5",
+    "box": "E.5",
+    "name": "jobOppWageConditions",
+    "kind": "textarea"
+   },
+   "FA1": {
+    "map_id": "FA1",
+    "box": null,
+    "name": "primaryWorksiteType",
+    "kind": "radio",
+    "options": {
+     "business_premises": "1",
+     "employer_household": "2",
+     "employee_household": "3",
+     "no_specific_worksite": "4"
+    }
+   },
+   "FA2": {
+    "map_id": "Fa2",
+    "box": "F.a.2",
+    "name": "primaryWorksiteAddr1",
+    "kind": "text"
+   },
+   "FA3": {
+    "map_id": "Fa3",
+    "box": "F.a.3",
+    "name": "primaryWorksiteAddr2",
+    "kind": "text"
+   },
+   "FA4": {
+    "map_id": "Fa4",
+    "box": "F.a.4",
+    "name": "primaryWorksiteCity",
+    "kind": "text"
+   },
+   "FA5": {
+    "map_id": "Fa5",
+    "box": "F.a.5",
+    "name": "primaryWorksiteCounty",
+    "kind": "text"
+   },
+   "FA6": {
+    "map_id": "Fa6",
+    "box": "F.a.6",
+    "name": "primaryWorksiteState",
+    "kind": "select"
+   },
+   "FA7": {
+    "map_id": "Fa7",
+    "box": "F.a.7",
+    "name": "primaryWorksitePostalCode",
+    "kind": "text"
+   },
+   "FA8": {
+    "map_id": "Fa8",
+    "box": "F.a.8",
+    "name": "primaryWorksiteBlsAreaCode",
+    "kind": "text"
+   },
+   "FA8A": {
+    "map_id": "Fa8a",
+    "box": "F.a.8.a",
+    "name": "primaryWorksiteBlsArea",
+    "kind": "text"
+   },
+   "G10": {
+    "map_id": "G10",
+    "box": null,
+    "name": "empUseCredential",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No",
+     "N/A": "N/A"
+    }
+   },
+   "G11": {
+    "map_id": "G11",
+    "box": null,
+    "name": "emprecpayment",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No"
+    }
+   },
+   "G12": {
+    "map_id": "G12",
+    "box": null,
+    "name": "emPlayoff",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No"
+    }
+   },
+   "G6": {
+    "map_id": "G6",
+    "box": null,
+    "name": "jobEmpPremises",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No"
+    }
+   },
+   "G7": {
+    "map_id": "G7",
+    "box": null,
+    "name": "jobComboOccup",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No"
+    }
+   },
+   "G8": {
+    "map_id": "G8",
+    "box": null,
+    "name": "jobForeignLanguage",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No"
+    }
+   },
+   "G9": {
+    "map_id": "G9",
+    "box": null,
+    "name": "jobReqExceed",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No",
+     "N/A": "N/A"
+    }
+   },
+   "HA1": {
+    "map_id": "HA1",
+    "box": null,
+    "name": "supervisedRecruitment",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No"
+    }
+   },
+   "HB1": {
+    "map_id": "HB1",
+    "box": null,
+    "name": "occupationType",
+    "kind": "radio",
+    "options": {
+     "professional": "professional_occupation",
+     "non_professional": "non_professional",
+     "college_university_teacher": "college_university_teacher",
+     "schedule_a": "schedule_a",
+     "professional_athlete": "professional_athlete"
+    }
+   },
+   "I1": {
+    "map_id": "I1",
+    "box": "I.1",
+    "name": "sectionIAgreement",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "on"
+    },
+    "confirm": "Listed so the table describes the form completely. NEVER autofilled \u2014 see _never_autofilled and _NEVER_AUTOFILLED in autofill.py."
+   },
+   "J1": {
+    "map_id": "J1",
+    "box": "J.1",
+    "name": "prepLastName",
+    "kind": "text"
+   },
+   "J2": {
+    "map_id": "J2",
+    "box": "J.2",
+    "name": "prepfirstName",
+    "kind": "text"
+   },
+   "J3": {
+    "map_id": "J3",
+    "box": "J.3",
+    "name": "prepMiddleName",
+    "kind": "text"
+   },
+   "J4": {
+    "map_id": "J4",
+    "box": "J.4",
+    "name": "prepLawFirmFEIN",
+    "kind": "text"
+   },
+   "J5": {
+    "map_id": "J5",
+    "box": "J.5",
+    "name": "prepFirmBusinessName",
+    "kind": "text"
+   },
+   "J6": {
+    "map_id": "J6",
+    "box": "J.6",
+    "name": "prepEmail",
+    "kind": "text"
+   }
+  }
+ },
+ "orphans": {
+  "ETA-9141": [],
+  "ETA-9089": [
+   {
+    "box": "A.1",
+    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
+    "name": "appAContLastName",
+    "kind": "text"
+   },
+   {
+    "box": "A.2",
+    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
+    "name": "appAContFirstName",
+    "kind": "text"
+   },
+   {
+    "box": "A.3",
+    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
+    "name": "appAContMiddleName",
+    "kind": "text"
+   },
+   {
+    "box": "A.4",
+    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
+    "name": "appAContAddress1",
+    "kind": "text"
+   },
+   {
+    "box": "A.5",
+    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
+    "name": "appAContAddress2",
+    "kind": "text"
+   },
+   {
+    "box": "A.9",
+    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
+    "name": "appAContCountryId",
+    "kind": "select"
+   },
+   {
+    "box": "A.6",
+    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
+    "name": "appAContCity",
+    "kind": "text"
+   },
+   {
+    "box": "A.7",
+    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
+    "name": "appAContStateId",
+    "kind": "select"
+   },
+   {
+    "box": "A.8",
+    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
+    "name": "appAContPostalCode",
+    "kind": "text"
+   },
+   {
+    "box": "A.10",
+    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
+    "name": "appAContProvince",
+    "kind": "text"
+   },
+   {
+    "box": "A.11",
+    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
+    "name": "appAContDOB",
+    "kind": "text"
+   },
+   {
+    "box": "A.12",
+    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
+    "name": "appAContAdmClassId",
+    "kind": "select"
+   },
+   {
+    "box": "A.13",
+    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
+    "name": "appAContAlienReg",
+    "kind": "text"
+   },
+   {
+    "box": "A.14",
+    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
+    "name": "appAContBirthCountryId",
+    "kind": "select"
+   },
+   {
+    "box": "A.15",
+    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
+    "name": "appAContCitizenCountryId",
+    "kind": "select"
+   }
+  ]
+ },
+ "_radio_values": "Radio option values come from the live reveal pass of 2026-08-17 and are NOT interchangeable between the two forms. Yes/No/N-A is \"1\"/\"No\"/\"2\" on the ETA-9141 and \"Yes\"/\"No\"/\"N/A\" on the ETA-9089 -- the same logical question, spelled differently. Writing \"Yes\" to a 9141 radio is ignored by React: no error, and the box stays blank on a federal form. `options` maps the value the backend map emits to the value THAT FORM's widget offers; a value not in the map is never written.",
+ "_never_autofilled": "ETA-9089 I.1 (sectionIAgreement) is the employer's certification UNDER PENALTY OF PERJURY. The map carries const=\"Yes\" because the form is not filable without it, but ticking it is a person's act, not an autofill. It is listed here so the table describes the form completely, and refused in autofill.py."
+}

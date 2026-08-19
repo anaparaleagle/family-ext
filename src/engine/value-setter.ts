@@ -108,6 +108,13 @@ export function locateElement(spec: FieldSpec): HTMLElement | null {
   const locate = spec.locate;
   if (!locate) return null;
 
+  // An id identifies exactly one element, so it goes before the anchor walk and
+  // the label match — both of which can land on a neighbour.
+  if (locate.id) {
+    const byId = document.getElementById(locate.id);
+    if (byId) return byId;
+  }
+
   if (locate.nearName) {
     const anchor = findByName(locate.nearName);
     if (anchor) {
