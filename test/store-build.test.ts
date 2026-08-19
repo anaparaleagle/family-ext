@@ -262,3 +262,101 @@ describe("allowedApiOrigins", () => {
     }
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+// The listing document is what gets pasted into the dashboard, by hand, months
+// after anyone read the manifest. It drifted: it still justified `activeTab`
+// after the permission was removed to clear "Purple Potassium", and it still
+// named the v0.8.1 zip after that package was declared dead. Both are the kind
+// of mistake a reviewer sees and we do not.
+// ─────────────────────────────────────────────────────────────────────────
+
+const LISTING = join(REPO, "store-assets", "LISTING.md");
+
+function listing(): string {
+  return readFileSync(LISTING, "utf-8");
+}
+
+function manifestField(name: string): string {
+  return JSON.parse(readFileSync(MANIFEST, "utf-8"))[name] as string;
+}
+
+/** The block the dashboard's per-permission justification boxes are filled from. */
+function justificationBlock(): string {
+  return listing().split("**Permission justifications**")[1]?.split("**Remote code**")[0] ?? "";
+}
+
+/** What the listing offers a justification for, as opposed to what we declare. */
+function justifiedPermissions(): string[] {
+  return [...justificationBlock().matchAll(/^`([A-Za-z]+)`$/gm)].map((m) => m[1]);
+}
+
+/**
+ * Everything a reviewer pastes verbatim: title, summary, description, purpose.
+ * Whitespace is collapsed because the markdown wraps these blocks, and a phrase
+ * broken across two lines is still the phrase.
+ */
+function reviewerFacingText(): string {
+  const l = listing();
+  return l
+    .slice(l.indexOf("## 2. Store listing tab"), l.indexOf("**Permission justifications**"))
+    .replace(/\s+/g, " ");
+}
+
+describe("the listing document matches what we ship", () => {
+  it("justifies exactly the permissions the manifest declares", () => {
+    expect(justifiedPermissions().sort()).toEqual([...manifestPermissions()].sort());
+  });
+
+  it("justifies every host permission the manifest declares", () => {
+    const block = justificationBlock();
+    for (const host of manifestHostPermissions()) {
+      expect(block, `no justification for host permission "${host}"`).toContain(host);
+    }
+  });
+
+  it("names the package to upload at the version the manifest carries", () => {
+    expect(listing()).toContain(`paraleagle-family-ext-v${manifestField("version")}-webstore.zip`);
+  });
+
+  it("uses the manifest name as the listing title", () => {
+    const title = listing().split("**Title**")[1]?.split("**Summary**")[0]?.trim();
+    expect(title).toBe(manifestField("name"));
+  });
+});
+
+// Store policy forbids implying affiliation with another product, and myUSCIS is
+// USCIS's own product name. Naming the site we fill is fine and necessary, so
+// the hostname `my.uscis.gov` passes this and the brand token does not.
+describe("no government product brand in what a reviewer reads", () => {
+  const BRAND = /myuscis/i;
+
+  it("is absent from the item name", () => {
+    expect(manifestField("name")).not.toMatch(BRAND);
+  });
+
+  it("is absent from the item description", () => {
+    expect(manifestField("description")).not.toMatch(BRAND);
+  });
+
+  it("is absent from the listing text pasted into the dashboard", () => {
+    expect(reviewerFacingText()).not.toMatch(BRAND);
+  });
+
+  it("still says we are not affiliated with USCIS", () => {
+    expect(reviewerFacingText()).toContain("not affiliated with, or endorsed by");
+  });
+});
+
+// "package.json, which is kept in step by hand" — it was not. The lock file sat
+// at 0.8.0 through two version bumps.
+describe("one version number, everywhere", () => {
+  it("is the same in the manifest, package.json and the lock file", () => {
+    const version = manifestField("version");
+    const pkg = JSON.parse(readFileSync(join(REPO, "package.json"), "utf-8"));
+    const lock = JSON.parse(readFileSync(join(REPO, "package-lock.json"), "utf-8"));
+    expect(pkg.version).toBe(version);
+    expect(lock.version).toBe(version);
+    expect(lock.packages[""].version).toBe(version);
+  });
+});
