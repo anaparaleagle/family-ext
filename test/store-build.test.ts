@@ -151,13 +151,19 @@ describe("resolveApiBaseUrl", () => {
 // here before this extension is ever submitted.
 // ─────────────────────────────────────────────────────────────────────────
 
-// Keep in step with `entries` in esbuild.config.mjs.
-const BUNDLE_ENTRIES = [
-  "src/popup/popup.ts",
-  "src/runner/content.ts",
-  "src/engine/formik-bridge.ts",
-  "src/engine/download-proxy.ts",
-];
+/**
+ * Every entry point the build ships, read from the build script rather than
+ * restated — a fifth entry (the FLAG content script) arrived and this list did
+ * not, so the bundle that got added to the package was the one bundle nobody
+ * scanned. Derived, it cannot drift again.
+ */
+function bundleEntries(): string[] {
+  const src = readFileSync(join(REPO, "esbuild.config.mjs"), "utf-8");
+  const block = src.match(/const entries = \[([\s\S]*?)\];/);
+  return [...(block?.[1] ?? "").matchAll(/\bin:\s*"([^"]+)"/g)].map((m) => m[1]);
+}
+
+const BUNDLE_ENTRIES = bundleEntries();
 
 async function bundle(entry: string): Promise<string> {
   const result = await esbuild.build({

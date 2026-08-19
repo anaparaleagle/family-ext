@@ -5,7 +5,7 @@ rather than improvised. Keep this file in step with the manifest.
 
 Dashboard: https://chrome.google.com/webstore/devconsole
 
-Upload: `paraleagle-family-ext-v0.8.3-webstore.zip` (repo root, gitignored —
+Upload: `paraleagle-family-ext-v0.9.0-webstore.zip` (repo root, gitignored —
 rebuild with `npm run build` then re-zip the CONTENTS of `dist/`).
 
 ---
@@ -48,23 +48,25 @@ Version numbers cannot be reused. Every upload needs a higher `version` in
 
 **Summary** (132 characters max)
 
-    Fill the guided online I-130, I-539 and N-400 on my.uscis.gov from your firm's ParaLeagle case data.
+    Fill the online I-130, I-539, N-400 and ETA-9141 on my.uscis.gov and flag.dol.gov from your firm's case data.
 
 **Description**
 
     ParaLeagle Family Form Autofill is a tool for immigration law-firm staff
     who already use ParaLeagle. It fills the guided online forms on my.uscis.gov
-    from case data the firm has already collected and reviewed in ParaLeagle,
-    instead of re-typing it a third time.
+    and the labor-certification forms on flag.dol.gov from case data the firm has
+    already collected and reviewed in ParaLeagle, instead of re-typing it a third
+    time.
 
     Forms supported:
     - I-130, Petition for Alien Relative
     - I-539, Application to Extend/Change Nonimmigrant Status
     - N-400, Application for Naturalization
+    - ETA-9141, Application for Prevailing Wage Determination
 
     How it works:
     1. Sign in with your ParaLeagle account in the extension popup.
-    2. Pick the case and the form you have open on my.uscis.gov.
+    2. Pick the case and the form you have open.
     3. Load the case, then use the toolbar on the form to fill page by page,
        or to walk the whole form.
 
@@ -73,10 +75,11 @@ Version numbers cannot be reused. Every upload needs a higher `version` in
 
     Nothing is filled without a signed-in ParaLeagle user asking for it, and the
     extension only ever writes data the firm itself supplied. It does not submit
-    anything to USCIS — a person reviews every page and files it.
+    anything to either agency — a person reviews every page and files it.
 
     A ParaLeagle account is required. The extension is not affiliated with, or
-    endorsed by, U.S. Citizenship and Immigration Services.
+    endorsed by, U.S. Citizenship and Immigration Services or the U.S. Department
+    of Labor.
 
 **Category**
 
@@ -113,18 +116,19 @@ suggests a human tried to sign in. Paste:
 
     ParaLeagle Family Form Autofill is an internal tool for immigration law
     firms. It fills the guided online Forms I-130, I-539 and N-400 on
-    my.uscis.gov from case data held in the firm's own ParaLeagle account, so it
-    requires a firm login and does nothing on any other site.
+    my.uscis.gov, and Form ETA-9141 on the Department of Labor's flag.dol.gov,
+    from case data held in the firm's own ParaLeagle account, so it requires a
+    firm login and does nothing on any other site.
 
     Exercising it end to end needs two accounts: a ParaLeagle firm account, and a
-    USCIS online account with a form draft open. We cannot supply a shared
+    USCIS or DOL FLAG account with a form draft open. We cannot supply a shared
     ParaLeagle login because accounts contain real client immigration records —
     A-numbers, passports, dates of birth. We can provision a reviewer account
     against a demo-only tenant on request; please ask and we will respond the
     same day.
 
     The extension only ever writes data the firm itself supplied, and it submits
-    nothing to USCIS. A person reviews every page and files it.
+    nothing to either agency. A person reviews every page and files it.
 
 If they come back citing non-functionality, THEN provision the demo tenant. Do
 not appeal a violation that is real — it costs days and clears nothing.
@@ -135,11 +139,11 @@ not appeal a violation that is real — it costs days and clears nothing.
 
 **Single purpose**
 
-    A single purpose: fill the guided online USCIS forms on my.uscis.gov with
-    immigration case data the signed-in user's law firm has already entered in
-    ParaLeagle. Every feature serves that one flow — signing in, choosing the
-    case, filling the form's fields, and attaching documents the firm has
-    already uploaded for that case.
+    A single purpose: fill the online immigration and labor-certification forms
+    a law firm files — on my.uscis.gov and on flag.dol.gov — with case data the
+    signed-in user's firm has already entered in ParaLeagle. Every feature serves
+    that one flow: signing in, choosing the case, filling the form's fields, and
+    attaching documents the firm has already uploaded for that case.
 
 **Permission justifications**
 
@@ -152,8 +156,14 @@ not appeal a violation that is real — it costs days and clears nothing.
 
 Host permission — `https://my.uscis.gov/*`
 
-    This is the only site the extension fills. The content script renders the
+    One of the two sites the extension fills. The content script renders the
     fill toolbar and sets field values on the guided online forms there.
+
+Host permission — `https://flag.dol.gov/*`
+
+    The Department of Labor's FLAG portal, where Form ETA-9141 is filed. Same
+    content script, same job as the USCIS site: it renders the fill toolbar and
+    sets field values on the form the user already has open.
 
 Host permission — `https://family-api.paraleagle.io/*`
 

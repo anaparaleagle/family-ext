@@ -4,7 +4,15 @@
 
 // /web-extension entry point — see the note in ../engine/firebase.ts.
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth/web-extension";
-import { auth } from "../engine/firebase";
+import { authFor, projectForApi } from "../engine/firebase";
+import {
+  FLAG_CONFIGS,
+  FLAG_KEYS,
+  autofillPath,
+  caseTypeMatchesForm,
+  caseTypesForForm,
+  isFlagForm,
+} from "../flag/registry";
 import { STORAGE_KEYS, MyuscisPayload } from "../runner/payload";
 import { FORM_CONFIGS } from "../runner/registry";
 import { apiEnvOptions, allowedApiOrigins, resolveApiBaseUrl } from "../engine/api-config";
@@ -19,6 +27,37 @@ const SESSION_EXPIRED = "Session expired — reopen the popup and Load case.";
  * build has no localhost entry; `npm run watch` puts one back.
  */
 const HOST_PERMISSIONS = chrome.runtime.getManifest().host_permissions ?? [];
+
+/**
+ * Auth for the backend currently selected, not for a fixed project.
+ *
+ * The backend only accepts tokens from the one Firebase project it verifies
+ * against, so which project we sign into is a property of which backend is
+ * picked — see engine/firebase. Re-pointed by `useApi`, never read before init()
+ * has set the selector from storage.
+ */
+let auth = authFor(undefined);
+
+/**
+ * Point auth at the project this backend verifies against, and re-render.
+ *
+ * Sessions do NOT carry across projects: a user signed into paraleagle-family is
+ * simply not signed in as far as the dev project is concerned. So the login form
+ * comes back on a switch, which is honest — the alternative is showing a signed-in
+ * email beside a case list that 401s.
+ */
+function useApi(apiBaseUrl: string): void {
+  auth = authFor(apiBaseUrl);
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      showLoggedIn(user.email || "");
+      loadCases();
+    } else {
+      showLogin();
+      setEmpty(`Sign in to ${projectForApi(apiBaseUrl).projectId} for this backend.`);
+    }
+  });
+}
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -188,9 +227,23 @@ function setEmpty(msg: string): void {
 
 function renderCases(query: string): void {
   const q = query.trim().toLowerCase();
+  const formType = formTypeSelect.value;
   caseList.innerHTML = "";
+
+  // Cases this form can actually be filled for. The ETA-9141 is PERM-only, so
+  // listing the firm's I-130s and I-140s under it offers a choice whose only
+  // outcome is a 400 from the backend — which reads as the extension being
+  // broken rather than as the wrong case.
+  const eligible = cases.filter((c) => caseTypeMatchesForm(c.case_type, formType));
+
+  // A case selected under one form may not exist under the next. Dropping it
+  // here stops Load case firing against a case no longer on screen.
+  if (selectedCaseId && !eligible.some((c) => c.id === selectedCaseId)) {
+    selectedCaseId = "";
+  }
+
   let shown = 0;
-  for (const c of cases) {
+  for (const c of eligible) {
     const label = caseLabel(c);
     if (q && !label.toLowerCase().includes(q)) continue;
     shown++;
@@ -200,8 +253,15 @@ function renderCases(query: string): void {
     row.textContent = label;
     caseList.appendChild(row);
   }
+
+  if (shown > 0) return;
+  const allowed = caseTypesForForm(formType);
   if (cases.length === 0) setEmpty("No cases");
-  else if (shown === 0) setEmpty("No matching cases");
+  else if (eligible.length === 0 && allowed) {
+    // Say WHICH type is missing. "No matching cases" under a form the firm has
+    // no cases for looks like a broken search box.
+    setEmpty(`No ${allowed.join("/")} cases — ${formType} is filed on ${allowed.join("/")} cases only.`);
+  } else setEmpty("No matching cases");
 }
 
 async function loadCases(): Promise<void> {
@@ -225,6 +285,54 @@ async function loadCases(): Promise<void> {
   }
 }
 
+/**
+ * Load a DOL form's values (ETA-9141) from the eta-autofill feed.
+ *
+ * A separate path from the myUSCIS one because the contract differs in the parts
+ * that matter: the case id is in the URL rather than a query parameter, there are
+ * no upload pages, and the response carries an `autofill_report` saying which
+ * boxes the extension is deliberately NOT filling. That report is the reason to
+ * load from the popup at all rather than only at fill time — a caseworker should
+ * know before they start that, say, eight of the wage-source questions are theirs
+ * to answer.
+ */
+async function loadFlagCase(formType: string): Promise<void> {
+  const res = await apiRequest(autofillPath(selectedCaseId, formType), true);
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    return showError(describeApiError(res.status, data));
+  }
+  const payload = (await res.json()) as {
+    field_values?: Record<string, string>;
+    autofill_report?: {
+      typed_count?: number;
+      typed_needs_confirming?: string[];
+      refused_fields?: { id: string }[];
+      unmapped_fields?: { id: string }[];
+    };
+  };
+  const fieldValues = payload.field_values;
+  if (!fieldValues || typeof fieldValues !== "object") {
+    return showError(`No field values in the ${formType} response.`);
+  }
+  await chrome.storage.local.set({
+    [FLAG_KEYS.fieldValues]: fieldValues,
+    [FLAG_KEYS.caseId]: selectedCaseId,
+    [FLAG_KEYS.formType]: formType,
+    [FLAG_KEYS.loadedAt]: Date.now(),
+  });
+  const report = payload.autofill_report ?? {};
+  const confirm = report.typed_needs_confirming?.length ?? 0;
+  const refused = report.refused_fields?.length ?? 0;
+  setStatus(
+    `Loaded ${Object.keys(fieldValues).length} ${formType} fields.` +
+      (confirm ? ` ${confirm} standing answer(s) to check before you save.` : "") +
+      (refused ? ` ${refused} you must tick yourself.` : ""),
+  );
+  loadBtn.textContent = "Loaded!";
+  setTimeout(() => (loadBtn.textContent = "Load case"), 1500);
+}
+
 async function handleLoadCase(): Promise<void> {
   hideError();
   if (!selectedCaseId) return showError("Select a case first.");
@@ -232,6 +340,9 @@ async function handleLoadCase(): Promise<void> {
   loadBtn.textContent = "Loading…";
   loadBtn.disabled = true;
   try {
+    if (isFlagForm(formType)) {
+      return await loadFlagCase(formType);
+    }
     // forceRefresh: this is the token the content script will reuse for doc
     // downloads for the rest of the session — hand it over fresh.
     const res = await apiRequest(
@@ -285,12 +396,19 @@ caseList.addEventListener("click", (e) => {
 });
 apiEnvSelect.addEventListener("change", async () => {
   await chrome.storage.local.set({ [STORAGE_KEYS.apiBaseUrl]: apiEnvSelect.value });
-  if (auth.currentUser) loadCases();
+  hideError();
+  // Switching backend can switch Firebase project, so re-point auth rather than
+  // reusing a session the new backend would reject on every request.
+  useApi(apiEnvSelect.value);
 });
 formTypeSelect.addEventListener("change", () => {
   // The stored payload belongs to the previously chosen form; loading is what
   // makes the new choice real, so nudge rather than silently disagree.
   hideError();
+  // Re-filter: which cases the list may offer depends on the form (the ETA-9141
+  // is PERM-only). Without this the list still shows the previous form's cases
+  // and the first click is on one the new form cannot fill.
+  renderCases(caseSearch.value || "");
   setStatus(`Load the case to fill ${formTypeSelect.value}.`);
 });
 
@@ -315,17 +433,35 @@ function renderApiEnvs(selected: string): void {
 }
 
 /** Populate the form picker from the registry — the forms we can actually drive. */
+/**
+ * Every form the extension can drive: the myUSCIS ones, then the DOL ones.
+ *
+ * Grouped in the dropdown because the two sets are filled on different websites,
+ * and a caseworker picking "ETA-9141" while sitting on myUSCIS should be able to
+ * see from the list why nothing happens there.
+ */
+const FORM_GROUPS: { label: string; formTypes: string[] }[] = [
+  { label: "myUSCIS (my.uscis.gov)", formTypes: FORM_CONFIGS.map((c) => c.formType) },
+  { label: "DOL FLAG (flag.dol.gov)", formTypes: FLAG_CONFIGS.map((c) => c.formType) },
+];
+
+const ALL_FORM_TYPES = FORM_GROUPS.flatMap((g) => g.formTypes);
+
 function renderFormTypes(selected: string): void {
   formTypeSelect.innerHTML = "";
-  for (const config of FORM_CONFIGS) {
-    const opt = document.createElement("option");
-    opt.value = config.formType;
-    opt.textContent = config.formType;
-    formTypeSelect.appendChild(opt);
+  for (const group of FORM_GROUPS) {
+    if (!group.formTypes.length) continue;
+    const optgroup = document.createElement("optgroup");
+    optgroup.label = group.label;
+    for (const formType of group.formTypes) {
+      const opt = document.createElement("option");
+      opt.value = formType;
+      opt.textContent = formType;
+      optgroup.appendChild(opt);
+    }
+    formTypeSelect.appendChild(optgroup);
   }
-  formTypeSelect.value = FORM_CONFIGS.some((c) => c.formType === selected)
-    ? selected
-    : FORM_CONFIGS[0].formType;
+  formTypeSelect.value = ALL_FORM_TYPES.includes(selected) ? selected : ALL_FORM_TYPES[0];
 }
 
 async function init(): Promise<void> {
@@ -347,14 +483,7 @@ async function init(): Promise<void> {
   renderApiEnvs(resolvedApi);
   renderFormTypes((stored[STORAGE_KEYS.formType] as string) || FORM_CONFIGS[0].formType);
 
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      showLoggedIn(user.email || "");
-      loadCases();
-    } else {
-      showLogin();
-    }
-  });
+  useApi(migratedApi);
 
   // Expire stale loaded data after 30 minutes.
   const loadedAt = stored[STORAGE_KEYS.loadedAt] as number | undefined;
