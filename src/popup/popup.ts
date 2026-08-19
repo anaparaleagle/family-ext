@@ -483,7 +483,7 @@ async function init(): Promise<void> {
   renderApiEnvs(resolvedApi);
   renderFormTypes((stored[STORAGE_KEYS.formType] as string) || FORM_CONFIGS[0].formType);
 
-  useApi(migratedApi);
+  useApi(resolvedApi);
 
   // Expire stale loaded data after 30 minutes.
   const loadedAt = stored[STORAGE_KEYS.loadedAt] as number | undefined;
