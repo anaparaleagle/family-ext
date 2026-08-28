@@ -14,6 +14,7 @@ export const I130_CONFIG: FormConfig = {
   hostPath: "/forms/petition-for-a-relative/",
   label: "ParaLeagle I-130",
   pages: I130_PAGES,
+  caseTypes: ["IR-1", "IR-2", "IR-5"],
 };
 
 export const I539_CONFIG: FormConfig = {
@@ -21,6 +22,15 @@ export const I539_CONFIG: FormConfig = {
   hostPath: "/forms/application-to-extend-change-nonimmigrant-status/",
   label: "ParaLeagle I-539",
   pages: I539_PAGES,
+  caseTypes: [
+    "I-539-STUDENT",
+    "I-539-VISITOR",
+    "I-539-STUDENT-DEP",
+    "I-539-EXCHANGE",
+    "I-539-EXCHANGE-DEP",
+    "I-539-WORKER-DEP",
+    "I-539-SPECIAL",
+  ],
 };
 
 export const N400_CONFIG: FormConfig = {
@@ -28,6 +38,7 @@ export const N400_CONFIG: FormConfig = {
   hostPath: "/forms/application-for-naturalization/",
   label: "ParaLeagle N-400",
   pages: N400_PAGES,
+  caseTypes: ["N-400"],
 };
 
 export const FORM_CONFIGS: FormConfig[] = [I130_CONFIG, I539_CONFIG, N400_CONFIG];
@@ -44,4 +55,16 @@ export function configForPath(pathname: string): FormConfig | null {
 /** Look up a config by backend form_type (what the popup requests). */
 export function configForFormType(formType: string): FormConfig | null {
   return FORM_CONFIGS.find((c) => c.formType === formType) ?? null;
+}
+
+/**
+ * The form a case type is filed on, or null when no online form covers it.
+ *
+ * Null is "leave the picker alone", not "pick the first one": an EB or PERM case
+ * has no myUSCIS form here, and swapping the caseworker's choice out from under
+ * them would be worse than leaving it.
+ */
+export function formTypeForCaseType(caseType: string | undefined): string | null {
+  if (!caseType) return null;
+  return FORM_CONFIGS.find((c) => c.caseTypes?.includes(caseType))?.formType ?? null;
 }
