@@ -445,3 +445,83 @@ describe("value-setter: search clears before it queries", () => {
     expect(seen[seen.length - 1]).toBe("5");
   }, 20000);
 });
+
+// A LIST THAT RENDERS AFTER WE FIRST READ IT. Live on prod draft 13370795
+// (2026-08-29) `applicant.describeYourself.height.inches` failed on the value
+// "10", and the extension's own diagnostic contradicted the failure:
+//
+//   options rendered after typing that: 0
+//   Re-typing just "10" to read the real labels (selects nothing):
+//   options for "10" (2):  "0"  "10"
+//   VERDICT: the option IS there but the text differs.
+//     live:  "10"
+//     ours:  "10"
+//
+// The two strings are identical, so nothing was wrong with the value. The only
+// difference between the read that found nothing and the read that found it was
+// TIME. Nor could the recovery probes help: for a two-character value every probe
+// (first 12 chars, first word, first 3 chars) equals the value itself and is
+// dropped, so a short value got exactly one attempt.
+//
+// The verdict line was wrong too. "Same letters+digits, different
+// punctuation/spacing -> OUR VALUE IS WRONG" sent the reader to the captured
+// option table, where there was nothing to find.
+describe("value-setter: an option list that renders late", () => {
+  beforeEach(() => {
+    setBody("");
+    resetDebugLog();
+  });
+
+  /**
+   * An autocomplete whose popup is MOUNTED ON DEMAND, like MUI's — until it
+   * renders there is no listbox element on the page at all. That absence is what
+   * separates a list that has not arrived from one that filtered to nothing.
+   */
+  function lateAutocomplete(name: string, options: string[], afterMs: number): HTMLInputElement {
+    setBody(`<input type="text" name="${name}" id="${name}" />`);
+    const el = document.querySelector<HTMLInputElement>(`[name="${name}"]`)!;
+    setTimeout(() => {
+      const lb = document.createElement("ul");
+      lb.setAttribute("role", "listbox");
+      lb.innerHTML = options.map((o) => `<li role="option">${o}</li>`).join("");
+      document.body.appendChild(lb);
+      for (const opt of Array.from(lb.querySelectorAll('[role="option"]'))) {
+        opt.addEventListener("click", () => {
+          el.value = opt.textContent || "";
+        });
+      }
+    }, afterMs);
+    return el;
+  }
+
+  it("waits for the list instead of failing a short value on one read", async () => {
+    const el = lateAutocomplete("applicant.describeYourself.height.inches", ["0", "10"], 2200);
+
+    const res = await setValue(
+      { name: "applicant.describeYourself.height.inches", kind: "search" },
+      "10",
+    );
+
+    expect(res.success, "gave up before the list had rendered").toBe(true);
+    expect(el.value).toBe("10");
+  }, 20000);
+
+  it("does not blame our value when the live label is identical", async () => {
+    // The list arrives far too late to be matched, so the miss still happens and
+    // the diagnostic still runs — but it must not send the reader after a
+    // punctuation difference that does not exist.
+    lateAutocomplete("applicant.describeYourself.height.inches", ["0", "10"], 3200);
+
+    const res = await setValue(
+      { name: "applicant.describeYourself.height.inches", kind: "search" },
+      "10",
+    );
+
+    expect(res.success).toBe(false);
+    const verdicts = debugLog.filter((l) => l.includes("VERDICT"));
+    expect(verdicts.join(" "), "still blamed our value for an identical label").not.toContain(
+      "OUR VALUE IS WRONG",
+    );
+    expect(debugLog.some((l) => l.includes("IDENTICAL")), "no timing verdict").toBe(true);
+  }, 30000);
+});

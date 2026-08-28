@@ -23,6 +23,7 @@ import { fillAll, fillPage, planPageFill } from "../src/runner/fill-chain";
 import { t } from "../src/runner/types";
 import type { FormConfig, FormPage } from "../src/runner/types";
 import { N400_PAGES } from "../src/n400/form-descriptor";
+import { debugLog } from "../src/engine/logger";
 import { radioGroup, setBody, textInput } from "./fixtures/dom";
 
 const BASE = "https://my.uscis.gov/forms/application-for-naturalization/13375119";
@@ -398,4 +399,195 @@ describe("fillPage — a field the form has made read-only", () => {
     const city = document.querySelector<HTMLInputElement>('[name="applicant.mailing.city"]');
     expect(city?.value, "a writable field beside it must still fill").toBe("Naperville");
   }, 20000);
+});
+
+// 4. A REPEATER PAGE THAT ALSO SHOWS A NEXT. Live on prod draft 13664289
+//    (case f259d233, 2026-08-29) the N-400 walk typed 6/6 on
+//    /about-you/where-you-have-lived and then died there, six pages into
+//    fifty-eight:
+//        fillAll: /about-you/where-you-have-lived - 6/6 filled
+//        fillAll: page did not change after Next, stopping
+//    The row was still OPEN. myUSCIS shows "Save entry" inside the open row and
+//    Next in the page footer AT THE SAME TIME, and it refuses a Next while a row
+//    is uncommitted. The commit was gated on there being no Next
+//    (`rowCommitButtonText && !findNextButton()`), so on this page it never ran.
+//    Re-running Fill all could not help: with the row already rendered no Add is
+//    clicked, the same fields refill and the same ungated Next is clicked again.
+describe("fillAll - commits the row even when the page already shows a Next", () => {
+  it("clicks the commit button first, then Next", () => {
+    goTo("/about-you/where-you-have-lived");
+    setBody(
+      `<button id="save">Save entry</button>` +
+        `<button data-testid="next-button">Next</button>`,
+    );
+    const order: string[] = [];
+    document.getElementById("save")!.addEventListener("click", () => order.push("save"));
+    document.querySelector<HTMLElement>('[data-testid="next-button"]')!.addEventListener(
+      "click",
+      () => {
+        order.push("next");
+        // Let the walk finish instead of sitting out its page-change wait: a
+        // terminal path stops it on the next turn of the loop.
+        goTo("/review-and-submit/review-your-application");
+      },
+    );
+    const config: FormConfig = {
+      formType: "N-400",
+      hostPath: "/forms/application-for-naturalization/",
+      label: "N-400",
+      pages: N400_PAGES,
+    };
+
+    return fillAll(config, {}, async () => 0).then(() => {
+      expect(order, "Next was clicked with the row still open").toEqual(["save", "next"]);
+    });
+  }, 20000);
+});
+
+// 5. A STOP THAT DOES NOT SAY WHY. "page did not change after Next" is equally
+//    true of an uncommitted repeater row, a blank required field and a changed
+//    form, and nothing read the error text myUSCIS was showing - so every stall
+//    of this kind cost a code read to tell those apart.
+describe("fillAll - says why myUSCIS refused to advance", () => {
+  it("puts the page's error text in the stop line", async () => {
+    goTo("/about-you/requests-for-accommodations");
+    setBody(
+      `<div class="usa-error-message">Select a country.</div>` +
+        `<button data-testid="next-button">Next</button>`,
+    );
+    const config: FormConfig = {
+      formType: "N-400",
+      hostPath: "/forms/application-for-naturalization/",
+      label: "N-400",
+      pages: N400_PAGES,
+    };
+    const from = debugLog.length;
+
+    await fillAll(config, {}, async () => 0);
+
+    const stop = debugLog.slice(from).filter((l) => l.includes("did not change after Next"));
+    expect(stop.length, "the walk did not stop where the test expects").toBeGreaterThan(0);
+    expect(
+      stop.some((l) => l.includes("Select a country.")),
+      "the stop line does not name the error the page was showing",
+    ).toBe(true);
+  }, 40000);
+});
+
+// 6. EVERY REPEATER ROW AFTER THE FIRST. Live on prod draft 13664289
+//    (2026-08-29), the applicant had SIX trips and the travel page logged:
+//        fill: clicked "add trip" but no new row rendered for 1
+//        ... for 2, 3, 4, 5
+//        fill: FAIL ...timeSpentOutsideUSTable.1.dateLeftTheUS - element not on page
+//    myUSCIS opens ONE row at a time and ignores Add while a row is still open;
+//    the row has to be committed first. fillPage opened every row up front and
+//    only then started typing, so on any list of two or more rows exactly one
+//    row was ever filled. The other repeaters on that case are one row each,
+//    which is the only reason they looked fine.
+//
+//    It also mis-reported the cause: the rows that never rendered were blamed on
+//    "the reveal is wrong or the form changed", which is the wrong thing to hunt.
+describe("fillPage - a repeater list longer than one row", () => {
+  const CHILD = (i: number) =>
+    textInput(`${CH}.${i}.childInfo.name.firstName`) + textInput(`${CH}.${i}.childInfo.dateOfBirth`);
+
+  it("commits each row before opening the next", async () => {
+    goTo("/your-family/children");
+    setBody(
+      textInput("yourFamily.children.totalNumberOfChildren") +
+        `<button id="add">Add a child</button><button id="save">Save child</button>`,
+    );
+    // myUSCIS's actual behaviour: Add is ignored while a row is open, and the
+    // commit button is what closes it.
+    let rowOpen = false;
+    let nextIndex = 0;
+    const clicks: string[] = [];
+    document.getElementById("add")!.addEventListener("click", () => {
+      clicks.push("add");
+      if (rowOpen) return;
+      document.body.insertAdjacentHTML("beforeend", CHILD(nextIndex++));
+      rowOpen = true;
+    });
+    document.getElementById("save")!.addEventListener("click", () => {
+      clicks.push("save");
+      rowOpen = false;
+    });
+
+    const res = await fillPage(childrenPage(), {
+      "yourFamily.children.totalNumberOfChildren": "2",
+      [`${CH}.0.childInfo.name.firstName`]: "Rhea",
+      [`${CH}.0.childInfo.dateOfBirth`]: "01/02/2015",
+      [`${CH}.1.childInfo.name.firstName`]: "Kabir",
+      [`${CH}.1.childInfo.dateOfBirth`]: "03/04/2018",
+    });
+
+    expect(res.failed, "a row after the first never rendered").toBe(0);
+    const value = (n: string) =>
+      document.querySelector<HTMLInputElement>(`[name="${n}"]`)?.value;
+    expect(value(`${CH}.0.childInfo.name.firstName`)).toBe("Rhea");
+    expect(value(`${CH}.1.childInfo.name.firstName`), "row 1 was never filled").toBe("Kabir");
+    // The commit belongs BETWEEN the rows. Committing only at the end of the page
+    // is what left Add with nothing to do.
+    expect(clicks.slice(0, 3)).toEqual(["add", "save", "add"]);
+  }, 30000);
+
+  it("still fills a single-row list without committing it", async () => {
+    // The last row stays open on purpose: fillAll commits it before Next, which
+    // is also what covers a page whose rows were all already saved.
+    goTo("/your-family/children");
+    setBody(`<button id="add">Add a child</button><button id="save">Save child</button>`);
+    let nextIndex = 0;
+    const clicks: string[] = [];
+    document.getElementById("add")!.addEventListener("click", () => {
+      clicks.push("add");
+      document.body.insertAdjacentHTML("beforeend", CHILD(nextIndex++));
+    });
+    document.getElementById("save")!.addEventListener("click", () => clicks.push("save"));
+
+    const res = await fillPage(childrenPage(), {
+      [`${CH}.0.childInfo.name.firstName`]: "Rhea",
+    });
+
+    expect(res.filled).toBe(1);
+    expect(clicks, "a one-row page must not click the commit button").toEqual(["add"]);
+  }, 20000);
+});
+
+// 7. A NEXT THAT WAS CLICKED TOO EARLY. Live on prod draft 13370795 (2026-08-29)
+//    /moral-character/crimes-and-offenses/crimes-and-offenses-page-2 advanced on
+//    one run and refused on the next, both times reporting 0/0 and, with the new
+//    stop line, NO error text on the page. A page with nothing to type gets no
+//    render wait at all - an empty plan is a legitimate 0/0 page, not a race - so
+//    Next is clicked on a React page that has mounted the button but not yet
+//    wired it. The upload branch has retried exactly this since v0.6.0; the form
+//    branch clicked once and stopped the whole walk.
+describe("fillAll - a form page that ignores the first Next", () => {
+  it("waits and clicks once more before giving up", async () => {
+    goTo("/moral-character/crimes-and-offenses/crimes-and-offenses-page-2");
+    setBody(`<button data-testid="next-button">Next</button>`);
+    let clicks = 0;
+    document.querySelector<HTMLElement>('[data-testid="next-button"]')!.addEventListener(
+      "click",
+      () => {
+        clicks += 1;
+        // The first click lands before the page is wired and does nothing.
+        if (clicks >= 2) goTo("/review-and-submit/review-your-application");
+      },
+    );
+    const config: FormConfig = {
+      formType: "N-400",
+      hostPath: "/forms/application-for-naturalization/",
+      label: "N-400",
+      pages: N400_PAGES,
+    };
+    const from = debugLog.length;
+
+    await fillAll(config, {}, async () => 0);
+
+    expect(clicks, "the walk gave up after one click").toBeGreaterThanOrEqual(2);
+    expect(
+      debugLog.slice(from).some((l) => l.includes("did not change after Next, stopping")),
+      "stopped the walk on a page that only needed a second click",
+    ).toBe(false);
+  }, 60000);
 });

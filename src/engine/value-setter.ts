@@ -454,7 +454,14 @@ async function diagnoseAutocompleteMiss(el: HTMLInputElement, value: string): Pr
     // The punctuation/spacing verdict — the whole point of the exercise.
     const key = labelKey(value);
     const twin = options.find((o) => labelKey(o) === key);
-    if (twin) {
+    if (twin === value) {
+      // The label and the value are the same string, so nothing about the value
+      // is wrong and there is no captured table to go and fix. The only thing
+      // that differed between the read that missed and this one is TIME.
+      dbg(`  VERDICT: the option is there and IDENTICAL to our value.`);
+      dbg(`    live and ours: ${JSON.stringify(value)}`);
+      dbg(`    So the list had not rendered when we read it - a timing miss, not a bad value.`);
+    } else if (twin) {
       dbg(`  VERDICT: the option IS there but the text differs.`);
       dbg(`    live:  ${JSON.stringify(twin)}`);
       dbg(`    ours:  ${JSON.stringify(value)}`);
@@ -548,6 +555,38 @@ async function selectRenderedOption(wanted: string): Promise<boolean> {
   return false;
 }
 
+/**
+ * Settle time after re-typing the SAME value when the first pass rendered nothing.
+ *
+ * Live on 2026-08-29 `height.inches` missed the value "10" with "options rendered
+ * after typing that: 0", and the diagnostic — which does nothing but type the same
+ * characters again and wait — then read two options, one of them exactly "10". So
+ * the list was not absent, it was not there YET, and the same keystrokes a moment
+ * later produced it. A short value cannot fall back on the recovery probes either:
+ * for a two-character value every probe equals the value and is dropped, so that
+ * one read was the entire attempt.
+ */
+const RETYPE_SETTLE_MS = 900;
+
+/** The popup container itself, whether or not it holds any options yet. */
+const LISTBOX_SELECTORS = [
+  '[role="listbox"]',
+  ".MuiAutocomplete-listbox",
+  ".MuiAutocomplete-popper",
+].join(", ");
+
+/**
+ * True when NO popup is mounted at all.
+ *
+ * This is what separates "the list is not there yet" from "the list is there and
+ * our query filtered it to nothing". They look identical if you only count
+ * options, and they need opposite fixes: type the SAME thing again, or type LESS.
+ * Only the first is worth a second pass, so a genuine over-filter pays nothing.
+ */
+function noListboxMounted(): boolean {
+  return document.querySelector(LISTBOX_SELECTORS) === null;
+}
+
 async function click(opt: HTMLElement): Promise<boolean> {
   opt.click();
   await sleep(150);
@@ -581,6 +620,19 @@ async function setSearch(el: HTMLInputElement, value: string): Promise<boolean> 
   await typeInto(el, value);
   await sleep(1500);
   if (await selectRenderedOption(value)) return true;
+
+  // NOT a recovery — the query was fine. An EMPTY list here means the widget had
+  // not rendered it when we looked, so type the same thing again and look once
+  // more. A list that DID render and simply lacks the value falls straight
+  // through to the shorter probes below, so a genuine miss pays nothing.
+  if (renderedOptions().length === 0 && noListboxMounted()) {
+    await typeInto(el, value);
+    await sleep(RETYPE_SETTLE_MS);
+    if (await selectRenderedOption(value)) {
+      dbg(`value-setter: matched ${JSON.stringify(value)} on a second pass — the list was late`);
+      return true;
+    }
+  }
 
   // RECOVERY, not a retry: the previous attempt failed because of what we TYPED,
   // not because the option is absent. Type less and match again.
