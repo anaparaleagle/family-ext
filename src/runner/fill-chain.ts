@@ -332,6 +332,20 @@ const REVEAL_RENDER_TIMEOUT_MS = 4000;
 const ROW_COMMIT_SETTLE_MS = 800;
 
 /**
+ * How long to wait before clicking a form page's Next a SECOND time, and how long
+ * to give that second click.
+ *
+ * A page with nothing to type gets no render wait at all — an empty plan is a
+ * legitimate 0/0 page and stalling there would be worse — so the click can land on
+ * a React page that has mounted the button but not yet wired it. Live on
+ * 2026-08-29 the crimes-and-offenses table page advanced on one run and refused on
+ * the next, with no error text on the page either time. The upload branch has
+ * retried exactly this since v0.6.0.
+ */
+const NEXT_RETRY_WAIT_MS = 1200;
+const NEXT_RETRY_WINDOW_MS = 6000;
+
+/**
  * The last two segments of a Formik name. The full names run to 90+ characters
  * and the meaning is always at the end, so an ordering or skip line stays
  * readable instead of wrapping five times.
@@ -865,15 +879,25 @@ export function findRowCommitButton(
 export function pageErrorSummary(doc: Document = document): string {
   const SELECTORS = [
     '[role="alert"]',
+    '[aria-live="assertive"]',
     ".usa-error-message",
     ".usa-alert--error",
     ".Mui-error",
-    ".error-message",
+    // myUSCIS is not USWDS everywhere; a class or id merely CONTAINING "error" is
+    // the only rule that holds across its screens. Kept honest by the innermost
+    // filter below, so a wrapper cannot dump half the page into the log.
+    '[class*="error" i]',
+    '[id*="error" i]',
   ].join(", ");
+  const hits = Array.from(doc.querySelectorAll<HTMLElement>(SELECTORS)).filter(
+    (el) => !el.closest('[id^="mk-family"]'),
+  );
   const seen = new Set<string>();
   const messages: string[] = [];
-  for (const el of Array.from(doc.querySelectorAll<HTMLElement>(SELECTORS))) {
-    if (el.closest('[id^="mk-family"]')) continue;
+  for (const el of hits) {
+    // Innermost only: an error wrapper that contains another hit is a container,
+    // and its text is the child's text plus everything around it.
+    if (hits.some((other) => other !== el && el.contains(other))) continue;
     const text = (el.textContent || "").replace(/\s+/g, " ").trim();
     if (!text || seen.has(text)) continue;
     seen.add(text);
@@ -1327,7 +1351,19 @@ export async function fillAll(
       if (next) next.click();
     }
 
-    if (!advanced && !(await waitForPageChange(prevUrl))) {
+    let moved = advanced || (await waitForPageChange(prevUrl));
+    // The upload branch does its own click-and-retry; this is the same idea for a
+    // form page, where a single early click used to end the whole walk.
+    if (!moved && !isUploadPage) {
+      dbg("fillAll: Next did not move the page — waiting and clicking it once more");
+      await sleep(NEXT_RETRY_WAIT_MS);
+      const again = findNextButton();
+      if (again) {
+        again.click();
+        moved = await waitForPageChange(prevUrl, NEXT_RETRY_WINDOW_MS);
+      }
+    }
+    if (!moved) {
       const why = pageErrorSummary();
       dbg(
         "fillAll: page did not change after Next, stopping" +

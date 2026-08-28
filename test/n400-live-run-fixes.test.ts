@@ -552,3 +552,42 @@ describe("fillPage - a repeater list longer than one row", () => {
     expect(clicks, "a one-row page must not click the commit button").toEqual(["add"]);
   }, 20000);
 });
+
+// 7. A NEXT THAT WAS CLICKED TOO EARLY. Live on prod draft 13370795 (2026-08-29)
+//    /moral-character/crimes-and-offenses/crimes-and-offenses-page-2 advanced on
+//    one run and refused on the next, both times reporting 0/0 and, with the new
+//    stop line, NO error text on the page. A page with nothing to type gets no
+//    render wait at all - an empty plan is a legitimate 0/0 page, not a race - so
+//    Next is clicked on a React page that has mounted the button but not yet
+//    wired it. The upload branch has retried exactly this since v0.6.0; the form
+//    branch clicked once and stopped the whole walk.
+describe("fillAll - a form page that ignores the first Next", () => {
+  it("waits and clicks once more before giving up", async () => {
+    goTo("/moral-character/crimes-and-offenses/crimes-and-offenses-page-2");
+    setBody(`<button data-testid="next-button">Next</button>`);
+    let clicks = 0;
+    document.querySelector<HTMLElement>('[data-testid="next-button"]')!.addEventListener(
+      "click",
+      () => {
+        clicks += 1;
+        // The first click lands before the page is wired and does nothing.
+        if (clicks >= 2) goTo("/review-and-submit/review-your-application");
+      },
+    );
+    const config: FormConfig = {
+      formType: "N-400",
+      hostPath: "/forms/application-for-naturalization/",
+      label: "N-400",
+      pages: N400_PAGES,
+    };
+    const from = debugLog.length;
+
+    await fillAll(config, {}, async () => 0);
+
+    expect(clicks, "the walk gave up after one click").toBeGreaterThanOrEqual(2);
+    expect(
+      debugLog.slice(from).some((l) => l.includes("did not change after Next, stopping")),
+      "stopped the walk on a page that only needed a second click",
+    ).toBe(false);
+  }, 60000);
+});
