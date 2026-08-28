@@ -473,3 +473,82 @@ describe("fillAll - says why myUSCIS refused to advance", () => {
     ).toBe(true);
   }, 40000);
 });
+
+// 6. EVERY REPEATER ROW AFTER THE FIRST. Live on prod draft 13664289
+//    (2026-08-29), the applicant had SIX trips and the travel page logged:
+//        fill: clicked "add trip" but no new row rendered for 1
+//        ... for 2, 3, 4, 5
+//        fill: FAIL ...timeSpentOutsideUSTable.1.dateLeftTheUS - element not on page
+//    myUSCIS opens ONE row at a time and ignores Add while a row is still open;
+//    the row has to be committed first. fillPage opened every row up front and
+//    only then started typing, so on any list of two or more rows exactly one
+//    row was ever filled. The other repeaters on that case are one row each,
+//    which is the only reason they looked fine.
+//
+//    It also mis-reported the cause: the rows that never rendered were blamed on
+//    "the reveal is wrong or the form changed", which is the wrong thing to hunt.
+describe("fillPage - a repeater list longer than one row", () => {
+  const CHILD = (i: number) =>
+    textInput(`${CH}.${i}.childInfo.name.firstName`) + textInput(`${CH}.${i}.childInfo.dateOfBirth`);
+
+  it("commits each row before opening the next", async () => {
+    goTo("/your-family/children");
+    setBody(
+      textInput("yourFamily.children.totalNumberOfChildren") +
+        `<button id="add">Add a child</button><button id="save">Save child</button>`,
+    );
+    // myUSCIS's actual behaviour: Add is ignored while a row is open, and the
+    // commit button is what closes it.
+    let rowOpen = false;
+    let nextIndex = 0;
+    const clicks: string[] = [];
+    document.getElementById("add")!.addEventListener("click", () => {
+      clicks.push("add");
+      if (rowOpen) return;
+      document.body.insertAdjacentHTML("beforeend", CHILD(nextIndex++));
+      rowOpen = true;
+    });
+    document.getElementById("save")!.addEventListener("click", () => {
+      clicks.push("save");
+      rowOpen = false;
+    });
+
+    const res = await fillPage(childrenPage(), {
+      "yourFamily.children.totalNumberOfChildren": "2",
+      [`${CH}.0.childInfo.name.firstName`]: "Rhea",
+      [`${CH}.0.childInfo.dateOfBirth`]: "01/02/2015",
+      [`${CH}.1.childInfo.name.firstName`]: "Kabir",
+      [`${CH}.1.childInfo.dateOfBirth`]: "03/04/2018",
+    });
+
+    expect(res.failed, "a row after the first never rendered").toBe(0);
+    const value = (n: string) =>
+      document.querySelector<HTMLInputElement>(`[name="${n}"]`)?.value;
+    expect(value(`${CH}.0.childInfo.name.firstName`)).toBe("Rhea");
+    expect(value(`${CH}.1.childInfo.name.firstName`), "row 1 was never filled").toBe("Kabir");
+    // The commit belongs BETWEEN the rows. Committing only at the end of the page
+    // is what left Add with nothing to do.
+    expect(clicks.slice(0, 3)).toEqual(["add", "save", "add"]);
+  }, 30000);
+
+  it("still fills a single-row list without committing it", async () => {
+    // The last row stays open on purpose: fillAll commits it before Next, which
+    // is also what covers a page whose rows were all already saved.
+    goTo("/your-family/children");
+    setBody(`<button id="add">Add a child</button><button id="save">Save child</button>`);
+    let nextIndex = 0;
+    const clicks: string[] = [];
+    document.getElementById("add")!.addEventListener("click", () => {
+      clicks.push("add");
+      document.body.insertAdjacentHTML("beforeend", CHILD(nextIndex++));
+    });
+    document.getElementById("save")!.addEventListener("click", () => clicks.push("save"));
+
+    const res = await fillPage(childrenPage(), {
+      [`${CH}.0.childInfo.name.firstName`]: "Rhea",
+    });
+
+    expect(res.filled).toBe(1);
+    expect(clicks, "a one-row page must not click the commit button").toEqual(["add"]);
+  }, 20000);
+});
