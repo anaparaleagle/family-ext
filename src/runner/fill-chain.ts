@@ -719,12 +719,13 @@ export function findNextButton(doc: Document = document): HTMLButtonElement | nu
  * global nav/sidebar/header (which carries the form-wide "Save and exit") is
  * excluded so we never click out of the form.
  */
+// "Save and exit/close", "Save draft", "Save for later" all LEAVE the form.
+const LEAVE = /save\s+(and|&)\s+(exit|close)|save\s+draft|save\s+for\s+later/;
+
 export function findSaveButton(
   doc: Document = document,
   preferredLabel?: string,
 ): HTMLElement | null {
-  // "Save and exit/close", "Save draft", "Save for later" all LEAVE the form.
-  const LEAVE = /save\s+(and|&)\s+(exit|close)|save\s+draft|save\s+for\s+later/;
   const candidates = Array.from(
     doc.querySelectorAll<HTMLElement>('button, [role="button"]'),
   ).filter((b) => !b.closest('nav, aside, header, [role="navigation"]'));
@@ -753,6 +754,73 @@ export function findSaveButton(
     if (/\bsave\b/.test(t) && !LEAVE.test(t)) return b;
   }
   return null;
+}
+
+/**
+ * The row-commit button for a repeater page, matched on the descriptor's EXACT
+ * captured label and nothing else.
+ *
+ * Deliberately narrower than findSaveButton. This one runs while a Next button is
+ * on the page, where "any save-ish control" would be a guess with a real cost --
+ * the N-400 renders four different commit labels and a bare "Save" is a substring
+ * of three of them. A label that does not match returns null and the walk simply
+ * tries Next, which is what it did before.
+ */
+export function findRowCommitButton(
+  label: string | undefined,
+  doc: Document = document,
+): HTMLElement | null {
+  const want = (label ?? "").trim().toLowerCase();
+  if (!want || LEAVE.test(want)) return null;
+  const candidates = Array.from(
+    doc.querySelectorAll<HTMLElement>('button, [role="button"]'),
+  ).filter((b) => !b.closest('nav, aside, header, [role="navigation"]'));
+  for (const b of candidates) {
+    if ((b.textContent || "").trim().toLowerCase() === want) return b;
+  }
+  return null;
+}
+
+/**
+ * The error text myUSCIS is showing right now, as one line, or "" when it shows
+ * none.
+ *
+ * A refused Next used to stop the walk with "page did not change after Next",
+ * which is equally true of an uncommitted repeater row, a blank required field
+ * and a form that changed shape. Nothing read the page's own error text, so
+ * telling those apart meant reading the source -- on 2026-08-29 that was the
+ * whole cost of answering "why did it stop on page 6 of 58".
+ *
+ * The extension's own chrome is excluded: the stale-context notice is itself a
+ * role="alert", and reporting our own banner back as USCIS's error would be
+ * worse than silence.
+ */
+export function pageErrorSummary(doc: Document = document): string {
+  const SELECTORS = [
+    '[role="alert"]',
+    ".usa-error-message",
+    ".usa-alert--error",
+    ".Mui-error",
+    ".error-message",
+  ].join(", ");
+  const seen = new Set<string>();
+  const messages: string[] = [];
+  for (const el of Array.from(doc.querySelectorAll<HTMLElement>(SELECTORS))) {
+    if (el.closest('[id^="mk-family"]')) continue;
+    const text = (el.textContent || "").replace(/\s+/g, " ").trim();
+    if (!text || seen.has(text)) continue;
+    seen.add(text);
+    messages.push(text.length > 160 ? `${text.slice(0, 160)}...` : text);
+    if (messages.length >= 6) break;
+  }
+  const flagged = Array.from(doc.querySelectorAll<HTMLElement>('[aria-invalid="true"]'))
+    .map((el) => el.getAttribute("name") || el.getAttribute("id") || "")
+    .filter(Boolean)
+    .slice(0, 8);
+  const parts: string[] = [];
+  if (messages.length) parts.push(`myUSCIS is showing: ${messages.join(" | ")}`);
+  if (flagged.length) parts.push(`fields it flagged: ${flagged.map(shortName).join(", ")}`);
+  return parts.length ? ` -- ${parts.join("; ")}` : "";
 }
 
 /**
@@ -1133,19 +1201,36 @@ export async function fillAll(
         break;
       }
     } else {
-      // A repeater page shows only its COMMIT button until the row is saved; there
-      // is no Next at all. Waiting the full window first cost 12s on three separate
-      // pages of a live run. The descriptor carries the exact label, so use it.
-      if (page?.repeater?.rowCommitButtonText && !findNextButton()) {
-        const commit = findSaveButton(document, page.repeater.rowCommitButtonText);
+      // A REPEATER ROW IS NOT PART OF THE PAGE UNTIL IT IS COMMITTED.
+      //
+      // Some repeater pages show only their commit button until the row is saved
+      // (waiting out the full Next window there cost 12s on each of three pages
+      // of a live run). Others -- /about-you/where-you-have-lived among them --
+      // show the row's "Save entry" AND the footer's Next at the same time, and
+      // refuse that Next while the row is still open. Gating the commit on Next
+      // being ABSENT handled the first shape and walked straight into the second:
+      // on 2026-08-29 the N-400 typed 6/6 on where-you-have-lived and stopped
+      // dead there, six pages into fifty-eight.
+      //
+      // So commit whenever the descriptor's exact label is on the page. Once a row
+      // is committed myUSCIS removes that button, so there is nothing to click and
+      // nothing changes for the pages that were already working.
+      if (page?.repeater?.rowCommitButtonText) {
+        const commit = findRowCommitButton(page.repeater.rowCommitButtonText);
         if (commit) {
-          dbg(`fillAll: committing the row with "${page.repeater.rowCommitButtonText}" before looking for Next`);
+          dbg(`fillAll: committing the row with "${page.repeater.rowCommitButtonText}" before Next`);
           commit.click();
           await sleep(600);
         }
       }
-      let next = await waitForNextEnabled();
-      if (!next) {
+      // A commit that advanced the page on its own must not then have the NEXT
+      // page's Next clicked -- that would skip a page unfilled.
+      if (window.location.href !== prevUrl) {
+        advanced = true;
+        dbg("fillAll: the commit advanced the page on its own");
+      }
+      let next = advanced ? null : await waitForNextEnabled();
+      if (!next && !advanced) {
         // Repeater pages (e.g. /other-information/other-petitions) expose NO
         // Next/Continue until the just-entered row is COMMITTED via a "Save
         // Entry" button; clicking it surfaces the page's Next. Try that
@@ -1176,7 +1261,13 @@ export async function fillAll(
     }
 
     if (!advanced && !(await waitForPageChange(prevUrl))) {
-      dbg("fillAll: page did not change after Next, stopping");
+      const why = pageErrorSummary();
+      dbg(
+        "fillAll: page did not change after Next, stopping" +
+          (why ||
+            " -- and the page is showing no error text, so this is not a field it " +
+              "rejected. Most likely a row is still open or a control moved."),
+      );
       break;
     }
     // Safety net: the walk must NEVER leave this form. If a stray Next/link
