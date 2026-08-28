@@ -66,6 +66,14 @@ describe("form config registry", () => {
     expect(formTypeForCaseType(undefined)).toBeNull();
   });
 
+  it("gives every shipped form a case-type list", () => {
+    // Optional on the interface so test fixtures stay small; mandatory here, or a
+    // new form ships with no auto-switch and nothing says so.
+    for (const config of FORM_CONFIGS) {
+      expect(config.caseTypes?.length ?? 0).toBeGreaterThan(0);
+    }
+  });
+
   it("lets no two myUSCIS forms claim the same case type", () => {
     // The auto-switch reads the FIRST match, so an overlap would silently pick
     // one of two forms for that case type.

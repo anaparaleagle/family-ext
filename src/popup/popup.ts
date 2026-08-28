@@ -14,7 +14,7 @@ import {
   isFlagForm,
 } from "../flag/registry";
 import { STORAGE_KEYS, MyuscisPayload } from "../runner/payload";
-import { FORM_CONFIGS } from "../runner/registry";
+import { FORM_CONFIGS, formTypeForCaseType } from "../runner/registry";
 import { apiEnvOptions, allowedApiOrigins, resolveApiBaseUrl } from "../engine/api-config";
 
 /** Shown whenever the backend rejects our Firebase token. */
@@ -393,7 +393,29 @@ caseList.addEventListener("click", (e) => {
   selectedCaseId = row.dataset.id;
   caseList.querySelectorAll(".case-row.selected").forEach((r) => r.classList.remove("selected"));
   row.classList.add("selected");
+  followCaseType(cases.find((c) => c.id === selectedCaseId)?.case_type);
 });
+/**
+ * Point the form picker at the form the chosen case is actually filed on.
+ *
+ * The picker persists the last form used, and nothing tied it to the case. So a
+ * caseworker who filled an I-539 yesterday, then picked an N-400 case today, sent
+ * an I-539 request for it — and every message they saw afterwards named I-539.
+ *
+ * A case type no online form covers leaves the picker alone: better a choice they
+ * made than one we invented. A DOL form is left alone too, since the case list is
+ * already filtered to what that form accepts.
+ */
+function followCaseType(caseType: string | undefined): void {
+  if (isFlagForm(formTypeSelect.value)) return;
+  const formType = formTypeForCaseType(caseType);
+  if (!formType || formType === formTypeSelect.value) return;
+  formTypeSelect.value = formType;
+  void chrome.storage.local.set({ [STORAGE_KEYS.formType]: formType });
+  hideError();
+  setStatus(`Load the case to fill ${formType}.`);
+}
+
 apiEnvSelect.addEventListener("change", async () => {
   await chrome.storage.local.set({ [STORAGE_KEYS.apiBaseUrl]: apiEnvSelect.value });
   hideError();
