@@ -367,3 +367,38 @@ describe("one version number, everywhere", () => {
     expect(pkg.version).toBe(manifestField("version"));
   });
 });
+
+// THE UPLOAD IS REJECTED BEFORE ANY REVIEW IF A MANIFEST STRING IS TOO LONG.
+// 2026-08-29, uploading v0.9.0:
+//
+//   There was a problem uploading your file. Please try again.
+//   The description field in manifest is too long: 146. It exceeds the maximum
+//   size limit of 132 characters.
+//
+// LISTING.md had carried "**Summary** (132 characters max)" since it was written,
+// and the dashboard summary respects it — but nothing applied the same cap to the
+// MANIFEST description, which the store measures with the same ruler. Every other
+// guard in this file passed on that package.
+describe("what the store measures before it will even accept the package", () => {
+  // developer.chrome.com/docs/webstore/publish — both are hard upload limits.
+  const LIMITS: Array<[string, number]> = [
+    ["description", 132],
+    ["name", 45],
+  ];
+
+  for (const [field, max] of LIMITS) {
+    it(`${field} fits the store's ${max}-character limit`, () => {
+      const value = manifestField(field);
+      expect(value.length, `manifest ${field} is ${value.length} chars: ${JSON.stringify(value)}`)
+        .toBeLessThanOrEqual(max);
+    });
+  }
+
+  it("still says what the extension does and where", () => {
+    // Non-vacuity: trimming to fit must not turn the description into a slogan.
+    const d = manifestField("description");
+    for (const token of ["I-130", "N-400", "ETA-9141", "my.uscis.gov", "ParaLeagle"]) {
+      expect(d, `trimmed away ${token}`).toContain(token);
+    }
+  });
+});
