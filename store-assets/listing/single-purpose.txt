@@ -1,0 +1,1 @@
+A single purpose: fill the online immigration and labor-certification forms a law firm files — on my.uscis.gov and on flag.dol.gov — with case data the signed-in user's firm has already entered in ParaLeagle. Every feature serves that one flow: signing in, choosing the case, filling the form's fields, and attaching documents the firm has already uploaded for that case.

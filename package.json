@@ -2,9 +2,10 @@
   "name": "paraleagle-family-ext",
   "version": "0.9.0",
   "private": true,
-  "description": "Autofill the guided online Forms I-130, I-539 and N-400 on my.uscis.gov from ParaLeagle family-visa data",
+  "description": "Autofill Forms I-130, I-539 and N-400 on my.uscis.gov, and the ETA-9141 on the DOL FLAG portal, from ParaLeagle family-visa data",
   "scripts": {
     "build": "node esbuild.config.mjs",
+    "check:listing": "node tools/check-live-listing.mjs",
     "watch": "node esbuild.config.mjs --watch",
     "test": "vitest run",
     "test:watch": "vitest",

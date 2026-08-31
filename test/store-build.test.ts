@@ -297,16 +297,26 @@ function justifiedPermissions(): string[] {
   return [...justificationBlock().matchAll(/^`([A-Za-z]+)`$/gm)].map((m) => m[1]);
 }
 
+/** One file per dashboard box, so a paste is select-all on one file. */
+const LISTING_FIELDS = ["summary", "description", "single-purpose", "test-instructions"] as const;
+
+function listingField(name: string): string {
+  return readFileSync(join(REPO, "store-assets", "listing", `${name}.txt`), "utf-8").trim();
+}
+
+/** Every form the text names, so what we claim can be checked against what we ship. */
+function formsNamedIn(text: string): string[] {
+  return [...new Set(text.match(/\b(?:I|N|G|ETA)-\d{3,4}\b/g) ?? [])].sort();
+}
+
 /**
- * Everything a reviewer pastes verbatim: title, summary, description, purpose.
- * Whitespace is collapsed because the markdown wraps these blocks, and a phrase
- * broken across two lines is still the phrase.
+ * Everything a reviewer pastes verbatim: title, summary, description, purpose,
+ * test instructions. Whitespace is collapsed because a phrase broken across two
+ * lines is still the phrase.
  */
 function reviewerFacingText(): string {
-  const l = listing();
-  return l
-    .slice(l.indexOf("## 2. Store listing tab"), l.indexOf("**Permission justifications**"))
-    .replace(/\s+/g, " ");
+  const title = listing().split("**Title**")[1]?.split("**Summary**")[0] ?? "";
+  return [title, ...LISTING_FIELDS.map(listingField)].join("\n").replace(/\s+/g, " ");
 }
 
 describe("the listing document matches what we ship", () => {
@@ -323,6 +333,12 @@ describe("the listing document matches what we ship", () => {
 
   it("names the package to upload at the version the manifest carries", () => {
     expect(listing()).toContain(`paraleagle-family-ext-v${manifestField("version")}-webstore.zip`);
+  });
+
+  it("names every dashboard field file it tells you to paste", () => {
+    for (const field of LISTING_FIELDS) {
+      expect(listing(), `LISTING.md never says to paste ${field}.txt`).toContain(`${field}.txt`);
+    }
   });
 
   it("uses the manifest name as the listing title", () => {
@@ -366,6 +382,11 @@ describe("one version number, everywhere", () => {
     const pkg = JSON.parse(readFileSync(join(REPO, "package.json"), "utf-8"));
     expect(pkg.version).toBe(manifestField("version"));
   });
+
+  it("describes the item the same way the manifest does", () => {
+    const pkg = JSON.parse(readFileSync(join(REPO, "package.json"), "utf-8"));
+    expect(pkg.description).toBe(manifestField("description"));
+  });
 });
 
 // THE UPLOAD IS REJECTED BEFORE ANY REVIEW IF A MANIFEST STRING IS TOO LONG.
@@ -400,5 +421,52 @@ describe("what the store measures before it will even accept the package", () =>
     for (const token of ["I-130", "N-400", "ETA-9141", "my.uscis.gov", "ParaLeagle"]) {
       expect(d, `trimmed away ${token}`).toContain(token);
     }
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────
+// REJECTED 2026-08-29 — "Keyword spam", violation reference Yellow Argon:
+//
+//   Having excessive and/or irrelevant keywords in the item's description
+//
+//   Violating content, English (United States): "Keep the three named.
+//   Don't list forms that aren't built yet — overclaiming is its own
+//   rejection risk. [...] One thing this doesn't fix: the manifest
+//   description also names the three forms, and that's the string on the
+//   extension's card. It's baked into the 0.8.3 zip you just uploaded, so
+//   leave it — I'..."
+//
+// That is chat commentary ABOUT the upload, pasted onto the end of the
+// description by hand. The package was clean and every guard above it was
+// green — the text only ever existed in the dashboard, and nothing offline
+// can see the dashboard. Two things follow. The fields are now files under
+// `store-assets/listing/`, so a paste is select-all on one file and cannot
+// run on into whatever sat beside it in a chat window. And what is actually
+// live is read back off the public detail page by `npm run check:listing`,
+// which is the only thing that can catch this and is not a test.
+// ───────────────────────────────────────────────────────────────────────
+describe("the text pasted into the dashboard is store copy, not our notes", () => {
+  // Every token below appears in the paragraphs Google quoted back at us.
+  const OUR_NOTES = /\b(manifest|zip|rejection|resubmit|submission|version bump|I'll|you just)\b/i;
+
+  for (const field of LISTING_FIELDS) {
+    it(`${field}.txt says something`, () => {
+      expect(listingField(field).length).toBeGreaterThan(40);
+    });
+
+    it(`${field}.txt talks about the product, not about shipping it`, () => {
+      const hit = OUR_NOTES.exec(listingField(field));
+      expect(hit?.[0], `"${hit?.[0]}" is us talking to ourselves`).toBeUndefined();
+    });
+  }
+
+  it("keeps the summary inside the store's 132-character box", () => {
+    expect(listingField("summary").length).toBeLessThanOrEqual(132);
+  });
+
+  it("claims exactly the forms the manifest claims", () => {
+    expect(formsNamedIn(listingField("description"))).toEqual(
+      formsNamedIn(manifestField("description")),
+    );
   });
 });

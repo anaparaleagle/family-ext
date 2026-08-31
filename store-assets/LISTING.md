@@ -42,44 +42,23 @@ Version numbers cannot be reused. Every upload needs a higher `version` in
 
 ## 2. Store listing tab
 
+Every prose field below is a FILE under `store-assets/listing/`. Open the file,
+select all, copy, paste. Do not retype it, do not summarise it, and never copy
+listing text out of a chat window, an email or this document — that is exactly
+how the "Yellow Argon" rejection happened (section 6).
+
 **Title**
 
     ParaLeagle Family Form Autofill
 
-**Summary** (132 characters max)
+**Summary** (132 characters max) — paste `store-assets/listing/summary.txt`
 
-    Fill the online I-130, I-539, N-400 and ETA-9141 on my.uscis.gov and flag.dol.gov from your firm's case data.
+The dashboard pre-fills this box from the manifest `description` and leaves it
+editable. It does not refresh itself on a later upload, so paste the file over
+whatever is sitting there — on 2026-08-29 the live item was still showing the
+0.8.3 manifest string here, because this box was never touched.
 
-**Description**
-
-    ParaLeagle Family Form Autofill is a tool for immigration law-firm staff
-    who already use ParaLeagle. It fills the guided online forms on my.uscis.gov
-    and the labor-certification forms on flag.dol.gov from case data the firm has
-    already collected and reviewed in ParaLeagle, instead of re-typing it a third
-    time.
-
-    Forms supported:
-    - I-130, Petition for Alien Relative
-    - I-539, Application to Extend/Change Nonimmigrant Status
-    - N-400, Application for Naturalization
-    - ETA-9141, Application for Prevailing Wage Determination
-
-    How it works:
-    1. Sign in with your ParaLeagle account in the extension popup.
-    2. Pick the case and the form you have open.
-    3. Load the case, then use the toolbar on the form to fill page by page,
-       or to walk the whole form.
-
-    It also attaches supporting documents the firm has already uploaded to
-    ParaLeagle, on the form's document pages.
-
-    Nothing is filled without a signed-in ParaLeagle user asking for it, and the
-    extension only ever writes data the firm itself supplied. It does not submit
-    anything to either agency — a person reviews every page and files it.
-
-    A ParaLeagle account is required. The extension is not affiliated with, or
-    endorsed by, U.S. Citizenship and Immigration Services or the U.S. Department
-    of Labor.
+**Description** — paste `store-assets/listing/description.txt`
 
 **Category**
 
@@ -112,23 +91,9 @@ not on the Privacy tab. Fill it. Do not leave it blank.
 immigration records. The H-1B item (`imcfojejfmpkepmanakogmooejclmgnl`) was
 approved with notes of exactly this shape and no credentials, and the rejection
 before it was a static scan of the bundle and the manifest — nothing in it
-suggests a human tried to sign in. Paste:
+suggests a human tried to sign in.
 
-    ParaLeagle Family Form Autofill is an internal tool for immigration law
-    firms. It fills the guided online Forms I-130, I-539 and N-400 on
-    my.uscis.gov, and Form ETA-9141 on the Department of Labor's flag.dol.gov,
-    from case data held in the firm's own ParaLeagle account, so it requires a
-    firm login and does nothing on any other site.
-
-    Exercising it end to end needs two accounts: a ParaLeagle firm account, and a
-    USCIS or DOL FLAG account with a form draft open. We cannot supply a shared
-    ParaLeagle login because accounts contain real client immigration records —
-    A-numbers, passports, dates of birth. We can provision a reviewer account
-    against a demo-only tenant on request; please ask and we will respond the
-    same day.
-
-    The extension only ever writes data the firm itself supplied, and it submits
-    nothing to either agency. A person reviews every page and files it.
+Paste `store-assets/listing/test-instructions.txt`.
 
 If they come back citing non-functionality, THEN provision the demo tenant. Do
 not appeal a violation that is real — it costs days and clears nothing.
@@ -137,13 +102,7 @@ not appeal a violation that is real — it costs days and clears nothing.
 
 ## 3. Privacy practices tab
 
-**Single purpose**
-
-    A single purpose: fill the online immigration and labor-certification forms
-    a law firm files — on my.uscis.gov and on flag.dol.gov — with case data the
-    signed-in user's firm has already entered in ParaLeagle. Every feature serves
-    that one flow: signing in, choosing the case, filling the form's fields, and
-    attaching documents the firm has already uploaded for that case.
+**Single purpose** — paste `store-assets/listing/single-purpose.txt`
 
 **Permission justifications**
 
@@ -242,3 +201,36 @@ on a government site and PII handling are the two things that slow it down.
 To ship an update: bump `version` in `manifest.json`, `npm run build`, re-zip
 `dist/`, upload as a new package on the same item. Installed copies update
 themselves within a few hours.
+
+---
+
+## 6. Verify what actually shipped
+
+Run this after every submission, and again after it goes live:
+
+    npm run check:listing
+
+It fetches the item's PUBLIC detail page — no login, so it cannot be fooled by a
+stale dashboard draft — and diffs the two paragraphs the store shows against
+`summary.txt` and `description.txt`. Exit 0 means the live listing is the text in
+this repo. Anything else it prints line by line.
+
+**Why this exists.** On 2026-08-29 the item was rejected, "Keyword spam",
+violation reference **Yellow Argon**:
+
+    Having excessive and/or irrelevant keywords in the item's description
+
+The description on the dashboard was the 0.8.3 description with two paragraphs of
+chat commentary about the upload pasted onto the end of it:
+
+    Keep the three named. Don't list forms that aren't built yet — overclaiming
+    is its own rejection risk.
+
+    One thing this doesn't fix: the manifest description also names the three
+    forms, and that's the string on the extension's card. It's baked into the
+    0.8.3 zip you just uploaded, so leave it — ...
+
+A paste overrun. The package was clean, every guard in `test/store-build.test.ts`
+was green, and nothing in the repo could see it, because the dashboard was the
+only place that text existed. Hence the files in `store-assets/listing/`, which
+are copied whole, and this check, which reads the result back.
