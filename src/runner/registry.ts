@@ -4,6 +4,7 @@
 // Adding a form is: author its descriptor under src/<form>/form-descriptor.ts,
 // then add one entry here. Nothing else in the runner changes.
 
+import { I129_PAGES } from "../i129/form-descriptor";
 import { I130_PAGES } from "../i130/form-descriptor";
 import { I539_PAGES } from "../i539/form-descriptor";
 import { N400_PAGES } from "../n400/form-descriptor";
@@ -41,7 +42,29 @@ export const N400_CONFIG: FormConfig = {
   caseTypes: ["N-400"],
 };
 
-export const FORM_CONFIGS: FormConfig[] = [I130_CONFIG, I539_CONFIG, N400_CONFIG];
+export const I129_CONFIG: FormConfig = {
+  formType: "I-129",
+  hostPath: "/forms/petition-for-a-nonimmigrant-worker/",
+  label: "ParaLeagle I-129",
+  pages: I129_PAGES,
+  // The six cap-exempt H-1B change-of-status types. All six share ONE backend
+  // map via `definitions_from` aliases, exactly like the seven I-539 groups.
+  caseTypes: [
+    "H-1B-COS-F1",
+    "H-1B-COS-F2",
+    "H-1B-COS-J2",
+    "H-1B-COS-H4",
+    "H-1B-COS-L2",
+    "H-1B-COS-L1",
+  ],
+};
+
+export const FORM_CONFIGS: FormConfig[] = [
+  I130_CONFIG,
+  I539_CONFIG,
+  N400_CONFIG,
+  I129_CONFIG,
+];
 
 /**
  * Pick the config for a myUSCIS path, or null when the path is not one of our
