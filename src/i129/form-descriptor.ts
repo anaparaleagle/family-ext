@@ -33,36 +33,47 @@
 //
 // KNOWN GAPS (honest — do not paper over):
 //
-//  1. THE OEWS WAGE-LEVEL RADIO IS NOT DRIVEN. Its Formik name was never
-//     captured: the H-1B extension reaches it with the wildcard selector
-//     `[name*="wageLevel" i]` and a label-proximity fallback. Our engine
-//     resolves a radio by (name, value) across a group and deliberately does not
-//     apply `locate` to radios (value-setter.ts setValue), so there is no
-//     name-free way to drive it. It sits on the DC general-information page and
-//     is listed in I129_UNCAPTURED. One live walk turns it into one line.
+//  1. THE OEWS WAGE-LEVEL RADIO IS NOT DECLARED — but the engine can now reach
+//     it. Its Formik name was never captured: the H-1B extension reaches it with
+//     the wildcard selector `[name*="wageLevel" i]` and a label-proximity
+//     fallback, and myUSCIS had already renamed the path out of
+//     `numericalLimitationInformation` (SOF-486 R6). setValue now applies
+//     `locate` to radio groups too (`nameContains`, then `labelContains`), so a
+//     renamed group is findable. What is missing is the DECLARATION, and it is
+//     deliberately not invented: the field is absent from the vendored capture,
+//     and the coverage test refuses any descriptor name the capture does not
+//     have — the guard that has kept this map honest. The fact behind it already
+//     exists (`case.lca_oes_wage_level`, asked on h1b_lca_review, values
+//     I/II/III/IV), so one live walk turns this into one descriptor line plus one
+//     map entry. Note the value must be sent as the full "Wage Level II" text:
+//     a bare "II" is below the engine's loose-match floor, on purpose, because
+//     "I" is a substring of II, III and IV.
 //
 //  2. FIVE RADIO GROUPS CARRY LABEL TEXT, NOT PROVEN OPTION VALUES. The H-1B
 //     filler matches a radio option by SUBSTRING (i129-filler.ts matchesTarget),
 //     so a multi-word string in its map is text that worked as a substring — not
-//     a value proven to equal the input's `value`. Our setRadio matches EXACTLY.
-//     The five are listed in I129_UNVERIFIED_OPTIONS and the coverage test locks
-//     that list, so re-checking them is a defined job rather than a rumour. A
+//     a value proven to equal the input's `value`. setRadio now falls back to the
+//     same substring match, with the word-boundary guard that keeps "Wage Level I"
+//     off "Wage Level IV", so these five FILL. They stay listed in
+//     I129_UNVERIFIED_OPTIONS because the values are still unproven, not because
+//     they are blocked — a live walk should still promote them to verbatim. A
 //     miss is loud and self-diagnosing: setRadio logs every option's value and
 //     label on failure, which is exactly the capture needed to fix it.
 //     The two/three-option true/false and coded groups (gender 3/1, the
 //     classification codes) are verbatim and safe.
 //
-//  3. THE EVIDENCE SLUGS ARE MOSTLY UNCAPTURED, AND THE ELEVEN HEADINGS DO NOT
-//     TRANSFER. paraleagle-ext drives its eleven I-129 upload pages entirely by
-//     HEADING text (i129-doc-map.ts + detectDocUploadPage) and never reads a URL
-//     there at all. Our doc-flow matches a backend `page_path` against the URL
-//     (descriptorsForPath). So the heading table is not portable and slice 3
-//     needs its own capture, on myUSCIS, the same way the LCA does on FLAG.
-//     Four trailing URL segments happen to be written down in that repo's
-//     comments and are declared below; the other seven pages are in
-//     I129_UNCAPTURED. An undeclared upload page is not silent — the chain logs
-//     "page not in descriptor" and walks past it, which is how the I-539's I-20
-//     page was found.
+//  3. THE EVIDENCE PAGES ARE DRIVEN BY HEADING, NOT BY SLUG — and that is the
+//     fix, not a gap. paraleagle-ext drives its eleven I-129 upload pages
+//     entirely by HEADING text (i129-doc-map.ts + detectDocUploadPage) and never
+//     reads a URL there at all. Our doc-flow now matches either way
+//     (descriptorsForPage), so the heading table PORTS and no slug capture is
+//     needed. The backend declares each page with page_path "" and a heading; an
+//     empty page_path deliberately matches nothing, since "".endsWith("") is true
+//     and would otherwise attach those documents to every page of the walk.
+//     Six of the eleven pages are not declared because family has no document to
+//     put on them yet — see the backend's _upload_pages_note for which and why.
+//     An undeclared upload page is not silent — the chain logs "no descriptor"
+//     and walks past it, which is how the I-539's I-20 page was found.
 //
 // Field kinds follow the I-539/N-400 precedent:
 //  - myUSCIS input MASKS (dates, ZIP, SSN, I-94, currency) are plain text inputs
@@ -99,21 +110,8 @@ export const I129_UNVERIFIED_OPTIONS: string[] = [
  */
 export const I129_UNCAPTURED: string[] = [
   // The OEWS wage-level radio on the DC general-information page — see gap 1.
+  // The engine can drive it; what is missing is its live name.
   "DC general information: the OEWS wage-level radio's Formik name",
-  // Evidence pages paraleagle-ext only ever knew by heading — see gap 3. These
-  // are its exact heading strings, so a capture run can be reconciled against
-  // them one for one.
-  "Evidence: slug for 'Evidence of certified labor condition application'",
-  "Evidence: slug for 'Evidence of qualified specialty occupation'",
-  "Evidence: slug for 'Degree or evidence of specialized training'",
-  "Evidence: slug for 'Evidence of license and certificates'",
-  "Evidence: slug for 'Written contract or terms of agreement'",
-  "Evidence: slug for 'Evidence of available position'",
-  "Evidence: slug for 'Additional evidence you want to provide'",
-  // The four declared upload slugs are TRAILING SEGMENTS only, with no path
-  // prefix recorded. Both matchers are suffix matches so they work, but a fuller
-  // capture would make them tighter.
-  "Evidence: the path prefix the four known slugs sit under (assumed /evidence/)",
   // The walk's terminus.
   "Review: the review-and-submit slug, and that the walk stops on it",
 ];

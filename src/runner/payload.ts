@@ -9,6 +9,10 @@
 /** One upload-only page descriptor, straight from the backend `upload_pages`. */
 export interface UploadPageDescriptor {
   page_path: string;
+  /** The page's own h1/h2/h3 text, for pages myUSCIS gives no stable slug.
+   * Matched bidirectionally as a substring, so small wording drift on either
+   * side still lands. A descriptor may carry a heading, a page_path, or both. */
+  heading?: string;
   /** "generated_form" (e.g. the I-130A PDF) or "document" (stored evidence). */
   kind: "generated_form" | "document";
   /** For kind=generated_form. */

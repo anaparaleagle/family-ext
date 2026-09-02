@@ -530,8 +530,43 @@ export function descriptorsForPath(
   path: string,
   uploadPages: UploadPageDescriptor[],
 ): UploadPageDescriptor[] {
+  return descriptorsForPage(path, "", uploadPages);
+}
+
+/**
+ * EVERY descriptor for the current page, matched by URL path OR by heading.
+ *
+ * Seven of the I-129's eleven evidence pages have no slug we can rely on — the
+ * H-1B extension drives all of them by HEADING text and never reads a URL there
+ * at all. So a descriptor may declare a `page_path`, a `heading`, or both, and
+ * either one matching is a match.
+ *
+ * An EMPTY `page_path` matches NOTHING. `"".endsWith("")` is true, so a
+ * heading-only descriptor written with an empty path would otherwise attach
+ * itself to every page the walk touches and upload the same file over and over.
+ *
+ * The substring is bidirectional so drift on either side still lands — the live
+ * h2 "Evidence Of The Basis Of Wage Level" and a declared "Basis of wage level"
+ * meet in the middle. Bidirectional cuts both ways though: a generic live
+ * heading like "Evidence" is a substring of half the declared ones, so whichever
+ * string is the shorter must still be specific enough to mean something.
+ */
+const MIN_HEADING_MATCH = 10;
+export function descriptorsForPage(
+  path: string,
+  heading: string,
+  uploadPages: UploadPageDescriptor[],
+): UploadPageDescriptor[] {
   const p = path.replace(/\/$/, "");
-  return uploadPages.filter((d) => p.endsWith(d.page_path.replace(/\/$/, "")));
+  const live = heading.trim().toLowerCase();
+  return uploadPages.filter((d) => {
+    const slug = (d.page_path ?? "").replace(/\/$/, "");
+    if (slug && p.endsWith(slug)) return true;
+    const declared = (d.heading ?? "").trim().toLowerCase();
+    if (!declared || !live) return false;
+    if (Math.min(declared.length, live.length) < MIN_HEADING_MATCH) return declared === live;
+    return live.includes(declared) || declared.includes(live);
+  });
 }
 
 /** First descriptor for a path, or null. Kept for callers that want just one. */

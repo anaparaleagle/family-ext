@@ -75,6 +75,88 @@ describe("value-setter: radio", () => {
     expect(checked?.value).toBe("yes");
   });
 
+  it("matches an option label the backend sends as a substring of the live label", async () => {
+    setBody(
+      radioGroup("gettingStarted.reasonForRequest2.requestedAction", [
+        { value: "A", label: "A. Notify the office in Part 4, so each beneficiary can obtain a visa or be admitted" },
+        { value: "B", label: "B. Change the status and extend the stay of each beneficiary because now in the USA in another status" },
+      ]),
+    );
+    const res = await setValue(
+      { name: "gettingStarted.reasonForRequest2.requestedAction", kind: "radio" },
+      "Change the status and extend the stay of each beneficiary because now in the USA in another status",
+    );
+    expect(res.success).toBe(true);
+    const checked = document.querySelector<HTMLInputElement>(
+      'input[name="gettingStarted.reasonForRequest2.requestedAction"]:checked',
+    );
+    expect(checked?.value).toBe("B");
+  });
+
+  it("does not let Wage Level I match Wage Level IV listed before it", async () => {
+    setBody(
+      radioGroup("h1b1DataCollection.numericalLimitationInformation.wageLevel", [
+        { value: "4", label: "Wage Level IV (senior)" },
+        { value: "1", label: "Wage Level I (entry)" },
+      ]),
+    );
+    const res = await setValue(
+      { name: "h1b1DataCollection.numericalLimitationInformation.wageLevel", kind: "radio" },
+      "Wage Level I",
+    );
+    expect(res.success).toBe(true);
+    const checked = document.querySelector<HTMLInputElement>(
+      'input[name="h1b1DataCollection.numericalLimitationInformation.wageLevel"]:checked',
+    );
+    expect(checked?.value).toBe("1");
+  });
+
+  it("finds a renamed radio group through locate.nameContains", async () => {
+    setBody(
+      radioGroup("h1b1DataCollection.generalInformation.oewsWageLevelForPosition", [
+        { value: "1", label: "Wage Level I" },
+        { value: "2", label: "Wage Level II" },
+      ]),
+    );
+    const res = await setValue(
+      {
+        name: "h1b1DataCollection.numericalLimitationInformation.wageLevel",
+        kind: "radio",
+        locate: { nameContains: "wageLevel" },
+      },
+      "Wage Level II",
+    );
+    expect(res.success).toBe(true);
+    const checked = document.querySelector<HTMLInputElement>(
+      'input[name="h1b1DataCollection.generalInformation.oewsWageLevelForPosition"]:checked',
+    );
+    expect(checked?.value).toBe("2");
+  });
+
+  it("falls back to the group beside a label when the name token is gone too", async () => {
+    setBody(
+      `<div><p>Select the OEWS wage level that corresponds to the proffered position</p>` +
+        radioGroup("h1b1DataCollection.generalInformation.q7", [
+          { value: "1", label: "Wage Level I" },
+          { value: "4", label: "Wage Level IV" },
+        ]) +
+        `</div>`,
+    );
+    const res = await setValue(
+      {
+        name: "h1b1DataCollection.numericalLimitationInformation.wageLevel",
+        kind: "radio",
+        locate: { nameContains: "wageLevel", labelContains: "OEWS wage level" },
+      },
+      "Wage Level I",
+    );
+    expect(res.success).toBe(true);
+    const checked = document.querySelector<HTMLInputElement>(
+      'input[name="h1b1DataCollection.generalInformation.q7"]:checked',
+    );
+    expect(checked?.value).toBe("1");
+  });
+
   it("reports failure when no option matches", async () => {
     setBody(
       radioGroup("applicant.additionalInformation.immigrationStatus", [
