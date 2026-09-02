@@ -211,6 +211,41 @@ function handleDownloadFile(
     );
 }
 
+// Slack Incoming Webhook that selector-miss telemetry is posted to. The URL is
+// INJECTED AT BUILD TIME (esbuild `define`), never committed — GitHub push
+// protection (rightly) blocks a webhook URL in source. Set it via the
+// SLACK_TELEMETRY_WEBHOOK env var, or a gitignored `.slack-webhook` file, when
+// building the shipped extension; unset → telemetry is a silent no-op. The URL
+// still lands in the built (gitignored) dist, so shipping behaviour is unchanged.
+// The `typeof` guard keeps this defined under vitest, where the define is absent.
+declare const __SLACK_WEBHOOK__: string;
+const SLACK_TELEMETRY_WEBHOOK =
+  typeof __SLACK_WEBHOOK__ !== "undefined" ? __SLACK_WEBHOOK__ : "";
+
+/**
+ * POST a plain-text message to the Slack telemetry webhook. Never carries the
+ * caller's token (different origin from the family API). Best-effort — a
+ * failure comes back as {success:false} and the caller ignores it.
+ */
+function handleSlackPost(
+  message: { text?: string },
+  sendResponse: (r: { success: boolean; status?: number; error?: string }) => void,
+): void {
+  if (!SLACK_TELEMETRY_WEBHOOK.startsWith("https://hooks.slack.com/")) {
+    sendResponse({ success: false, error: "Slack webhook not configured" });
+    return;
+  }
+  fetch(SLACK_TELEMETRY_WEBHOOK, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: message.text ?? "" }),
+  })
+    .then((res) => sendResponse({ success: res.ok, status: res.status }))
+    .catch((err) =>
+      sendResponse({ success: false, error: err instanceof Error ? err.message : String(err) }),
+    );
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "DOWNLOAD_FILE") {
     handleDownloadFile(message, sendResponse);
@@ -218,6 +253,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
   if (message?.type === "API_GET") {
     handleApiGet(message, sendResponse);
+    return true; // keep channel open for async sendResponse
+  }
+  if (message?.type === "SLACK_POST") {
+    handleSlackPost(message, sendResponse);
     return true; // keep channel open for async sendResponse
   }
 });

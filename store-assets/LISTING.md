@@ -183,6 +183,14 @@ Host permissions — `https://*.s3.amazonaws.com/*`, `https://s3.amazonaws.com/*
     pages. Only file bytes are fetched, and no ParaLeagle credentials are sent
     to S3 — the links carry their own short-lived signature.
 
+Host permission — `https://hooks.slack.com/*`
+
+    A Slack Incoming Webhook the extension posts a short health message to when a
+    government form shows a question our mapping doesn't fill — so we can update
+    the extension when USCIS or DOL changes a form. It sends only the form field
+    name, its on-screen label, and the case id (never any of the applicant's
+    data), and goes to one ParaLeagle-internal Slack channel.
+
 **Remote code**
 
     No, I am not using remote code. All JavaScript is bundled in the package.
