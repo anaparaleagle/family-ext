@@ -9,13 +9,14 @@
 
 import { dbg, debugLog, resetDebugLog, hydrateDebugLog, renderDebugLogInto } from "../engine/logger";
 import { resolveApiBaseUrl } from "../engine/api-config";
+import { flushUnmappedFields, normalizeName } from "../engine/telemetry";
 import { detectCurrentPage } from "./section-detector";
 import { fillAll, fillPage, onLoginPage } from "./fill-chain";
 import { auditPage, summarizeAudit } from "./audit";
 import { descriptorsForPath, fillUploadPageAll } from "./doc-flow";
 import { STORAGE_KEYS } from "./payload";
 import { configForPath } from "./registry";
-import { FormConfig, FormPage } from "./types";
+import { FormConfig, FormPage, fieldNamesOf } from "./types";
 
 /** The form this page belongs to, or null when we're not on one of ours. */
 function currentConfig(): FormConfig | null {
@@ -587,7 +588,9 @@ async function fillSectionBody(): Promise<void> {
     return;
   }
   if (page.kind === "review") return setStatus("Review page — nothing to fill.");
-  const res = await fillPage(page, payload.fieldValues);
+  const coverage = new Set(fieldNamesOf(config.pages).map(normalizeName));
+  const res = await fillPage(page, payload.fieldValues, coverage);
+  void flushUnmappedFields(config.formType, payload.caseId);
   setStatus(
     `${page.title}: ${res.filled}/${res.total} filled` +
       (res.skipped ? ` (${res.skipped} not shown)` : ""),
@@ -649,6 +652,7 @@ async function fillAllBody(): Promise<void> {
   const summaries = await fillAll(config, payload.fieldValues, (page) =>
     handleUploadPage(page, payload),
   );
+  void flushUnmappedFields(config.formType, payload.caseId);
   const filled = summaries.reduce((n, s) => n + s.filled, 0);
   const total = summaries.reduce((n, s) => n + s.total, 0);
   setStatus(`Done — ${filled}/${total} fields across ${summaries.length} pages`);

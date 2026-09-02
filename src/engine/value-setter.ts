@@ -69,7 +69,7 @@ function normaliseText(s: string): string {
 }
 
 /** The visible label for an input: aria-label, then a bound <label for=…>. */
-function visibleLabel(el: Element): string {
+export function visibleLabel(el: Element): string {
   const aria = el.getAttribute("aria-label");
   if (aria) return normaliseText(aria);
   const id = el.getAttribute("id");

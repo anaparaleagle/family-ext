@@ -14,7 +14,8 @@
 import { setValue, findByName, locateElement } from "../engine/value-setter";
 import { FieldSpec, SetResult } from "../engine/types";
 import { dbg } from "../engine/logger";
-import { DescriptorField, FormConfig, FormPage, RepeaterSpec, RevealSpec } from "./types";
+import { auditUnmappedFields, normalizeName } from "../engine/telemetry";
+import { DescriptorField, FormConfig, FormPage, RepeaterSpec, RevealSpec, fieldNamesOf } from "./types";
 import { detectCurrentPage } from "./section-detector";
 import { uploadsInFlight } from "../engine/doc-uploader";
 
@@ -360,6 +361,10 @@ async function waitForRevealed(spec: FieldSpec, timeoutMs = REVEAL_RENDER_TIMEOU
 export async function fillPage(
   page: FormPage,
   fieldValues: Record<string, string>,
+  // When passed, health telemetry records any rendered question on this page
+  // whose name isn't in the descriptor's coverage set. Optional so unit tests
+  // and non-telemetry callers are unaffected.
+  coverage?: Set<string>,
 ): Promise<PageFillResult> {
   const plan = planPageFill(page, fieldValues);
   const results: SetResult[] = [];
@@ -495,6 +500,9 @@ export async function fillPage(
   // A page whose row fields were ALL dropped from the plan still gets its rows
   // rendered, so the walk's Save/Next logic sees the real page, not a collapsed one.
   await renderRowsOnce();
+
+  // Health telemetry: which questions on this page does our descriptor not cover?
+  if (coverage) auditUnmappedFields(coverage, page.title);
 
   const filled = results.filter((r) => r.success).length;
   return {
@@ -956,6 +964,9 @@ export async function fillAll(
 ): Promise<PageFillResult[]> {
   const summaries: PageFillResult[] = [];
   const uploadsSeen: string[] = [];
+  // Coverage = every field name the descriptor drives (repeater rows normalized),
+  // so the per-page audit can flag rendered questions we don't cover.
+  const coverage = new Set(fieldNamesOf(config.pages).map(normalizeName));
   dbg(
     `fillAll: START ${config.formType} — descriptor has ${config.pages.length} pages, ` +
       `payload has ${Object.keys(fieldValues).length} field values`,
@@ -1029,7 +1040,7 @@ export async function fillAll(
           // Don't fill until the page's inputs have rendered, so a first-paint
           // race doesn't whiff every field with "element not on page".
           await waitForPageReady(page, fieldValues);
-          const res = await fillPage(page, fieldValues);
+          const res = await fillPage(page, fieldValues, coverage);
           summaries.push(res);
           dbg(
             `fillAll: ${page.slug} — ${res.filled}/${res.total} filled` +
