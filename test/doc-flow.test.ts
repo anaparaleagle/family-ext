@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { fillUploadPage, fillUploadPageAll, descriptorsForPath } from "../src/runner/doc-flow";
+import { fillUploadPage, fillUploadPageAll, descriptorsForPath, descriptorsForPage } from "../src/runner/doc-flow";
 import type { UploadPageDescriptor } from "../src/runner/payload";
 
 const CTX = {
@@ -682,5 +682,44 @@ describe("doc-flow: two documents of the same type with no filename", () => {
     // No gratuitous suffix on the overwhelmingly common single-document case.
     expect(document.querySelector(".uploaded-file")?.textContent).toContain("i94.pdf");
     expect(document.querySelector(".uploaded-file")?.textContent).not.toContain("-aaaaaaaa");
+  });
+});
+
+describe("doc-flow: an evidence page myUSCIS only identifies by heading", () => {
+  const PAGES: UploadPageDescriptor[] = [
+    { page_path: "", heading: "Basis of wage level", kind: "document", doc_type: "oflc_dol_printout" },
+    { page_path: "/evidence/form-i-94", kind: "document", doc_type: "i94" },
+  ];
+
+  it("matches the descriptor whose heading the page carries", () => {
+    const all = descriptorsForPage("/forms/x/13359458/evidence/unknown-slug", "Evidence Of The Basis Of Wage Level", PAGES);
+    expect(all.map((d) => d.doc_type)).toEqual(["oflc_dol_printout"]);
+  });
+
+  it("matches when the live heading is shorter than the declared one", () => {
+    const all = descriptorsForPage("/forms/x/1/evidence/anything", "Basis of wage", [
+      { page_path: "", heading: "Basis of wage level", kind: "document", doc_type: "oflc_dol_printout" },
+    ]);
+    expect(all.map((d) => d.doc_type)).toEqual(["oflc_dol_printout"]);
+  });
+
+  it("does not attach a heading-only descriptor to every page it walks past", () => {
+    const all = descriptorsForPage("/forms/x/13359458/evidence/form-i-94", "Form I-94", PAGES);
+    expect(all.map((d) => d.doc_type)).toEqual(["i94"]);
+  });
+
+  it("does not treat a generic heading as a match for a specific one", () => {
+    // "Evidence" is a substring of "Degree or evidence of specialized training".
+    // Matching on it would attach the education documents to any page whose first
+    // heading happens to be the section title.
+    const all = descriptorsForPage("/forms/x/1/evidence/something", "Evidence", [
+      { page_path: "", heading: "Degree or evidence of specialized training", kind: "document", doc_type: "marksheet" },
+    ]);
+    expect(all).toEqual([]);
+  });
+
+  it("still matches on page_path when the page has no heading at all", () => {
+    const all = descriptorsForPage("/forms/x/13359458/evidence/form-i-94", "", PAGES);
+    expect(all.map((d) => d.doc_type)).toEqual(["i94"]);
   });
 });

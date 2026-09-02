@@ -113,10 +113,11 @@ describe("I-129 capture: the vendored port is intact", () => {
   });
 
   it("marks exactly the five radio groups whose option text is unverified", () => {
-    // paraleagle-ext's filler matches a radio option by SUBSTRING; ours matches
-    // exactly. So a multi-word option in the capture is label text that worked as
-    // a substring, not a value proven to equal the input's `value`. This list is
-    // the work item, and it must not quietly shrink.
+    // paraleagle-ext's filler matches a radio option by SUBSTRING. So a
+    // multi-word option in the capture is label text that worked as a substring,
+    // not a value proven to equal the input's `value`. setRadio now matches the
+    // same way on its second pass, so these fill — but the values are still
+    // unproven, and this list must not quietly shrink before a live walk says so.
     const unverified = captureFields()
       .filter((f) => f.options_verbatim === false)
       .map((f) => f.name)

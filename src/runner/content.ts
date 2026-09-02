@@ -9,10 +9,10 @@
 
 import { dbg, debugLog, resetDebugLog, hydrateDebugLog, renderDebugLogInto } from "../engine/logger";
 import { resolveApiBaseUrl } from "../engine/api-config";
-import { detectCurrentPage } from "./section-detector";
+import { detectCurrentPage, liveHeading } from "./section-detector";
 import { fillAll, fillPage, onLoginPage } from "./fill-chain";
 import { auditPage, summarizeAudit } from "./audit";
-import { descriptorsForPath, fillUploadPageAll } from "./doc-flow";
+import { descriptorsForPage, fillUploadPageAll } from "./doc-flow";
 import { STORAGE_KEYS } from "./payload";
 import { configForPath } from "./registry";
 import { FormConfig, FormPage } from "./types";
@@ -100,9 +100,13 @@ async function loadPayloadFor(config: FormConfig): Promise<LoadedPayload | null>
 async function handleUploadPage(page: FormPage, payload: LoadedPayload): Promise<number> {
   // ALL descriptors for this page, not just the first — one evidence slot can be
   // fed by several document types (see fillUploadPageAll).
-  const descriptors = descriptorsForPath(page.slug, payload.uploadPages);
+  //
+  // Matched by slug OR by heading: most of the I-129's evidence pages have no
+  // slug we can rely on, and are identified by their heading alone.
+  const heading = liveHeading();
+  const descriptors = descriptorsForPage(page.slug, heading, payload.uploadPages);
   if (descriptors.length === 0) {
-    dbg(`upload: no descriptor for ${page.slug}, skipping`);
+    dbg(`upload: no descriptor for ${page.slug} / "${heading}", skipping`);
     return 0;
   }
   try {

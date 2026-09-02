@@ -59,6 +59,15 @@ export function detectCurrentPage(pages: FormPage[], doc: Document = document): 
   const byUrl = pageForUrl(pages, doc.location?.href ?? "");
   if (byUrl) return byUrl;
 
-  const heading = doc.querySelector("h1, h2, h3");
-  return heading ? pageForHeading(pages, heading.textContent ?? "") : null;
+  const heading = liveHeading(doc);
+  return heading ? pageForHeading(pages, heading) : null;
+}
+
+/** The page's own heading text, or "" when it has none.
+ *
+ * The single reader for both jobs that need it: picking the current page when the
+ * URL does not name it, and matching an evidence page that myUSCIS gives no
+ * stable slug for (doc-flow.descriptorsForPage). */
+export function liveHeading(doc: Document = document): string {
+  return doc.querySelector("h1, h2, h3")?.textContent?.trim() ?? "";
 }

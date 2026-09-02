@@ -46,6 +46,17 @@ export interface LocateSpec {
    */
   nearName?: string;
   /**
+   * A fragment of the field's name, matched case-insensitively with
+   * `[name*="..." i]`. For RADIO GROUPS whose Formik path myUSCIS has renamed.
+   *
+   * The OEWS wage-level group is the reason: its path moved out of
+   * `numericalLimitationInformation` and the H-1B extension had to stop naming it
+   * outright, reaching it by the surviving "wageLevel" token instead. A radio
+   * resolves by (name, option) across a whole group, so it cannot use `id` or
+   * `nearName` — those find one element, not the group.
+   */
+  nameContains?: string;
+  /**
    * Visible label text (or aria-label) to match, compared as a
    * whitespace-normalised substring. Fallback, used when there is no anchor or
    * the anchor is not on the page.

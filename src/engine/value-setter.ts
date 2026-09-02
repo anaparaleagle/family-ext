@@ -16,7 +16,7 @@
 // ===========================================================================
 
 import { dbg } from "./logger";
-import { FieldSpec, SetResult } from "./types";
+import { FieldSpec, LocateSpec, SetResult } from "./types";
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -253,22 +253,103 @@ const RADIO_ALIASES: Record<string, string[]> = {
   no: ["false", "n", "0"],
 };
 
-function setRadio(name: string, value: string): boolean {
-  const radios = document.querySelectorAll<HTMLInputElement>(
-    `input[type="radio"][name="${cssEscape(name)}"]`,
-  );
+/** Shortest target we will match loosely. Anything shorter is a CODE ("1", "3",
+ * "Y") that the exact pass already had its chance at, and a one-character
+ * needle matches almost any label. */
+const LOOSE_MATCH_MIN = 4;
+
+/**
+ * Does `needle` sit inside `haystack` and END on a word boundary?
+ *
+ * A bare `includes` is too loose in both directions. "Wage Level I" is a prefix
+ * of "Wage Level IV", so a target of "wage level i" matched the IV option and
+ * clicked it whenever it came first in the DOM — the H-1B extension hit exactly
+ * this and fixed it the same way (SOF-568). The character after the match must
+ * not be alphanumeric, so I does not match II/III/IV, L1 does not match L1A, and
+ * P1 does not match P1B.
+ */
+function containsAtBoundary(haystack: string, needle: string): boolean {
+  const idx = haystack.indexOf(needle);
+  if (idx === -1) return false;
+  const after = haystack[idx + needle.length];
+  return after === undefined || !/[a-z0-9]/.test(after);
+}
+
+/** The option in `radios` that answers `value`, or null.
+ *
+ * Two passes, in this order, because they are not equally trustworthy: an exact
+ * value or label (plus the yes/no aliases) is proof, a substring is inference. */
+function pickRadio(radios: HTMLInputElement[], value: string): HTMLInputElement | null {
   const wanted = value.toLowerCase();
   const aliases = RADIO_ALIASES[wanted] ?? [];
   for (const radio of radios) {
     const rv = (radio.value || "").toLowerCase();
     const label = radioLabel(radio).toLowerCase();
     if (rv === wanted || label === wanted || aliases.includes(rv) || aliases.includes(label)) {
-      radio.click();
-      radio.dispatchEvent(new Event("change", { bubbles: true }));
-      radio.dispatchEvent(new Event("input", { bubbles: true }));
-      return true;
+      return radio;
     }
   }
+  // Second pass, SUBSTRING. Some of the option strings in the I-129 map are LABEL
+  // TEXT lifted from the H-1B extension, which matched options by substring — they
+  // were never proven to equal the input's `value`, and the live label often
+  // carries an "A. " prefix or wraps the declared text. Exact matching alone left
+  // those five groups unfillable (I129_UNVERIFIED_OPTIONS in the descriptor).
+  if (wanted.length < LOOSE_MATCH_MIN) return null;
+  for (const radio of radios) {
+    const rv = (radio.value || "").toLowerCase();
+    const label = radioLabel(radio).toLowerCase();
+    if (
+      containsAtBoundary(label, wanted) || containsAtBoundary(wanted, label) ||
+      containsAtBoundary(rv, wanted) || containsAtBoundary(wanted, rv)
+    ) {
+      return radio;
+    }
+  }
+  return null;
+}
+
+/** The radio group a `locate` spec points at, for a group whose declared name is
+ * not the one on the page. Empty when the spec finds nothing. */
+function locateRadios(locate: LocateSpec): HTMLInputElement[] {
+  if (locate.nameContains) {
+    const byName = Array.from(
+      document.querySelectorAll<HTMLInputElement>(
+        `input[type="radio"][name*="${cssEscape(locate.nameContains)}" i]`,
+      ),
+    );
+    if (byName.length) return byName;
+  }
+  if (!locate.labelContains) return [];
+  // SMALLEST container whose text carries the label and holds radios. Largest
+  // would always be <body>, which on a page with two groups picks the wrong one.
+  const want = normaliseText(locate.labelContains).toLowerCase();
+  let best: { radios: HTMLInputElement[]; size: number } | null = null;
+  for (const el of Array.from(document.querySelectorAll<HTMLElement>("*"))) {
+    const radios = Array.from(el.querySelectorAll<HTMLInputElement>('input[type="radio"]'));
+    if (!radios.length) continue;
+    if (!normaliseText(el.textContent ?? "").toLowerCase().includes(want)) continue;
+    const size = (el.textContent ?? "").length;
+    if (!best || size < best.size) best = { radios, size };
+  }
+  return best?.radios ?? [];
+}
+
+function setRadio(name: string, value: string, locate?: LocateSpec): boolean {
+  let radios = Array.from(
+    document.querySelectorAll<HTMLInputElement>(
+      `input[type="radio"][name="${cssEscape(name)}"]`,
+    ),
+  );
+  // The declared name is not on the page. myUSCIS renames Formik paths between
+  // form editions, so a group we can still identify structurally is not a miss.
+  if (radios.length === 0 && locate) {
+    radios = locateRadios(locate);
+    if (radios.length) {
+      dbg(`value-setter: "${name}" not on page; located a group of ${radios.length} by locate`);
+    }
+  }
+  const chosen = pickRadio(radios, value);
+  if (chosen) return clickRadio(chosen);
   dbg(`value-setter: no radio option matched "${value}" for "${name}" (${radios.length} options)`);
   // Name what WAS on the page. A radio miss is either a value we do not send in
   // the page's vocabulary (fix the backend map) or a group that is not really
@@ -282,6 +363,13 @@ function setRadio(name: string, value: string): boolean {
     }
   }
   return false;
+}
+
+function clickRadio(radio: HTMLInputElement): boolean {
+  radio.click();
+  radio.dispatchEvent(new Event("change", { bubbles: true }));
+  radio.dispatchEvent(new Event("input", { bubbles: true }));
+  return true;
 }
 
 function radioLabel(radio: HTMLInputElement): string {
@@ -674,14 +762,15 @@ export async function setValue(spec: FieldSpec, value: string): Promise<SetResul
   const { name, kind } = spec;
   try {
     if (kind === "radio") {
-      const ok = setRadio(name, spec.optionValue ?? value);
+      const ok = setRadio(name, spec.optionValue ?? value, spec.locate);
       return result(name, ok, ok ? "set radio" : "radio option not found");
     }
 
     // locateElement is findByName plus the declared structural/label fallbacks.
     // For a field with a stable name it IS findByName, so nothing changes there.
-    // Radios above are excluded: they resolve by (name, optionValue) across a
-    // group, and no radio we have seen carries an unstable name.
+    // Radios are handled above rather than here: they resolve by (name, option)
+    // across a whole GROUP, so they need locateRadios, which returns the group,
+    // not locateElement, which returns one element.
     const el = locateElement(spec);
     if (!el) return result(name, false, "element not on page");
 
