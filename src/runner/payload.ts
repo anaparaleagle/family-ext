@@ -29,6 +29,8 @@ export interface UploadPageDescriptor {
 export interface MyuscisPayload {
   case: string;
   form_type: string;
+  /** Which applicant on the case these values belong to. 0 is the principal. */
+  member?: number;
   field_values: Record<string, string>;
   documents: { upload_pages: UploadPageDescriptor[] };
 }
@@ -43,6 +45,10 @@ export const STORAGE_KEYS = {
   fieldValues: "myuscisFieldValues",
   uploadPages: "myuscisUploadPages",
   caseId: "myuscisCaseId",
+  // WHICH applicant on that case. A case used to hold one person, so the case
+  // said everything; a couple naturalising together makes "which case" and
+  // "which person" two questions, and only this answers the second.
+  memberIndex: "myuscisMemberIndex",
   formType: "myuscisFormType",
   accessToken: "accessToken",
   apiBaseUrl: "apiBaseUrl",

@@ -76,6 +76,8 @@ const caseSearch = $<HTMLInputElement>("case-search");
 const loadBtn = $<HTMLButtonElement>("load-btn");
 const apiEnvSelect = $<HTMLSelectElement>("api-env");
 const formTypeSelect = $<HTMLSelectElement>("form-type");
+const personRow = $("person-row");
+const personSelect = $<HTMLSelectElement>("person");
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 function showError(msg: string): void {
@@ -345,9 +347,16 @@ async function handleLoadCase(): Promise<void> {
     }
     // forceRefresh: this is the token the content script will reuse for doc
     // downloads for the rest of the session — hand it over fresh.
+    // A hidden picker means a one-applicant case, which is the principal.
+    const onePerson = personRow.style.display === "none";
+    const memberIndex = onePerson ? 0 : Number(personSelect.value || 0);
+    const personName = onePerson
+      ? ""
+      : (personSelect.selectedOptions[0]?.textContent ?? "");
     const res = await apiRequest(
       `/forms/myuscis-preview/?case=${encodeURIComponent(selectedCaseId)}` +
-        `&form_type=${encodeURIComponent(formType)}`,
+        `&form_type=${encodeURIComponent(formType)}` +
+        `&member=${memberIndex}`,
       true,
     );
     if (!res.ok) {
@@ -363,12 +372,18 @@ async function handleLoadCase(): Promise<void> {
       [STORAGE_KEYS.fieldValues]: fieldValues,
       [STORAGE_KEYS.uploadPages]: payload.documents?.upload_pages ?? [],
       [STORAGE_KEYS.caseId]: selectedCaseId,
+      [STORAGE_KEYS.memberIndex]: memberIndex,
       [STORAGE_KEYS.formType]: formType,
       [STORAGE_KEYS.loadedAt]: Date.now(),
     });
     const n = Object.keys(fieldValues).length;
     const u = payload.documents?.upload_pages?.length ?? 0;
-    setStatus(`Loaded ${n} ${formType} fields + ${u} upload pages`);
+    // Name the person on a multi-applicant case. Filling the wrong applicant's
+    // form is invisible otherwise - both N-400s look identical on screen.
+    setStatus(
+      `Loaded ${n} ${formType} fields + ${u} upload pages` +
+        (personName ? ` for ${personName}` : ""),
+    );
     loadBtn.textContent = "Loaded!";
     setTimeout(() => (loadBtn.textContent = "Load case"), 1500);
   } catch {
@@ -394,7 +409,44 @@ caseList.addEventListener("click", (e) => {
   caseList.querySelectorAll(".case-row.selected").forEach((r) => r.classList.remove("selected"));
   row.classList.add("selected");
   followCaseType(cases.find((c) => c.id === selectedCaseId)?.case_type);
+  void loadPeople(selectedCaseId);
 });
+/**
+ * Load the people on the chosen case into the applicant picker.
+ *
+ * The case list says nothing about members, so this reads the case detail, which
+ * already publishes them. Applicants only: a petitioner is a party on the case,
+ * not somebody who files an N-400.
+ *
+ * A one-person case hides the picker entirely — that is almost every case, and a
+ * dropdown with one option is a question nobody needs asked. A failure hides it
+ * too and leaves the principal selected, which is exactly the behaviour before
+ * members existed.
+ */
+async function loadPeople(caseId: string): Promise<void> {
+  personRow.style.display = "none";
+  personSelect.innerHTML = "";
+  try {
+    const res = await apiRequest(`/cases/${encodeURIComponent(caseId)}/`);
+    if (!res.ok) return;
+    const detail = (await res.json()) as {
+      members?: { party_role: string; member_index: number; label: string }[];
+    };
+    const people = (detail.members ?? []).filter((m) => m.party_role === "APPLICANT");
+    if (people.length < 2) return;
+    for (const person of people) {
+      const option = document.createElement("option");
+      option.value = String(person.member_index);
+      option.textContent = person.label;
+      personSelect.appendChild(option);
+    }
+    personSelect.value = String(people[0].member_index);
+    personRow.style.display = "block";
+  } catch {
+    // Leave the picker hidden; the principal is the safe default.
+  }
+}
+
 /**
  * Point the form picker at the form the chosen case is actually filed on.
  *

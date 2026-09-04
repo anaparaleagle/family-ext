@@ -34,6 +34,15 @@
         <div class="empty">Loading…</div>
       </div>
 
+      <!-- Hidden on a one-applicant case, which is almost all of them. Shown
+           the moment a case holds two people, because from then on the form on
+           screen belongs to one of them and nothing else on this popup says
+           which. -->
+      <div id="person-row" style="display: none">
+        <label class="field-label" for="person">Applicant</label>
+        <select id="person"></select>
+      </div>
+
       <label class="field-label" for="form-type">Form to fill</label>
       <select id="form-type" aria-describedby="form-type-help"></select>
       <p id="form-type-help" class="help">
