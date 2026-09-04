@@ -319,6 +319,19 @@ export interface PageFillResult {
    */
   skipped: number;
   results: SetResult[];
+  /**
+   * Every plain box this page typed into and verified, so the walk can look again
+   * immediately before Next. The end-of-page sweep found the N-400's
+   * current-address ZIP still holding its value, and the saved page had it blank —
+   * so whatever empties it happens on the way out, not during the fill.
+   */
+  typed: TypedBox[];
+}
+
+/** A plain box that was typed into and read back, for the re-check passes. */
+export interface TypedBox {
+  spec: FieldSpec;
+  value: string;
 }
 
 /** How long to wait for a revealed block to render after its answer is set. */
@@ -330,6 +343,10 @@ const REVEAL_RENDER_TIMEOUT_MS = 4000;
  * Add clicked mid-render is the click that gets ignored.
  */
 const ROW_COMMIT_SETTLE_MS = 800;
+/** How long a State/Country lookup gets to land before the page is re-checked. */
+const LOOKUP_SETTLE_MS = 1200;
+/** Kinds that live in a plain box, and so can be read back and re-typed. */
+const TYPED_KINDS = new Set(["text", "textarea", "date", "phone"]);
 
 /**
  * How long to wait before clicking a form page's Next a SECOND time, and how long
@@ -480,6 +497,9 @@ export async function fillPage(
 
   let lastWasRadio = false;
   let skipped = 0;
+  // What was typed into a plain box and verified, for the sweep below.
+  const typed: { spec: FieldSpec; value: string; at: number }[] = [];
+  let setASearch = false;
   for (const p of plan) {
     if (!p.plain) await openRowForFilling(p.rowIndex);
     // AFTER renderRowsOnce, which is what learns the offset.
@@ -538,17 +558,29 @@ export async function fillPage(
     // Checked here rather than in setValue so it lands in `skipped` beside the
     // conditional non-reveals: both are "legitimately not filled", which is what the
     // count means, and neither is a failure anyone should chase.
+    //
+    // But ONLY a read-only box that HOLDS something: the mirror's whole point is
+    // that the form put its own value there. myUSCIS also renders the row
+    // Country/State dropdowns read-only by construction — a list you pick from
+    // does not accept typing — and those come up EMPTY. Skipping them left the
+    // N-400's employer Country and State (and both on a prior address) blank on a
+    // live run while the log called them "the form's own". An empty read-only box
+    // is protecting nothing, and the native setter reaches it anyway.
     const el = locateElement(spec);
     if (el && "readOnly" in el && (el as HTMLInputElement).readOnly) {
-      skipped++;
-      dbg(`fill: skip ${spec.name} — the form has made it read-only, so its value is not ours to set`);
-      lastWasRadio = false;
-      continue;
+      if ((el as HTMLInputElement).value.trim() !== "") {
+        skipped++;
+        dbg(`fill: skip ${spec.name} — the form has made it read-only, so its value is not ours to set`);
+        lastWasRadio = false;
+        continue;
+      }
+      dbg(`fill: ${spec.name} is read-only but empty — the form is holding no value, so filling it`);
     }
 
     const res = await setValue(spec, p.value);
     results.push(res);
     if (!res.success) dbg(`fill: FAIL ${spec.name} — ${res.message}`);
+    else if (TYPED_KINDS.has(spec.kind)) typed.push({ spec, value: p.value, at: results.length - 1 });
     lastWasRadio = p.spec.kind === "radio" && res.success;
 
     // This answer opens a block below it. Give the block a chance to mount before
@@ -561,8 +593,26 @@ export async function fillPage(
     // After country/state autocomplete, wait for dependent lookups.
     const n = spec.name.toLowerCase();
     if ((n.includes("country") || n.includes("state")) && spec.kind === "search" && res.success) {
+      setASearch = true;
       await sleep(1200);
     }
+  }
+
+  // A BOX THE FORM EMPTIED AFTER WE TYPED IN IT. Choosing a State starts a
+  // dependent lookup, and its late response re-renders the address block with the
+  // ZIP box blank — after setText read the value back and counted it filled. Live
+  // on the N-400 the current-address ZIP arrived from the backend, verified, and
+  // was empty by the time the page saved, while the mailing ZIP — typed last, after
+  // the lookup had landed — survived. A single-page fill hit the race the other way
+  // and looked fine, which is why "15/15 filled" hid it for two rounds of testing.
+  //
+  // Only an EMPTIED box is re-typed. A box the form reformatted holds our value in
+  // its own shape (masks do this to ZIP, SSN and phone), and typing over that
+  // starts a fight nobody wins.
+  if (typed.length && setASearch) await sleep(LOOKUP_SETTLE_MS);
+  for (const done of typed) {
+    const again = await retypeIfEmptied(done);
+    if (again) results[done.at] = again;
   }
 
   // A page whose row fields were ALL dropped from the plan still needs a row on
@@ -579,6 +629,7 @@ export async function fillPage(
 
   const filled = results.filter((r) => r.success).length;
   return {
+    typed: typed.map(({ spec, value }) => ({ spec, value })),
     slug: page.slug,
     total: results.length,
     filled,
@@ -586,6 +637,38 @@ export async function fillPage(
     skipped,
     results,
   };
+}
+
+/**
+ * Put back a box the form emptied after we typed in it, and say so.
+ *
+ * Only an EMPTIED box is re-typed. A box the form reformatted holds our value in
+ * its own shape (masks do this to ZIP, SSN and phone), and typing over that starts
+ * a fight nobody wins. Returns the new result when it re-typed, else null.
+ */
+async function retypeIfEmptied(done: TypedBox): Promise<SetResult | null> {
+  const el = locateElement(done.spec);
+  if (el === null || !("value" in el)) return null;
+  const box = el as HTMLInputElement | HTMLTextAreaElement;
+  if ("readOnly" in box && box.readOnly) return null;
+  if (box.value.trim() !== "") return null;
+  dbg(`fill: re-typing ${done.spec.name} — the form emptied it after we set it`);
+  const again = await setValue(done.spec, done.value);
+  if (!again.success) dbg(`fill: FAIL ${done.spec.name} — ${again.message} (on the re-type)`);
+  return again;
+}
+
+/**
+ * The last look before the page is left. A box empty HERE never reaches the save,
+ * so this is the only check that can speak for what myUSCIS stores.
+ *
+ * Live on the N-400 the current-address ZIP was typed, read back, still held its
+ * value at the end of the page fill — and was blank on the saved page, while the
+ * mailing ZIP (typed last) survived. So something between the end of the fill and
+ * the Next click empties it, and this is where that shows up.
+ */
+async function recheckBeforeLeaving(typed: TypedBox[]): Promise<void> {
+  for (const done of typed) await retypeIfEmptied(done);
 }
 
 /** Every row index currently rendered for `namePrefix`, read off the input names. */
@@ -1145,6 +1228,8 @@ export async function fillAll(
     let attachedHere: number | null = null;
     // Set by the upload branch, which does its own click-and-retry advance.
     let advanced = false;
+    // What this page typed into, for the re-check below.
+    let typedHere: TypedBox[] = [];
     if (!page) {
       // Page not in the descriptor — e.g. a preparer detail sub-page, or an
       // uncaptured conditional. Don't stop the whole run; skip past it via Next.
@@ -1189,6 +1274,7 @@ export async function fillAll(
           // race doesn't whiff every field with "element not on page".
           await waitForPageReady(page, fieldValues);
           const res = await fillPage(page, fieldValues);
+          typedHere = res.typed;
           summaries.push(res);
           dbg(
             `fillAll: ${page.slug} — ${res.filled}/${res.total} filled` +
@@ -1314,6 +1400,8 @@ export async function fillAll(
           await sleep(600);
         }
       }
+      // AFTER the row commit, which re-renders the page, and before Next.
+      if (typedHere.length) await recheckBeforeLeaving(typedHere);
       // A commit that advanced the page on its own must not then have the NEXT
       // page's Next clicked -- that would skip a page unfilled.
       if (window.location.href !== prevUrl) {

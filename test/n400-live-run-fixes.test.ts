@@ -328,6 +328,21 @@ describe("fillPage — a repeater row myUSCIS numbers after the rows already sav
 // descriptor had no entry for it, so the walk logged "page not in descriptor" and
 // clicked past three questions the client had already answered — the rest of the
 // ticket's "Oath of allegiance not filled at all", beyond the -page-1 routing.
+describe("N-400 descriptor — the oath page's third question", () => {
+  // The 2026-07-30 capture recorded two radios on /moral-character/oath-of-allegiance.
+  // The live page renders three, and the third is the one myUSCIS gates the oath's
+  // page 2 on: on prod draft 13730483 the walk answered two, and USCIS went from
+  // there to /evidence, so page 2's three willingness radios were never even seen.
+  it("drives all three radios myUSCIS renders", () => {
+    const page = N400_PAGES.find((p) => p.slug === "/moral-character/oath-of-allegiance");
+    expect(page?.fields.map((f) => f.name)).toEqual([
+      "moralCharacter.oathOfAllegiance.understandOath",
+      "moralCharacter.oathOfAllegiance.unableToTakeOath",
+      "moralCharacter.oathOfAllegiance.willingToTakeOath",
+    ]);
+  });
+});
+
 describe("N-400 descriptor — oath of allegiance page 2", () => {
   const SLUG = "/moral-character/oath-of-allegiance/oath-of-allegiance-page-2";
 
@@ -398,6 +413,29 @@ describe("fillPage — a field the form has made read-only", () => {
     expect(state?.value, "wrote into a field the form marked read-only").toBe("Illinois");
     const city = document.querySelector<HTMLInputElement>('[name="applicant.mailing.city"]');
     expect(city?.value, "a writable field beside it must still fill").toBe("Naperville");
+  }, 20000);
+
+  it("fills one that is read-only and EMPTY", async () => {
+    // The mirror marks its inputs read-only WITH the form's own value in them.
+    // A list you pick from is read-only too, and empty — myUSCIS renders the row
+    // Country/State that way, and treating those as "the form's own" left Part 7's
+    // employer Country and State blank on a live run.
+    setBody(
+      `<input type="text" name="applicant.employer.state" id="applicant.employer.state" readonly />`,
+    );
+    const page: FormPage = {
+      slug: "/employment",
+      title: "Employment",
+      kind: "form",
+      fields: [t("applicant.employer.state")],
+    };
+
+    const res = await fillPage(page, { "applicant.employer.state": "Illinois" });
+
+    expect(res.skipped, "an empty read-only box is protecting nothing").toBe(0);
+    expect(res.filled).toBe(1);
+    const state = document.querySelector<HTMLInputElement>('[name="applicant.employer.state"]');
+    expect(state?.value).toBe("Illinois");
   }, 20000);
 });
 
@@ -590,4 +628,78 @@ describe("fillAll - a form page that ignores the first Next", () => {
       "stopped the walk on a page that only needed a second click",
     ).toBe(false);
   }, 60000);
+});
+
+// 5. A BOX THE FORM EMPTIED AFTER IT WAS TYPED. Live on prod draft 13730483
+//    (2026-09-04) the run reported
+//        fill: /about-you/your-contact-information — planning 15 value(s)
+//        fillAll: /about-you/your-contact-information — 15/15 filled
+//    and the current-address ZIP box was blank on the saved page, while the
+//    mailing ZIP — the last field typed — held its value. The ZIP was in the
+//    payload and setText had read it back off the box, so nothing in the log said
+//    a field was lost. Filling that one page on its own filled the ZIP and it
+//    survived a Next, which is what makes this a race: choosing the State starts a
+//    lookup whose late response re-renders the block with the ZIP cleared.
+describe("fillPage - a box the form empties after we type in it", () => {
+  it("re-types it, instead of reporting a filled page over an empty box", async () => {
+    setBody(textInput("a.address.zipCode") + textInput("a.address.city"));
+    // Stands in for the State lookup landing late: something else on the page
+    // clears the ZIP box a moment after it was typed and verified.
+    const zip = document.querySelector<HTMLInputElement>('[name="a.address.zipCode"]');
+    const city = document.querySelector<HTMLInputElement>('[name="a.address.city"]');
+    let wiped = false;
+    city?.addEventListener("input", () => {
+      if (wiped || !zip) return;
+      wiped = true;
+      zip.value = "";
+    });
+
+    const page: FormPage = {
+      slug: "/contact",
+      title: "Contact",
+      kind: "form",
+      fields: [t("a.address.zipCode"), t("a.address.city")],
+    };
+    const res = await fillPage(page, {
+      "a.address.zipCode": "10001",
+      "a.address.city": "New York",
+    });
+
+    expect(zip?.value, "the ZIP the form wiped was never put back").toBe("10001");
+    expect(city?.value).toBe("New York");
+    expect(res.filled).toBe(2);
+    expect(res.failed).toBe(0);
+    // Handed to the walk so it can look again after the row commit and before
+    // Next: a box emptied on the way out never reaches the save.
+    expect(res.typed.map((box) => box.spec.name)).toEqual(["a.address.zipCode", "a.address.city"]);
+  }, 20000);
+
+  it("leaves a box the form rewrote alone", async () => {
+    // The form rewriting our value is not the form throwing it away. Masks do it to
+    // every ZIP, SSN and phone on the N-400, and re-typing over one starts a fight
+    // nobody wins — so the sweep only ever puts back an EMPTY box.
+    setBody(textInput("b.address.zipCode") + textInput("b.address.city"));
+    const zip = document.querySelector<HTMLInputElement>('[name="b.address.zipCode"]');
+    const city = document.querySelector<HTMLInputElement>('[name="b.address.city"]');
+    let rewritten = false;
+    city?.addEventListener("input", () => {
+      if (rewritten || !zip) return;
+      rewritten = true;
+      zip.value = "10001-1234";
+    });
+
+    const page: FormPage = {
+      slug: "/contact",
+      title: "Contact",
+      kind: "form",
+      fields: [t("b.address.zipCode"), t("b.address.city")],
+    };
+    const res = await fillPage(page, {
+      "b.address.zipCode": "10001",
+      "b.address.city": "New York",
+    });
+
+    expect(zip?.value, "re-typed over the form's own formatting").toBe("10001-1234");
+    expect(res.failed).toBe(0);
+  }, 20000);
 });
