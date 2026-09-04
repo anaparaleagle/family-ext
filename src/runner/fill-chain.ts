@@ -330,6 +330,10 @@ const REVEAL_RENDER_TIMEOUT_MS = 4000;
  * Add clicked mid-render is the click that gets ignored.
  */
 const ROW_COMMIT_SETTLE_MS = 800;
+/** How long a State/Country lookup gets to land before the page is re-checked. */
+const LOOKUP_SETTLE_MS = 1200;
+/** Kinds that live in a plain box, and so can be read back and re-typed. */
+const TYPED_KINDS = new Set(["text", "textarea", "date", "phone"]);
 
 /**
  * How long to wait before clicking a form page's Next a SECOND time, and how long
@@ -480,6 +484,9 @@ export async function fillPage(
 
   let lastWasRadio = false;
   let skipped = 0;
+  // What was typed into a plain box and verified, for the sweep below.
+  const typed: { spec: FieldSpec; value: string; at: number }[] = [];
+  let setASearch = false;
   for (const p of plan) {
     if (!p.plain) await openRowForFilling(p.rowIndex);
     // AFTER renderRowsOnce, which is what learns the offset.
@@ -549,6 +556,7 @@ export async function fillPage(
     const res = await setValue(spec, p.value);
     results.push(res);
     if (!res.success) dbg(`fill: FAIL ${spec.name} — ${res.message}`);
+    else if (TYPED_KINDS.has(spec.kind)) typed.push({ spec, value: p.value, at: results.length - 1 });
     lastWasRadio = p.spec.kind === "radio" && res.success;
 
     // This answer opens a block below it. Give the block a chance to mount before
@@ -561,7 +569,36 @@ export async function fillPage(
     // After country/state autocomplete, wait for dependent lookups.
     const n = spec.name.toLowerCase();
     if ((n.includes("country") || n.includes("state")) && spec.kind === "search" && res.success) {
+      setASearch = true;
       await sleep(1200);
+    }
+  }
+
+  // A BOX THE FORM EMPTIED AFTER WE TYPED IN IT. Choosing a State starts a
+  // dependent lookup, and its late response re-renders the address block with the
+  // ZIP box blank — after setText read the value back and counted it filled. Live
+  // on the N-400 the current-address ZIP arrived from the backend, verified, and
+  // was empty by the time the page saved, while the mailing ZIP — typed last, after
+  // the lookup had landed — survived. A single-page fill hit the race the other way
+  // and looked fine, which is why "15/15 filled" hid it for two rounds of testing.
+  //
+  // Only an EMPTIED box is re-typed. A box the form reformatted holds our value in
+  // its own shape (masks do this to ZIP, SSN and phone), and typing over that
+  // starts a fight nobody wins.
+  if (typed.length && setASearch) await sleep(LOOKUP_SETTLE_MS);
+  for (const done of typed) {
+    const el = locateElement(done.spec);
+    if (el === null || !("value" in el)) continue;
+    const box = el as HTMLInputElement | HTMLTextAreaElement;
+    if ("readOnly" in box && box.readOnly) continue;
+    if (box.value.trim() !== "") continue;
+    dbg(`fill: re-typing ${done.spec.name} — the form emptied it after we set it`);
+    // Replaces the original result rather than adding one: the page fills the same
+    // fields it did before, and a repair that fails has to count as the failure it
+    // is. Reporting "filled" over an empty required box is what let this ship.
+    results[done.at] = await setValue(done.spec, done.value);
+    if (!results[done.at].success) {
+      dbg(`fill: FAIL ${done.spec.name} — ${results[done.at].message} (on the re-type)`);
     }
   }
 
