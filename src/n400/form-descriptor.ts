@@ -748,6 +748,11 @@ export const N400_PAGES: FormPage[] = [
       // `unableToTakeOath` = Yes is a substantive N-648-adjacent answer. It must
       // only ever come from an explicit firm answer, never from a default.
       radio("moralCharacter.oathOfAllegiance.unableToTakeOath", YN),
+      // The capture recorded two radios here; the live page renders THREE. Left
+      // unanswered, myUSCIS walked from this page straight to /evidence and never
+      // showed the oath's page 2, so all three willingness answers stayed blank
+      // too — one missing field costing four.
+      radio("moralCharacter.oathOfAllegiance.willingToTakeOath", YN),
     ],
   },
   {

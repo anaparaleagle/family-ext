@@ -328,6 +328,21 @@ describe("fillPage — a repeater row myUSCIS numbers after the rows already sav
 // descriptor had no entry for it, so the walk logged "page not in descriptor" and
 // clicked past three questions the client had already answered — the rest of the
 // ticket's "Oath of allegiance not filled at all", beyond the -page-1 routing.
+describe("N-400 descriptor — the oath page's third question", () => {
+  // The 2026-07-30 capture recorded two radios on /moral-character/oath-of-allegiance.
+  // The live page renders three, and the third is the one myUSCIS gates the oath's
+  // page 2 on: on prod draft 13730483 the walk answered two, and USCIS went from
+  // there to /evidence, so page 2's three willingness radios were never even seen.
+  it("drives all three radios myUSCIS renders", () => {
+    const page = N400_PAGES.find((p) => p.slug === "/moral-character/oath-of-allegiance");
+    expect(page?.fields.map((f) => f.name)).toEqual([
+      "moralCharacter.oathOfAllegiance.understandOath",
+      "moralCharacter.oathOfAllegiance.unableToTakeOath",
+      "moralCharacter.oathOfAllegiance.willingToTakeOath",
+    ]);
+  });
+});
+
 describe("N-400 descriptor — oath of allegiance page 2", () => {
   const SLUG = "/moral-character/oath-of-allegiance/oath-of-allegiance-page-2";
 
@@ -398,6 +413,29 @@ describe("fillPage — a field the form has made read-only", () => {
     expect(state?.value, "wrote into a field the form marked read-only").toBe("Illinois");
     const city = document.querySelector<HTMLInputElement>('[name="applicant.mailing.city"]');
     expect(city?.value, "a writable field beside it must still fill").toBe("Naperville");
+  }, 20000);
+
+  it("fills one that is read-only and EMPTY", async () => {
+    // The mirror marks its inputs read-only WITH the form's own value in them.
+    // A list you pick from is read-only too, and empty — myUSCIS renders the row
+    // Country/State that way, and treating those as "the form's own" left Part 7's
+    // employer Country and State blank on a live run.
+    setBody(
+      `<input type="text" name="applicant.employer.state" id="applicant.employer.state" readonly />`,
+    );
+    const page: FormPage = {
+      slug: "/employment",
+      title: "Employment",
+      kind: "form",
+      fields: [t("applicant.employer.state")],
+    };
+
+    const res = await fillPage(page, { "applicant.employer.state": "Illinois" });
+
+    expect(res.skipped, "an empty read-only box is protecting nothing").toBe(0);
+    expect(res.filled).toBe(1);
+    const state = document.querySelector<HTMLInputElement>('[name="applicant.employer.state"]');
+    expect(state?.value).toBe("Illinois");
   }, 20000);
 });
 
@@ -631,6 +669,9 @@ describe("fillPage - a box the form empties after we type in it", () => {
     expect(city?.value).toBe("New York");
     expect(res.filled).toBe(2);
     expect(res.failed).toBe(0);
+    // Handed to the walk so it can look again after the row commit and before
+    // Next: a box emptied on the way out never reaches the save.
+    expect(res.typed.map((box) => box.spec.name)).toEqual(["a.address.zipCode", "a.address.city"]);
   }, 20000);
 
   it("leaves a box the form rewrote alone", async () => {
