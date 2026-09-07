@@ -9,6 +9,10 @@
 /** One upload-only page descriptor, straight from the backend `upload_pages`. */
 export interface UploadPageDescriptor {
   page_path: string;
+  /** The page's own h1/h2/h3 text, for pages myUSCIS gives no stable slug.
+   * Matched bidirectionally as a substring, so small wording drift on either
+   * side still lands. A descriptor may carry a heading, a page_path, or both. */
+  heading?: string;
   /** "generated_form" (e.g. the I-130A PDF) or "document" (stored evidence). */
   kind: "generated_form" | "document";
   /** For kind=generated_form. */
@@ -25,6 +29,8 @@ export interface UploadPageDescriptor {
 export interface MyuscisPayload {
   case: string;
   form_type: string;
+  /** Which applicant on the case these values belong to. 0 is the principal. */
+  member?: number;
   field_values: Record<string, string>;
   documents: { upload_pages: UploadPageDescriptor[] };
 }
@@ -39,6 +45,10 @@ export const STORAGE_KEYS = {
   fieldValues: "myuscisFieldValues",
   uploadPages: "myuscisUploadPages",
   caseId: "myuscisCaseId",
+  // WHICH applicant on that case. A case used to hold one person, so the case
+  // said everything; a couple naturalising together makes "which case" and
+  // "which person" two questions, and only this answers the second.
+  memberIndex: "myuscisMemberIndex",
   formType: "myuscisFormType",
   accessToken: "accessToken",
   apiBaseUrl: "apiBaseUrl",

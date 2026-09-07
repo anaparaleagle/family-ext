@@ -1,0 +1,5 @@
+ParaLeagle Family Form Autofill is an internal tool for immigration law firms. It fills the guided online Forms I-130, I-539 and N-400 on my.uscis.gov, and Form ETA-9141 on the Department of Labor's flag.dol.gov, from case data held in the firm's own ParaLeagle account, so it requires a firm login and does nothing on any other site.
+
+Exercising it end to end needs two accounts: a ParaLeagle firm account, and a USCIS or DOL FLAG account with a form draft open. We cannot supply a shared ParaLeagle login because accounts contain real client immigration records — A-numbers, passports, dates of birth. We can provision a reviewer account against a demo-only tenant on request; please ask and we will respond the same day.
+
+The extension only ever writes data the firm itself supplied, and it submits nothing to either agency. A person reviews every page and files it.

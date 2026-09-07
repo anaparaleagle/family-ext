@@ -1,0 +1,18 @@
+ParaLeagle Family Form Autofill is a tool for immigration law-firm staff who already use ParaLeagle. It fills the guided online forms on my.uscis.gov and the labor-certification forms on flag.dol.gov from case data the firm has already collected and reviewed in ParaLeagle, instead of re-typing it a third time.
+
+Forms supported:
+- I-130, Petition for Alien Relative
+- I-539, Application to Extend/Change Nonimmigrant Status
+- N-400, Application for Naturalization
+- ETA-9141, Application for Prevailing Wage Determination
+
+How it works:
+1. Sign in with your ParaLeagle account in the extension popup.
+2. Pick the case and the form you have open.
+3. Load the case, then use the toolbar on the form to fill page by page, or to walk the whole form.
+
+It also attaches supporting documents the firm has already uploaded to ParaLeagle, on the form's document pages.
+
+Nothing is filled without a signed-in ParaLeagle user asking for it, and the extension only ever writes data the firm itself supplied. It does not submit anything to either agency — a person reviews every page and files it.
+
+A ParaLeagle account is required. The extension is not affiliated with, or endorsed by, U.S. Citizenship and Immigration Services or the U.S. Department of Labor.

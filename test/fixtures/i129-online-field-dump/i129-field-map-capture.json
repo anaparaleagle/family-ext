@@ -1,0 +1,1987 @@
+{
+  "_provenance": "Derived from paraleagle-ext (the H-1B extension) @ origin/main 97efba5 — src/mappings/i129-field-map.ts and src/mappings/i129-subpages.ts. Those two files ARE a live myUSCIS field dump written as TypeScript: the Formik names were read off my.uscis.gov with the extension's Scan All tool on 2026-03-13 and corrected against live drafts through 2026-06-02 (draft 12173958). This file is that dump in the shape the other family-ext captures are vendored in, so test/i129-coverage.test.ts can hold the descriptor and the backend map to it. It is NOT a fresh capture and must not be presented as one.",
+  "_options_caveat": "`options` come from the H-1B map's radioValues, whose values were matched on the live page by SUBSTRING (paraleagle-ext i129-filler.ts matchesTarget). The family engine matches a radio EXACTLY (value-setter.ts setRadio), so a multi-word option here is label TEXT that worked as a substring, not a value proven to equal the input's `value`. `options_verbatim: false` marks those. Settle them on the live walk — a miss logs every option's value and label.",
+  "form_type": "I-129",
+  "host_path": "/forms/petition-for-a-nonimmigrant-worker/",
+  "pages": [
+    {
+      "slug": "/getting-started/reason-for-request",
+      "section": "P2",
+      "formik_prefix": "gettingStarted.reasonForRequest.",
+      "label": "Reason for request",
+      "fields": [
+        {
+          "name": "gettingStarted.reasonForRequest.requestedNonimmigrantClass",
+          "kind": "radio",
+          "label": "What nonimmigrant classification are you requesting?",
+          "options": [
+            "H1B",
+            "1B1",
+            "1B2",
+            "1B3"
+          ],
+          "h1b_ids": [
+            "P2_classification"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "gettingStarted.reasonForRequest.basisForClassification",
+          "kind": "radio",
+          "label": "What is the basis for classification?",
+          "options": [
+            "New Employment",
+            "Continuation of previously approved employment without change with the same employer",
+            "Change in previously approved employment",
+            "New concurrent employment",
+            "Change of employer",
+            "Amended petition"
+          ],
+          "h1b_ids": [
+            "P2_basis_new",
+            "P2_basis_continuation",
+            "P2_basis_change",
+            "P2_basis_concurrent",
+            "P2_basis_previouschange",
+            "P2_basis_amended"
+          ],
+          "options_verbatim": false
+        },
+        {
+          "name": "formikFactoryUIMeta.gettingStarted.reasonForRequest.isCap",
+          "kind": "radio",
+          "label": "Is this petition subject to the congressionally mandated annual numerical limit (cap)",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P2_subject_to_cap"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "gettingStarted.reasonForRequest.receiptNumber.number",
+          "kind": "text",
+          "label": "What is the most recent petition or application receipt number",
+          "options": [],
+          "h1b_ids": [
+            "P2_receipt_number"
+          ]
+        },
+        {
+          "name": "formikFactoryUIMeta.gettingStarted.reasonForRequest.receiptNumber.none",
+          "kind": "checkbox",
+          "label": "most recent petition or application receipt number None",
+          "options": [],
+          "h1b_ids": [
+            "P2_receipt_number_none"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "/getting-started/reason-for-request/reason-for-request-page-2",
+      "section": "P2",
+      "formik_prefix": "gettingStarted.reasonForRequest2.",
+      "label": "Reason for request page 2",
+      "fields": [
+        {
+          "name": "gettingStarted.reasonForRequest2.requestedAction",
+          "kind": "radio",
+          "label": "What action are you requesting?",
+          "options": [
+            "Notify the office in Part 4, so each beneficiary can obtain a visa or be admitted",
+            "Change the status and extend the stay of each beneficiary because now in the USA in another status",
+            "Extend the stay of each beneficiary because the beneficiary now hold(s) this status",
+            "Amend the stay of each beneficiary because the beneficiaries",
+            "Extend the status of a nonimmigrant classification based on a free trade agreement",
+            "Change status to a nonimmigrant classification based on a free trade agreement"
+          ],
+          "h1b_ids": [
+            "P2_action_a",
+            "P2_action_b",
+            "P2_action_c",
+            "P2_action_d",
+            "P2_action_e",
+            "P2_action_f"
+          ],
+          "options_verbatim": false
+        }
+      ]
+    },
+    {
+      "slug": "/getting-started/processing-information",
+      "section": "P4",
+      "formik_prefix": "gettingStarted.processingInformation.",
+      "label": "Processing information",
+      "fields": [
+        {
+          "name": "gettingStarted.processingInformation.eachPetitionHasPassport.question",
+          "kind": "radio",
+          "label": "Does the beneficiary have a valid passport?",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P4_q2_yes",
+            "P4_q2_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "gettingStarted.processingInformation.filingReplaceInitialI94.yesNoRadio",
+          "kind": "radio",
+          "label": "filing any applications for replacement",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P4_q3_yes",
+            "P4_q3_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "gettingStarted.processingInformation.filingApplicationForDependents.yesNoRadio",
+          "kind": "radio",
+          "label": "filing any applications for dependents",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P4_q4_yes",
+            "P4_q4_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "formikFactoryUIMeta.gettingStarted.processingInformation.premiumProcessing",
+          "kind": "radio",
+          "label": "premium processing",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P4_premium_yes",
+            "P4_premium_no"
+          ],
+          "options_verbatim": true
+        }
+      ]
+    },
+    {
+      "slug": "/getting-started/preparer-information",
+      "section": "P8",
+      "formik_prefix": "gettingStarted.preparer.",
+      "label": "Preparer information",
+      "fields": [
+        {
+          "name": "gettingStarted.preparer.helperInformation.name.lastName",
+          "kind": "text",
+          "label": "Family name (last name)",
+          "options": [],
+          "h1b_ids": [
+            "P8_last_name"
+          ]
+        },
+        {
+          "name": "gettingStarted.preparer.helperInformation.name.firstName",
+          "kind": "text",
+          "label": "Given name (first name)",
+          "options": [],
+          "h1b_ids": [
+            "P8_first_name"
+          ]
+        },
+        {
+          "name": "gettingStarted.preparer.helperInformation.business",
+          "kind": "text",
+          "label": "business or organization name",
+          "options": [],
+          "h1b_ids": [
+            "P8_firm_name"
+          ]
+        },
+        {
+          "name": "gettingStarted.preparer.helperInformation.address.addressLineOne",
+          "kind": "text",
+          "label": "Address line 1",
+          "options": [],
+          "h1b_ids": [
+            "P8_street"
+          ]
+        },
+        {
+          "name": "gettingStarted.preparer.helperInformation.address.addressLineTwo",
+          "kind": "text",
+          "label": "Address line 2",
+          "options": [],
+          "h1b_ids": [
+            "P8_apt_ste_flr"
+          ]
+        },
+        {
+          "name": "gettingStarted.preparer.helperInformation.address.city",
+          "kind": "text",
+          "label": "City or town",
+          "options": [],
+          "h1b_ids": [
+            "P8_city"
+          ]
+        },
+        {
+          "name": "gettingStarted.preparer.helperInformation.address.state",
+          "kind": "search",
+          "label": "State",
+          "options": [],
+          "h1b_ids": [
+            "P8_state"
+          ]
+        },
+        {
+          "name": "gettingStarted.preparer.helperInformation.address.zipCode",
+          "kind": "text",
+          "label": "ZIP code",
+          "options": [],
+          "h1b_ids": [
+            "P8_zip"
+          ]
+        },
+        {
+          "name": "gettingStarted.preparer.helperInformation.address.country",
+          "kind": "search",
+          "label": "Country",
+          "options": [],
+          "h1b_ids": [
+            "P8_country"
+          ]
+        },
+        {
+          "name": "gettingStarted.preparer.helperInformation.contact.daytimePhone",
+          "kind": "phone",
+          "label": "Daytime telephone number",
+          "options": [],
+          "h1b_ids": [
+            "P8_phone"
+          ]
+        },
+        {
+          "name": "gettingStarted.preparer.helperInformation.contact.faxNumber",
+          "kind": "text",
+          "label": "Fax number",
+          "options": [],
+          "h1b_ids": [
+            "P8_fax"
+          ]
+        },
+        {
+          "name": "gettingStarted.preparer.helperInformation.contact.emailAddress",
+          "kind": "text",
+          "label": "Email address",
+          "options": [],
+          "h1b_ids": [
+            "P8_email"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "/about-petitioner/petitioner-name",
+      "section": "P1",
+      "formik_prefix": "applicant.yourName.",
+      "label": "Petitioner's name",
+      "fields": [
+        {
+          "name": "applicant.yourName.companyOrOrganizationName",
+          "kind": "text",
+          "label": "What is the company or organization name?",
+          "options": [],
+          "h1b_ids": [
+            "P1_org_name"
+          ]
+        },
+        {
+          "name": "applicant.yourName.titleOfAuthorizedSignatory",
+          "kind": "text",
+          "label": "title of the authorized signatory",
+          "options": [],
+          "h1b_ids": [
+            "P7_title"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "/about-petitioner/petitioner-contact-information",
+      "section": "P1",
+      "formik_prefix": "applicant.contactInfo.",
+      "label": "Petitioner's contact information",
+      "fields": [
+        {
+          "name": "applicant.contactInfo.otherContact.daytimePhone",
+          "kind": "phone",
+          "label": "Daytime telephone number",
+          "options": [],
+          "h1b_ids": [
+            "P1_phone"
+          ]
+        },
+        {
+          "name": "applicant.contactInfo.otherContact.mobilePhone",
+          "kind": "phone",
+          "label": "Mobile telephone number",
+          "options": [],
+          "h1b_ids": [
+            "P1_mobile"
+          ]
+        },
+        {
+          "name": "formikFactoryUIMeta.applicant.contactInfo.otherContact.sameAsDaytimePhone",
+          "kind": "checkbox",
+          "label": "This is the same as my daytime telephone number",
+          "options": [],
+          "h1b_ids": [
+            "P1_mobile_same_as_daytime"
+          ]
+        },
+        {
+          "name": "applicant.contactInfo.otherContact.emailAddress",
+          "kind": "text",
+          "label": "Email address",
+          "options": [],
+          "h1b_ids": [
+            "P1_email"
+          ]
+        },
+        {
+          "name": "applicant.contactInfo.mailingAddress.inCareOfName",
+          "kind": "text",
+          "label": "In care of name",
+          "options": [],
+          "h1b_ids": [
+            "P1_in_care_of"
+          ]
+        },
+        {
+          "name": "applicant.contactInfo.mailingAddress.addressLineOne",
+          "kind": "text",
+          "label": "Address line 1",
+          "options": [],
+          "h1b_ids": [
+            "P1_street"
+          ]
+        },
+        {
+          "name": "applicant.contactInfo.mailingAddress.addressLineTwo",
+          "kind": "text",
+          "label": "Address line 2",
+          "options": [],
+          "h1b_ids": [
+            "P1_apt_ste_flr"
+          ]
+        },
+        {
+          "name": "applicant.contactInfo.mailingAddress.city",
+          "kind": "text",
+          "label": "City or town",
+          "options": [],
+          "h1b_ids": [
+            "P1_city"
+          ]
+        },
+        {
+          "name": "applicant.contactInfo.mailingAddress.state",
+          "kind": "search",
+          "label": "State",
+          "options": [],
+          "h1b_ids": [
+            "P1_state"
+          ]
+        },
+        {
+          "name": "applicant.contactInfo.mailingAddress.zipCode",
+          "kind": "text",
+          "label": "ZIP code",
+          "options": [],
+          "h1b_ids": [
+            "P1_zip"
+          ]
+        },
+        {
+          "name": "applicant.contactInfo.mailingAddress.country",
+          "kind": "search",
+          "label": "Country",
+          "options": [],
+          "h1b_ids": [
+            "P1_country"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "/about-petitioner/other-information",
+      "section": "P1",
+      "formik_prefix": "applicant.otherInfo.",
+      "label": "Petitioner's other information",
+      "fields": [
+        {
+          "name": "applicant.otherInfo.fein",
+          "kind": "text",
+          "label": "Federal Employer Identification Number",
+          "options": [],
+          "h1b_ids": [
+            "P1_fein"
+          ]
+        },
+        {
+          "name": "applicant.otherInfo.irsTaxNumber.number",
+          "kind": "text",
+          "label": "Individual IRS Tax Number",
+          "options": [],
+          "h1b_ids": [
+            "P1_itin"
+          ]
+        },
+        {
+          "name": "applicant.otherInfo.socialSecurityNumber.number",
+          "kind": "text",
+          "label": "Social Security number",
+          "options": [],
+          "h1b_ids": [
+            "P1_ssn"
+          ]
+        },
+        {
+          "name": "applicant.otherInfo.asylumFeeExemptEmployerNonProfitUSHigherEdu",
+          "kind": "radio",
+          "label": "Are you a nonprofit organized as tax exempt or a government research organization?",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P1_nonprofit"
+          ],
+          "options_verbatim": true
+        }
+      ]
+    },
+    {
+      "slug": "/about-beneficiary/beneficiary-name",
+      "section": "P3",
+      "formik_prefix": "beneficiaryInfo.beneficiaryName.",
+      "label": "Beneficiary's name",
+      "fields": [
+        {
+          "name": "beneficiaryInfo.beneficiaryName.name.lastName",
+          "kind": "text",
+          "label": "Family name (last name)",
+          "options": [],
+          "h1b_ids": [
+            "P3_last_name"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.beneficiaryName.name.firstName",
+          "kind": "text",
+          "label": "Given name (first name)",
+          "options": [],
+          "h1b_ids": [
+            "P3_first_name"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.beneficiaryName.name.middleName",
+          "kind": "text",
+          "label": "Middle name",
+          "options": [],
+          "h1b_ids": [
+            "P3_middle_name"
+          ]
+        },
+        {
+          "name": "formikFactoryUIMeta.beneficiaryInfo.beneficiaryName.additionalNames.hasAdditionalNames",
+          "kind": "radio",
+          "label": "Have they ever used other names?",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P3_other_names_yes",
+            "P3_other_names_no"
+          ],
+          "options_verbatim": true
+        }
+      ]
+    },
+    {
+      "slug": "/about-beneficiary/beneficiary-contact-information",
+      "section": "P3",
+      "formik_prefix": "beneficiaryInfo.beneficiaryContactInformation.",
+      "label": "Beneficiary's contact information",
+      "fields": [
+        {
+          "name": "formikFactoryUIMeta.beneficiaryInfo.beneficiaryContactInformation.isUnitedStates",
+          "kind": "radio",
+          "label": "Is the beneficiary in the United States?",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P3_currently_in_us_yes",
+            "P3_currently_in_us_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "beneficiaryInfo.beneficiaryContactInformation.mailingAddress.addressLineOne",
+          "kind": "text",
+          "label": "Address line 1",
+          "options": [],
+          "h1b_ids": [
+            "P3_us_street"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.beneficiaryContactInformation.mailingAddress.addressLineTwo",
+          "kind": "text",
+          "label": "Address line 2",
+          "options": [],
+          "h1b_ids": [
+            "P3_us_apt_ste_flr"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.beneficiaryContactInformation.mailingAddress.city",
+          "kind": "text",
+          "label": "City or town",
+          "options": [],
+          "h1b_ids": [
+            "P3_us_city"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.beneficiaryContactInformation.mailingAddress.state",
+          "kind": "search",
+          "label": "State",
+          "options": [],
+          "h1b_ids": [
+            "P3_us_state"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.beneficiaryContactInformation.mailingAddress.zipCode",
+          "kind": "text",
+          "label": "ZIP code",
+          "options": [],
+          "h1b_ids": [
+            "P3_us_zip"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.beneficiaryContactInformation.foreignMailingAddress.addressLineOne",
+          "kind": "text",
+          "label": "Address line 1",
+          "options": [],
+          "h1b_ids": [
+            "P3_foreign_street"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.beneficiaryContactInformation.foreignMailingAddress.addressLineTwo",
+          "kind": "text",
+          "label": "Address line 2",
+          "options": [],
+          "h1b_ids": [
+            "P3_foreign_apt_ste_flr"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.beneficiaryContactInformation.foreignMailingAddress.city",
+          "kind": "text",
+          "label": "City or town",
+          "options": [],
+          "h1b_ids": [
+            "P3_foreign_city"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.beneficiaryContactInformation.foreignMailingAddress.province",
+          "kind": "search",
+          "label": "State/Province",
+          "options": [],
+          "h1b_ids": [
+            "P3_foreign_province"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.beneficiaryContactInformation.foreignMailingAddress.postalCode",
+          "kind": "text",
+          "label": "Postal code",
+          "options": [],
+          "h1b_ids": [
+            "P3_foreign_postal_code"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.beneficiaryContactInformation.foreignMailingAddress.country",
+          "kind": "search",
+          "label": "Country",
+          "options": [],
+          "h1b_ids": [
+            "P3_foreign_country"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.beneficiaryContactInformation.officeType",
+          "kind": "radio",
+          "label": "What type of office",
+          "options": [
+            "Consulate",
+            "Pre-flight inspection",
+            "Port of Entry"
+          ],
+          "h1b_ids": [
+            "P4_office_consulate",
+            "P4_office_preflight",
+            "P4_office_port"
+          ],
+          "options_verbatim": false
+        },
+        {
+          "name": "formikFactoryUIMeta.beneficiaryInfo.beneficiaryContactInformation.country",
+          "kind": "search",
+          "label": "What country is the office in?",
+          "options": [],
+          "h1b_ids": [
+            "P4_office_country"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.beneficiaryContactInformation.officeCity",
+          "kind": "search",
+          "label": "What city is the office in?",
+          "options": [],
+          "h1b_ids": [
+            "P4_office_city"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "/about-beneficiary/when-and-where-they-were-born",
+      "section": "P3",
+      "formik_prefix": "beneficiaryInfo.whenAndWhereTheyWereBorn.",
+      "label": "When and where they were born",
+      "fields": [
+        {
+          "name": "beneficiaryInfo.whenAndWhereTheyWereBorn.dateOfBirth",
+          "kind": "text",
+          "label": "date of birth",
+          "options": [],
+          "h1b_ids": [
+            "P3_dob"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.whenAndWhereTheyWereBorn.country",
+          "kind": "search",
+          "label": "country of birth",
+          "options": [],
+          "h1b_ids": [
+            "P3_country_of_birth"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.whenAndWhereTheyWereBorn.province",
+          "kind": "search",
+          "label": "province of birth",
+          "options": [],
+          "h1b_ids": [
+            "P3_province_of_birth"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "/about-beneficiary/immigration-information",
+      "section": "P3",
+      "formik_prefix": "beneficiaryInfo.immigrationInformation.",
+      "label": "Immigration information",
+      "fields": [
+        {
+          "name": "beneficiaryInfo.immigrationInformation.dateOfLastArrival",
+          "kind": "text",
+          "label": "date of last arrival",
+          "options": [],
+          "h1b_ids": [
+            "P3_date_of_arrival"
+          ]
+        },
+        {
+          "name": "formikFactoryUIMeta.beneficiaryInfo.immigrationInformation.noI94Number",
+          "kind": "checkbox",
+          "label": "I do not have or know the beneficiary's Form I-94",
+          "options": [],
+          "h1b_ids": [
+            "P3_i94_unknown"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.immigrationInformation.i94Number",
+          "kind": "text",
+          "label": "Form I-94 Arrival-Departure Record number",
+          "options": [],
+          "h1b_ids": [
+            "P3_i94_number"
+          ]
+        },
+        {
+          "name": "formikFactoryUIMeta.beneficiaryInfo.immigrationInformation.noPassportOrTravelDocumentNumber",
+          "kind": "checkbox",
+          "label": "I do not have or know the beneficiary's passport",
+          "options": [],
+          "h1b_ids": [
+            "P3_passport_unknown"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.immigrationInformation.passportOrTravelDocumentNumber",
+          "kind": "text",
+          "label": "passport or travel document number",
+          "options": [],
+          "h1b_ids": [
+            "P3_passport_number"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.immigrationInformation.passportOrTravelDocumentIssueDate",
+          "kind": "text",
+          "label": "passport or travel document issued",
+          "options": [],
+          "h1b_ids": [
+            "P3_passport_issue_date"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.immigrationInformation.passportOrTravelDocumentExpirationDate",
+          "kind": "text",
+          "label": "passport or travel document expire",
+          "options": [],
+          "h1b_ids": [
+            "P3_passport_expiry"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.immigrationInformation.passportOrTravelDocumentCountryOfIssuance",
+          "kind": "search",
+          "label": "country issued their passport",
+          "options": [],
+          "h1b_ids": [
+            "P3_passport_country"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "/about-beneficiary/immigration-information/immigration-information-page-2",
+      "section": "P3",
+      "formik_prefix": "beneficiaryInfo.immigrationInformation2.",
+      "label": "Immigration information page 2",
+      "fields": [
+        {
+          "name": "beneficiaryInfo.immigrationInformation2.nonImmgrantStatusCode",
+          "kind": "search",
+          "label": "current nonimmigrant status",
+          "options": [],
+          "h1b_ids": [
+            "P3_current_status"
+          ]
+        },
+        {
+          "name": "formikFactoryUIMeta.beneficiaryInfo.immigrationInformation2.noStatusExpirationDate",
+          "kind": "checkbox",
+          "label": "Duration of status",
+          "options": [],
+          "h1b_ids": [
+            "P3_status_ds"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.immigrationInformation2.statusExpirationDate",
+          "kind": "text",
+          "label": "status expire",
+          "options": [],
+          "h1b_ids": [
+            "P3_status_expires"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.immigrationInformation2.sevisNumber",
+          "kind": "text",
+          "label": "Student and Exchange Visitor Information System",
+          "options": [],
+          "h1b_ids": [
+            "P3_sevis_number"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.immigrationInformation2.eadNumber.number",
+          "kind": "text",
+          "label": "Employment Authorization Document",
+          "options": [],
+          "h1b_ids": [
+            "P3_ead_number"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "/about-beneficiary/immigration-history",
+      "section": "P3",
+      "formik_prefix": "beneficiaryInfo.immigrationHistory.",
+      "label": "Immigration history",
+      "fields": [
+        {
+          "name": "beneficiaryInfo.immigrationHistory.everPreviouslyFiledForBeneficiary.question",
+          "kind": "radio",
+          "label": "Have you ever previously filed a nonimmigrant petition for this beneficiary",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P3_previously_filed_nonimmigrant"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "formikFactoryUIMeta.beneficiaryInfo.immigrationHistory.everPreviouslyFiledForBeneficiary.explanation",
+          "kind": "text",
+          "label": "Provide an explanation",
+          "options": [],
+          "h1b_ids": [
+            "P3_previously_filed_nonimmigrant_explanation"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.immigrationHistory.beneficiaryInRemoval",
+          "kind": "radio",
+          "label": "removal proceedings",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P3_in_removal"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "beneficiaryInfo.immigrationHistory.filedForAnyBeneficiary.yesNoRadio",
+          "kind": "radio",
+          "label": "Have you ever filed an immigrant petition for the beneficiary",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P3_filed_immigrant_petition"
+          ],
+          "options_verbatim": true
+        }
+      ]
+    },
+    {
+      "slug": "/about-beneficiary/immigration-history/immigration-history-page-2",
+      "section": "P3",
+      "formik_prefix": "beneficiaryInfo.immigrationHistory2.",
+      "label": "Immigration history page 2",
+      "fields": [
+        {
+          "name": "beneficiaryInfo.immigrationHistory2.heldJVisa",
+          "kind": "radio",
+          "label": "held J visa",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P3_held_j_visa"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "beneficiaryInfo.immigrationHistory2.petitionHistory.previouslyReceivedBenefit.question",
+          "kind": "radio",
+          "label": "ever been given the classification you are now requesting within the last seven years",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P3_given_classification_last_7yrs"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "beneficiaryInfo.immigrationHistory2.petitionHistory.previouslyDeniedBenefit.question",
+          "kind": "radio",
+          "label": "ever been denied the classification you are now requesting within the last seven years",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P3_denied_classification_last_7yrs"
+          ],
+          "options_verbatim": true
+        }
+      ]
+    },
+    {
+      "slug": "/about-beneficiary/beneficiarys-other-information",
+      "section": "P3",
+      "formik_prefix": "beneficiaryInfo.otherInformation.",
+      "label": "Other information",
+      "fields": [
+        {
+          "name": "beneficiaryInfo.otherInformation.citizenshipCountry",
+          "kind": "search",
+          "label": "country of citizenship",
+          "options": [],
+          "h1b_ids": [
+            "P3_country_of_citizenship"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.otherInformation.gender",
+          "kind": "radio",
+          "label": "What is the beneficiary's sex?",
+          "options": [
+            "3",
+            "1"
+          ],
+          "h1b_ids": [
+            "P3_gender_male",
+            "P3_gender_female"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "beneficiaryInfo.otherInformation.alienNumber.number",
+          "kind": "text",
+          "label": "A-Number",
+          "options": [],
+          "h1b_ids": [
+            "P3_alien_number"
+          ]
+        },
+        {
+          "name": "beneficiaryInfo.otherInformation.socialSecurityNumber.number",
+          "kind": "text",
+          "label": "Social Security number",
+          "options": [],
+          "h1b_ids": [
+            "P3_ssn"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "/employment/basic-information",
+      "section": "P5",
+      "formik_prefix": "employment.basicInformation.",
+      "label": "Basic information",
+      "fields": [
+        {
+          "name": "employment.basicInformation.jobTitle",
+          "kind": "text",
+          "label": "job title",
+          "options": [],
+          "h1b_ids": [
+            "P5_job_title"
+          ]
+        },
+        {
+          "name": "employment.basicInformation.lcaOrEtaCaseNumber",
+          "kind": "text",
+          "label": "Labor Condition Application",
+          "options": [],
+          "h1b_ids": [
+            "P5_lca_number"
+          ]
+        },
+        {
+          "name": "employment.basicInformation.fulltime",
+          "kind": "radio",
+          "label": "Is this a full-time position?",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P5_q4_yes",
+            "P5_q4_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "employment.basicInformation.wage.amount",
+          "kind": "text",
+          "label": "Wage",
+          "options": [],
+          "h1b_ids": [
+            "P5_wages"
+          ]
+        },
+        {
+          "name": "employment.basicInformation.wage.rate",
+          "kind": "search",
+          "label": "rate",
+          "options": [],
+          "h1b_ids": [
+            "P5_wage_per"
+          ]
+        },
+        {
+          "name": "formikFactoryUIMeta.employment.basicInformation.otherCompensation.anyOtherCompensation",
+          "kind": "radio",
+          "label": "any other compensation",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P5_other_compensation_yes",
+            "P5_other_compensation_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "employment.basicInformation.otherCompensation.explanation",
+          "kind": "text",
+          "label": "Provide an explanation",
+          "options": [],
+          "h1b_ids": [
+            "P5_other_compensation"
+          ]
+        },
+        {
+          "name": "employment.basicInformation.datesOfIntendedEmployment.fromDate",
+          "kind": "text",
+          "label": "From",
+          "options": [],
+          "h1b_ids": [
+            "P5_begin_date"
+          ]
+        },
+        {
+          "name": "employment.basicInformation.datesOfIntendedEmployment.toDate",
+          "kind": "text",
+          "label": "To",
+          "options": [],
+          "h1b_ids": [
+            "P5_end_date"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "/employment/employer-information",
+      "section": "P5",
+      "formik_prefix": "employment.employerInformation.",
+      "label": "Petitioner information (employer)",
+      "fields": [
+        {
+          "name": "employment.employerInformation.typeOfBusiness",
+          "kind": "text",
+          "label": "type of business",
+          "options": [],
+          "h1b_ids": [
+            "P5_type_of_business"
+          ]
+        },
+        {
+          "name": "employment.employerInformation.yearBusinessEstablished",
+          "kind": "text",
+          "label": "year was the petitioning business established",
+          "options": [],
+          "h1b_ids": [
+            "P5_year_established"
+          ]
+        },
+        {
+          "name": "employment.employerInformation.currentNumberOfEmployeesInUS",
+          "kind": "text",
+          "label": "current number of employees",
+          "options": [],
+          "h1b_ids": [
+            "P5_num_employees"
+          ]
+        },
+        {
+          "name": "employment.employerInformation.currentlyEmployTotalOf25OrFewerFullTime",
+          "kind": "radio",
+          "label": "25 or fewer full-time",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P5_25_or_fewer_yes",
+            "P5_25_or_fewer_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "employment.employerInformation.grossAnnualIncome",
+          "kind": "text",
+          "label": "gross annual income",
+          "options": [],
+          "h1b_ids": [
+            "P7_gross_income"
+          ]
+        },
+        {
+          "name": "employment.employerInformation.netAnnualIncome",
+          "kind": "text",
+          "label": "net annual income",
+          "options": [],
+          "h1b_ids": [
+            "P7_net_income"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "/employment/work-location",
+      "section": "P5",
+      "formik_prefix": "employment.workLocation.",
+      "label": "Work location",
+      "fields": [
+        {
+          "name": "formikFactoryUIMeta.employment.workLocation.sameAsMailing",
+          "kind": "radio",
+          "label": "work address the same as the petitioner's mailing address",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P5_same_as_mailing_yes",
+            "P5_same_as_mailing_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "employment.workLocation.additionalWorkAddresses.0.addressLineOne",
+          "kind": "text",
+          "label": "work address line 1",
+          "options": [],
+          "h1b_ids": [
+            "P5_address_street"
+          ]
+        },
+        {
+          "name": "employment.workLocation.additionalWorkAddresses.0.addressLineTwo",
+          "kind": "text",
+          "label": "work address line 2",
+          "options": [],
+          "h1b_ids": [
+            "P5_address_apt"
+          ]
+        },
+        {
+          "name": "employment.workLocation.additionalWorkAddresses.0.city",
+          "kind": "text",
+          "label": "work address city",
+          "options": [],
+          "h1b_ids": [
+            "P5_address_city"
+          ]
+        },
+        {
+          "name": "employment.workLocation.additionalWorkAddresses.0.state",
+          "kind": "search",
+          "label": "work address state",
+          "options": [],
+          "h1b_ids": [
+            "P5_address_state"
+          ]
+        },
+        {
+          "name": "employment.workLocation.additionalWorkAddresses.0.zipCode",
+          "kind": "text",
+          "label": "work address ZIP",
+          "options": [],
+          "h1b_ids": [
+            "P5_address_zip"
+          ]
+        },
+        {
+          "name": "employment.workLocation.additionalWorkAddresses.0.thirdPartyLocation",
+          "kind": "radio",
+          "label": "third party location",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P5_work_third_party_yes",
+            "P5_work_third_party_no"
+          ],
+          "options_verbatim": true
+        }
+      ]
+    },
+    {
+      "slug": "/employment/work-location/work-location-2",
+      "section": "P5",
+      "formik_prefix": "employment.workLocation2.",
+      "label": "Work location page 2",
+      "fields": [
+        {
+          "name": "employment.workLocation2.workOffSite",
+          "kind": "radio",
+          "label": "work for you off-site",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P5_third_party_yes",
+            "P5_third_party_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "employment.workLocation2.itineraryIncluded",
+          "kind": "radio",
+          "label": "included an itinerary",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P5_itinerary_yes",
+            "P5_itinerary_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "employment.workLocation2.workInCNMI",
+          "kind": "radio",
+          "label": "Northern Mariana Islands",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "P5_cnmi_yes",
+            "P5_cnmi_no"
+          ],
+          "options_verbatim": true
+        }
+      ]
+    },
+    {
+      "slug": "/employment/release-of-controlled-technology-certification",
+      "section": "P5",
+      "formik_prefix": "employment.releaseOfTechOrTechnicalData.",
+      "label": "Release of controlled technology",
+      "fields": [
+        {
+          "name": "employment.releaseOfTechOrTechnicalData.certRegardingReleaseOfControlTech",
+          "kind": "radio",
+          "label": "Export Administration Regulations",
+          "options": [
+            "license is not required",
+            "a license is required"
+          ],
+          "h1b_ids": [
+            "P5_controlled_tech"
+          ],
+          "options_verbatim": false
+        }
+      ]
+    },
+    {
+      "slug": "/h-classification-supplement/general-information",
+      "section": "HS",
+      "formik_prefix": "hClassificationSupplement.generalInformation.",
+      "label": "HS general information",
+      "fields": [
+        {
+          "name": "hClassificationSupplement.generalInformation.beneficiaryConfirmationNumber.number",
+          "kind": "text",
+          "label": "Beneficiary Confirmation Number",
+          "options": [],
+          "h1b_ids": [
+            "HS_beneficiary_confirmation_number"
+          ]
+        },
+        {
+          "name": "formikFactoryUIMeta.hClassificationSupplement.generalInformation.beneficiaryConfirmationNumber.none",
+          "kind": "checkbox",
+          "label": "I do not have or know the Beneficiary Confirmation Number",
+          "options": [],
+          "h1b_ids": [
+            "HS_beneficiary_confirmation_unknown"
+          ]
+        },
+        {
+          "name": "hClassificationSupplement.generalInformation.capBeneficiaryPassportNumber",
+          "kind": "text",
+          "label": "passport or travel document number",
+          "options": [],
+          "h1b_ids": [
+            "HS_passport_number"
+          ]
+        },
+        {
+          "name": "hClassificationSupplement.generalInformation.capBeneficiaryPassportOrTravelDocCountryOfIssuance",
+          "kind": "search",
+          "label": "country issued the beneficiary's passport",
+          "options": [],
+          "h1b_ids": [
+            "HS_passport_country"
+          ]
+        },
+        {
+          "name": "hClassificationSupplement.generalInformation.capBeneficiaryPassportOrTravelDocExpirationDate",
+          "kind": "text",
+          "label": "passport or travel document used at the time",
+          "options": [],
+          "h1b_ids": [
+            "HS_passport_expiry"
+          ]
+        },
+        {
+          "name": "hClassificationSupplement.generalInformation.beneficiaryGuamCNMI",
+          "kind": "radio",
+          "label": "Guam-CNMI",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "HS_q6_yes",
+            "HS_q6_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "hClassificationSupplement.generalInformation.changeEmployerGuamCNMI",
+          "kind": "radio",
+          "label": "change of employer and was the beneficiary previously subject",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "HS_q7_yes",
+            "HS_q7_no"
+          ],
+          "options_verbatim": true
+        }
+      ]
+    },
+    {
+      "slug": "/h-classification-supplement/beneficiary-information",
+      "section": "HS",
+      "formik_prefix": "hClassificationSupplement.beneInformation.",
+      "label": "HS beneficiary information",
+      "fields": [
+        {
+          "name": "hClassificationSupplement.beneInformation.beneficiaryHaveOwnership.question",
+          "kind": "radio",
+          "label": "controlling interest",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "HS_q8a_yes",
+            "HS_q8a_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "hClassificationSupplement.beneInformation.beneficiaryProposedDuties",
+          "kind": "text",
+          "label": "proposed duties",
+          "options": [],
+          "h1b_ids": [
+            "HS_duties"
+          ]
+        },
+        {
+          "name": "hClassificationSupplement.beneInformation.beneficiaryCurrentDuties",
+          "kind": "text",
+          "label": "present occupation and summary of prior work",
+          "options": [],
+          "h1b_ids": [
+            "HS_work_experience"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "/h-1b-and-h-1b1-data-collection-and-filling-fee-exemption-supplement/general-information",
+      "section": "DC",
+      "formik_prefix": "h1b1DataCollection.generalInformation.",
+      "label": "DC general information",
+      "fields": [
+        {
+          "name": "h1b1DataCollection.generalInformation.h1bDependentEmployer",
+          "kind": "radio",
+          "label": "H-1B dependent employer",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "DC_h1b_dependent_yes",
+            "DC_h1b_dependent_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "h1b1DataCollection.generalInformation.willfulViolater",
+          "kind": "radio",
+          "label": "willful violator",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "DC_willful_violator_yes",
+            "DC_willful_violator_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "h1b1DataCollection.generalInformation.h1bNonimmigrantExempt",
+          "kind": "radio",
+          "label": "H-1B nonimmigrant exempt",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "DC_secA_q1a_yes",
+            "DC_secA_q1a_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "h1b1DataCollection.generalInformation.beneficiaryExempt.payAtLeast60000",
+          "kind": "checkbox",
+          "label": "annual rate of pay is equal to at least",
+          "options": [],
+          "h1b_ids": [
+            "DC_secA_q1a_exempt_60k"
+          ]
+        },
+        {
+          "name": "h1b1DataCollection.generalInformation.beneficiaryExempt.mastersDegreeOrHigher",
+          "kind": "checkbox",
+          "label": "master's degree or higher",
+          "options": [],
+          "h1b_ids": [
+            "DC_secA_q1a_exempt_masters"
+          ]
+        },
+        {
+          "name": "h1b1DataCollection.generalInformation.employMoreThan50Individuals",
+          "kind": "radio",
+          "label": "employ 50 or more individuals",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "DC_secA_q1b_yes",
+            "DC_secA_q1b_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "h1b1DataCollection.generalInformation.moreThan50PercentH1bL1AL1B",
+          "kind": "radio",
+          "label": "50 percent",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "DC_50pct_h1b"
+          ],
+          "options_verbatim": true
+        }
+      ]
+    },
+    {
+      "slug": "/h-1b-and-h-1b1-data-collection-and-filling-fee-exemption-supplement/beneficiary-information",
+      "section": "DC",
+      "formik_prefix": "h1b1DataCollection.beneficiaryInformation.",
+      "label": "DC beneficiary's information",
+      "fields": [
+        {
+          "name": "h1b1DataCollection.beneficiaryInformation.highestLevelOfEducation",
+          "kind": "search",
+          "label": "highest level of education",
+          "options": [],
+          "h1b_ids": [
+            "DC_degree_a"
+          ]
+        },
+        {
+          "name": "h1b1DataCollection.beneficiaryInformation.majorPrimaryFieldOfStudy",
+          "kind": "text",
+          "label": "major or primary field of study",
+          "options": [],
+          "h1b_ids": [
+            "DC_field_of_study"
+          ]
+        },
+        {
+          "name": "h1b1DataCollection.beneficiaryInformation.rateOfPayPerYear",
+          "kind": "text",
+          "label": "rate of pay per year",
+          "options": [],
+          "h1b_ids": [
+            "DC_rate_of_pay"
+          ]
+        },
+        {
+          "name": "h1b1DataCollection.beneficiaryInformation.socCode",
+          "kind": "search",
+          "label": "SOC Code",
+          "options": [],
+          "h1b_ids": [
+            "DC_soc_code_full"
+          ]
+        },
+        {
+          "name": "h1b1DataCollection.beneficiaryInformation.naicsCode",
+          "kind": "text",
+          "label": "NAICS Code",
+          "options": [],
+          "h1b_ids": [
+            "DC_naics_code"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "/h-1b-and-h-1b1-data-collection-and-filling-fee-exemption-supplement/beneficiary-information/beneficiary-information-2",
+      "section": "DC",
+      "formik_prefix": "h1b1DataCollection.beneficiaryInformation2.",
+      "label": "DC beneficiary's information page 2",
+      "fields": [
+        {
+          "name": "h1b1DataCollection.beneficiaryInformation2.levelOfEducation",
+          "kind": "text",
+          "label": "level of education is required",
+          "options": [],
+          "h1b_ids": [
+            "DC_secA_q1c_yes"
+          ]
+        },
+        {
+          "name": "h1b1DataCollection.beneficiaryInformation2.fieldsOfStudy",
+          "kind": "text",
+          "label": "fields(s) of study would qualify",
+          "options": [],
+          "h1b_ids": [
+            "DC_secA_q1c1_yes"
+          ]
+        },
+        {
+          "name": "h1b1DataCollection.beneficiaryInformation2.yearsOfExperience",
+          "kind": "text",
+          "label": "years of experience",
+          "options": [],
+          "h1b_ids": [
+            "DC_secA_q1c2_yes"
+          ]
+        },
+        {
+          "name": "h1b1DataCollection.beneficiaryInformation2.specialSkills",
+          "kind": "text",
+          "label": "special skills",
+          "options": [],
+          "h1b_ids": [
+            "DC_secA_q1d_yes"
+          ]
+        },
+        {
+          "name": "h1b1DataCollection.beneficiaryInformation2.supervisePositions",
+          "kind": "text",
+          "label": "supervise",
+          "options": [],
+          "h1b_ids": [
+            "DC_secA_q1d1_yes"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "/h-1b-and-h-1b1-data-collection-and-filling-fee-exemption-supplement/fee-exemption-and-or-determination",
+      "section": "DC",
+      "formik_prefix": "h1b1DataCollection.feeExemptionDetermination.",
+      "label": "DC fee exemption",
+      "fields": [
+        {
+          "name": "h1b1DataCollection.feeExemptionDetermination.institutionOfHigherLearning",
+          "kind": "radio",
+          "label": "institution of higher education",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "DC_sec2_q3_yes",
+            "DC_sec2_q3_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "h1b1DataCollection.feeExemptionDetermination.nonProfitOrgRelatedToHigherEd",
+          "kind": "radio",
+          "label": "nonprofit organization or entity related to",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "DC_sec2_q4_yes",
+            "DC_sec2_q4_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "h1b1DataCollection.feeExemptionDetermination.nonProfitResearchOrgOrGovResearchOrg",
+          "kind": "radio",
+          "label": "nonprofit research organization or a governmental",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "DC_sec2_q5_yes",
+            "DC_sec2_q5_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "h1b1DataCollection.feeExemptionDetermination.secondRequestForExtForPetitioner",
+          "kind": "radio",
+          "label": "second or subsequent request for an extension",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "DC_sec2_q6_yes",
+            "DC_sec2_q6_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "h1b1DataCollection.feeExemptionDetermination.amendedPetitionDoesNotContainRequestForStay",
+          "kind": "radio",
+          "label": "amended petition that does not contain",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "DC_sec2_q7_yes",
+            "DC_sec2_q7_no"
+          ],
+          "options_verbatim": true
+        }
+      ]
+    },
+    {
+      "slug": "/h-1b-and-h-1b1-data-collection-and-filling-fee-exemption-supplement/fee-exemption-and-or-determination/fee-exemption-and-or-determination-page-2",
+      "section": "DC",
+      "formik_prefix": "h1b1DataCollection.feeExemptionDetermination2.",
+      "label": "DC fee exemption page 2",
+      "fields": [
+        {
+          "name": "h1b1DataCollection.feeExemptionDetermination2.isFilingToCorrectUSCISError",
+          "kind": "radio",
+          "label": "correct a USCIS error",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "DC_sec2_q8_yes",
+            "DC_sec2_q8_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "h1b1DataCollection.feeExemptionDetermination2.isPrimaryOrSecondaryEducation",
+          "kind": "radio",
+          "label": "primary or secondary education institution",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "DC_sec2_q9_yes",
+            "DC_sec2_q9_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "h1b1DataCollection.feeExemptionDetermination2.nonProfitWithClinicalTraining",
+          "kind": "radio",
+          "label": "nonprofit entity that engages in",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "DC_clinical_training_yes",
+            "DC_clinical_training_no"
+          ],
+          "options_verbatim": true
+        }
+      ]
+    },
+    {
+      "slug": "/h-1b-and-h-1b1-data-collection-and-filling-fee-exemption-supplement/numerical-limitation-information",
+      "section": "DC",
+      "formik_prefix": "h1b1DataCollection.numericalLimitationInformation.",
+      "label": "DC numerical limitation",
+      "fields": [
+        {
+          "name": "h1b1DataCollection.numericalLimitationInformation.typeOfH1BPetition",
+          "kind": "radio",
+          "label": "type of H-1B petition",
+          "options": [
+            "CAP H-1B Bachelor's Degree",
+            "CAP H-1B U.S. Master's Degree or Higher",
+            "CAP H-1B1 Chile/Singapore",
+            "CAP Exempt"
+          ],
+          "h1b_ids": [
+            "DC_cap_a",
+            "DC_cap_b",
+            "DC_cap_c",
+            "DC_cap_d"
+          ],
+          "options_verbatim": false
+        },
+        {
+          "name": "h1b1DataCollection.numericalLimitationInformation.mastersDegree.nameOfUSInstitutionOfHigherEducation",
+          "kind": "text",
+          "label": "United States institution of higher education",
+          "options": [],
+          "h1b_ids": [
+            "DC_school_name"
+          ]
+        },
+        {
+          "name": "h1b1DataCollection.numericalLimitationInformation.mastersDegree.typeOfUSDegree",
+          "kind": "text",
+          "label": "type of United States degree",
+          "options": [],
+          "h1b_ids": [
+            "DC_degree_type"
+          ]
+        },
+        {
+          "name": "h1b1DataCollection.numericalLimitationInformation.mastersDegree.addressOfUSInstituionOfHigherEducation.addressLineOne",
+          "kind": "text",
+          "label": "address of the United States institution",
+          "options": [],
+          "h1b_ids": [
+            "DC_school_address_line1"
+          ]
+        },
+        {
+          "name": "h1b1DataCollection.numericalLimitationInformation.mastersDegree.addressOfUSInstituionOfHigherEducation.city",
+          "kind": "text",
+          "label": "city of the United States institution",
+          "options": [],
+          "h1b_ids": [
+            "DC_school_city"
+          ]
+        },
+        {
+          "name": "h1b1DataCollection.numericalLimitationInformation.mastersDegree.addressOfUSInstituionOfHigherEducation.state",
+          "kind": "search",
+          "label": "state of the United States institution",
+          "options": [],
+          "h1b_ids": [
+            "DC_school_state"
+          ]
+        },
+        {
+          "name": "h1b1DataCollection.numericalLimitationInformation.mastersDegree.addressOfUSInstituionOfHigherEducation.zipCode",
+          "kind": "text",
+          "label": "zip code of the United States institution",
+          "options": [],
+          "h1b_ids": [
+            "DC_school_zip"
+          ]
+        },
+        {
+          "name": "h1b1DataCollection.numericalLimitationInformation.mastersDegree.dateDegreeAwarded",
+          "kind": "text",
+          "label": "When was the degree awarded",
+          "options": [],
+          "h1b_ids": [
+            "DC_degree_date"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "/h-1b-and-h-1b1-data-collection-and-filling-fee-exemption-supplement/off-site-assignment",
+      "section": "DC",
+      "formik_prefix": "h1b1DataCollection.offsiteAssignment.",
+      "label": "DC off-site assignment",
+      "fields": [
+        {
+          "name": "h1b1DataCollection.offsiteAssignment.beneficiaryAssignedToWorkOffsite",
+          "kind": "radio",
+          "label": "assigned to work at an off-site",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "DC_sec4_q1a_yes",
+            "DC_sec4_q1a_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "h1b1DataCollection.offsiteAssignment.placementCompliesWithStatutoryRequirements",
+          "kind": "radio",
+          "label": "comply with the statutory and regulatory",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "DC_sec4_q1b_yes",
+            "DC_sec4_q1b_no"
+          ],
+          "options_verbatim": true
+        },
+        {
+          "name": "h1b1DataCollection.offsiteAssignment.beneficiaryPaidHigherWageAtOffsite",
+          "kind": "radio",
+          "label": "higher of the prevailing or actual wage",
+          "options": [
+            "true",
+            "false"
+          ],
+          "h1b_ids": [
+            "DC_sec4_q1c_yes",
+            "DC_sec4_q1c_no"
+          ],
+          "options_verbatim": true
+        }
+      ]
+    }
+  ],
+  "skipped_in_h1b_map": [
+    "DC_degree_b",
+    "DC_degree_c",
+    "DC_degree_d",
+    "DC_degree_e",
+    "DC_degree_f",
+    "DC_degree_g",
+    "DC_degree_h",
+    "DC_degree_i",
+    "DC_secA_q1c1_no",
+    "DC_secA_q1c2_no",
+    "DC_secA_q1c_no",
+    "DC_secA_q1d1_no",
+    "DC_secA_q1d_no",
+    "DC_soc_code",
+    "DC_soc_code_suffix",
+    "HS_beneficiary_name",
+    "HS_class_h1b",
+    "HS_lca_confirmation",
+    "HS_petitioner_name",
+    "HS_sect1_date",
+    "HS_sect1_name",
+    "HS_total_beneficiaries",
+    "P1_first_name",
+    "P1_last_name",
+    "P1_middle_name",
+    "P2_total_workers",
+    "P3_other_names",
+    "P3_other_names_rows",
+    "P3_type_named",
+    "P3_type_unnamed",
+    "P4_q10_no",
+    "P4_q10_yes",
+    "P4_q11a_no",
+    "P4_q11a_yes",
+    "P4_q5_no",
+    "P4_q5_yes",
+    "P4_q6_no",
+    "P4_q6_yes",
+    "P4_q7_no",
+    "P4_q7_yes",
+    "P4_q8_no",
+    "P4_q8_yes",
+    "P4_q8a_no",
+    "P4_q8a_yes",
+    "P4_q8b_no",
+    "P4_q8b_yes",
+    "P4_q9_no",
+    "P4_q9_yes",
+    "P5_hours",
+    "P5_q5_no",
+    "P5_q5_yes",
+    "P5_q6_no",
+    "P5_q6_yes",
+    "P5_q7_no",
+    "P5_q7_yes",
+    "P6_deemed_no",
+    "P6_deemed_yes",
+    "P7_date_signed",
+    "P7_email",
+    "P7_first_name",
+    "P7_last_name",
+    "P7_phone",
+    "P8_date_signed",
+    "P8_postal_code",
+    "P8_province"
+  ],
+  "unrouted": [
+    {
+      "h1b_id": "DC_wage_level",
+      "selector": "[name*=\"wageLevel\" i]",
+      "kind": "radio",
+      "label": "OEWS wage level corresponds to the proffered position",
+      "options": [
+        "Wage Level I",
+        "Wage Level II",
+        "Wage Level III",
+        "Wage Level IV"
+      ]
+    }
+  ]
+}

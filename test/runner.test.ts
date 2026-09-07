@@ -3,7 +3,12 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { auditPage, summarizeAudit } from "../src/runner/audit";
-import { configForPath, configForFormType, FORM_CONFIGS } from "../src/runner/registry";
+import {
+  configForPath,
+  configForFormType,
+  formTypeForCaseType,
+  FORM_CONFIGS,
+} from "../src/runner/registry";
 import { findNextButton, isForbiddenAdvanceControl, onLoginPage } from "../src/runner/fill-chain";
 import { I130_PAGES } from "../src/i130/form-descriptor";
 import { I539_PAGES } from "../src/i539/form-descriptor";
@@ -35,6 +40,50 @@ describe("form config registry", () => {
       "/forms/application-to-extend-change-nonimmigrant-status/",
     );
     expect(configForFormType("I-485")).toBeNull();
+  });
+
+  it("names the form a case type is filed on", () => {
+    expect(formTypeForCaseType("N-400")).toBe("N-400");
+    expect(formTypeForCaseType("IR-1")).toBe("I-130");
+    for (const code of [
+      "I-539-STUDENT",
+      "I-539-VISITOR",
+      "I-539-STUDENT-DEP",
+      "I-539-EXCHANGE",
+      "I-539-EXCHANGE-DEP",
+      "I-539-WORKER-DEP",
+      "I-539-SPECIAL",
+    ]) {
+      expect(formTypeForCaseType(code)).toBe("I-539");
+    }
+  });
+
+  it("returns null for a case type no online form covers", () => {
+    // Null means "leave the picker where the caseworker put it". Guessing here
+    // would swap their choice out from under them on an EB or PERM case.
+    expect(formTypeForCaseType("PERM")).toBeNull();
+    expect(formTypeForCaseType("EB-1A")).toBeNull();
+    expect(formTypeForCaseType(undefined)).toBeNull();
+  });
+
+  it("gives every shipped form a case-type list", () => {
+    // Optional on the interface so test fixtures stay small; mandatory here, or a
+    // new form ships with no auto-switch and nothing says so.
+    for (const config of FORM_CONFIGS) {
+      expect(config.caseTypes?.length ?? 0).toBeGreaterThan(0);
+    }
+  });
+
+  it("lets no two myUSCIS forms claim the same case type", () => {
+    // The auto-switch reads the FIRST match, so an overlap would silently pick
+    // one of two forms for that case type.
+    const seen = new Set<string>();
+    for (const config of FORM_CONFIGS) {
+      for (const code of config.caseTypes ?? []) {
+        expect(seen.has(code)).toBe(false);
+        seen.add(code);
+      }
+    }
   });
 
   it("keeps every config's host path distinct (no ambiguous routing)", () => {

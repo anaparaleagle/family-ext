@@ -178,6 +178,15 @@ export interface FormConfig {
   label: string;
   /** The page walk, in order. */
   pages: FormPage[];
+  /**
+   * Backend case-type codes filed on this form. Used to follow the caseworker's
+   * case selection with the form picker; NOT to filter the case list, which stays
+   * open on purpose (see flag/registry `caseTypesForForm`).
+   *
+   * Optional so a throwaway config in a test need not carry one. Every SHIPPED
+   * config must, and `runner.test.ts` fails the build if one does not.
+   */
+  caseTypes?: string[];
 }
 
 // ── Descriptor authoring helpers ────────────────────────────────────────────

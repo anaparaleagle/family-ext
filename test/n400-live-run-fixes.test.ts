@@ -23,6 +23,7 @@ import { fillAll, fillPage, planPageFill } from "../src/runner/fill-chain";
 import { t } from "../src/runner/types";
 import type { FormConfig, FormPage } from "../src/runner/types";
 import { N400_PAGES } from "../src/n400/form-descriptor";
+import { debugLog } from "../src/engine/logger";
 import { radioGroup, setBody, textInput } from "./fixtures/dom";
 
 const BASE = "https://my.uscis.gov/forms/application-for-naturalization/13375119";
@@ -327,6 +328,21 @@ describe("fillPage — a repeater row myUSCIS numbers after the rows already sav
 // descriptor had no entry for it, so the walk logged "page not in descriptor" and
 // clicked past three questions the client had already answered — the rest of the
 // ticket's "Oath of allegiance not filled at all", beyond the -page-1 routing.
+describe("N-400 descriptor — the oath page's third question", () => {
+  // The 2026-07-30 capture recorded two radios on /moral-character/oath-of-allegiance.
+  // The live page renders three, and the third is the one myUSCIS gates the oath's
+  // page 2 on: on prod draft 13730483 the walk answered two, and USCIS went from
+  // there to /evidence, so page 2's three willingness radios were never even seen.
+  it("drives all three radios myUSCIS renders", () => {
+    const page = N400_PAGES.find((p) => p.slug === "/moral-character/oath-of-allegiance");
+    expect(page?.fields.map((f) => f.name)).toEqual([
+      "moralCharacter.oathOfAllegiance.understandOath",
+      "moralCharacter.oathOfAllegiance.unableToTakeOath",
+      "moralCharacter.oathOfAllegiance.willingToTakeOath",
+    ]);
+  });
+});
+
 describe("N-400 descriptor — oath of allegiance page 2", () => {
   const SLUG = "/moral-character/oath-of-allegiance/oath-of-allegiance-page-2";
 
@@ -397,5 +413,293 @@ describe("fillPage — a field the form has made read-only", () => {
     expect(state?.value, "wrote into a field the form marked read-only").toBe("Illinois");
     const city = document.querySelector<HTMLInputElement>('[name="applicant.mailing.city"]');
     expect(city?.value, "a writable field beside it must still fill").toBe("Naperville");
+  }, 20000);
+
+  it("fills one that is read-only and EMPTY", async () => {
+    // The mirror marks its inputs read-only WITH the form's own value in them.
+    // A list you pick from is read-only too, and empty — myUSCIS renders the row
+    // Country/State that way, and treating those as "the form's own" left Part 7's
+    // employer Country and State blank on a live run.
+    setBody(
+      `<input type="text" name="applicant.employer.state" id="applicant.employer.state" readonly />`,
+    );
+    const page: FormPage = {
+      slug: "/employment",
+      title: "Employment",
+      kind: "form",
+      fields: [t("applicant.employer.state")],
+    };
+
+    const res = await fillPage(page, { "applicant.employer.state": "Illinois" });
+
+    expect(res.skipped, "an empty read-only box is protecting nothing").toBe(0);
+    expect(res.filled).toBe(1);
+    const state = document.querySelector<HTMLInputElement>('[name="applicant.employer.state"]');
+    expect(state?.value).toBe("Illinois");
+  }, 20000);
+});
+
+// 4. A REPEATER PAGE THAT ALSO SHOWS A NEXT. Live on prod draft 13664289
+//    (case f259d233, 2026-08-29) the N-400 walk typed 6/6 on
+//    /about-you/where-you-have-lived and then died there, six pages into
+//    fifty-eight:
+//        fillAll: /about-you/where-you-have-lived - 6/6 filled
+//        fillAll: page did not change after Next, stopping
+//    The row was still OPEN. myUSCIS shows "Save entry" inside the open row and
+//    Next in the page footer AT THE SAME TIME, and it refuses a Next while a row
+//    is uncommitted. The commit was gated on there being no Next
+//    (`rowCommitButtonText && !findNextButton()`), so on this page it never ran.
+//    Re-running Fill all could not help: with the row already rendered no Add is
+//    clicked, the same fields refill and the same ungated Next is clicked again.
+describe("fillAll - commits the row even when the page already shows a Next", () => {
+  it("clicks the commit button first, then Next", () => {
+    goTo("/about-you/where-you-have-lived");
+    setBody(
+      `<button id="save">Save entry</button>` +
+        `<button data-testid="next-button">Next</button>`,
+    );
+    const order: string[] = [];
+    document.getElementById("save")!.addEventListener("click", () => order.push("save"));
+    document.querySelector<HTMLElement>('[data-testid="next-button"]')!.addEventListener(
+      "click",
+      () => {
+        order.push("next");
+        // Let the walk finish instead of sitting out its page-change wait: a
+        // terminal path stops it on the next turn of the loop.
+        goTo("/review-and-submit/review-your-application");
+      },
+    );
+    const config: FormConfig = {
+      formType: "N-400",
+      hostPath: "/forms/application-for-naturalization/",
+      label: "N-400",
+      pages: N400_PAGES,
+    };
+
+    return fillAll(config, {}, async () => 0).then(() => {
+      expect(order, "Next was clicked with the row still open").toEqual(["save", "next"]);
+    });
+  }, 20000);
+});
+
+// 5. A STOP THAT DOES NOT SAY WHY. "page did not change after Next" is equally
+//    true of an uncommitted repeater row, a blank required field and a changed
+//    form, and nothing read the error text myUSCIS was showing - so every stall
+//    of this kind cost a code read to tell those apart.
+describe("fillAll - says why myUSCIS refused to advance", () => {
+  it("puts the page's error text in the stop line", async () => {
+    goTo("/about-you/requests-for-accommodations");
+    setBody(
+      `<div class="usa-error-message">Select a country.</div>` +
+        `<button data-testid="next-button">Next</button>`,
+    );
+    const config: FormConfig = {
+      formType: "N-400",
+      hostPath: "/forms/application-for-naturalization/",
+      label: "N-400",
+      pages: N400_PAGES,
+    };
+    const from = debugLog.length;
+
+    await fillAll(config, {}, async () => 0);
+
+    const stop = debugLog.slice(from).filter((l) => l.includes("did not change after Next"));
+    expect(stop.length, "the walk did not stop where the test expects").toBeGreaterThan(0);
+    expect(
+      stop.some((l) => l.includes("Select a country.")),
+      "the stop line does not name the error the page was showing",
+    ).toBe(true);
+  }, 40000);
+});
+
+// 6. EVERY REPEATER ROW AFTER THE FIRST. Live on prod draft 13664289
+//    (2026-08-29), the applicant had SIX trips and the travel page logged:
+//        fill: clicked "add trip" but no new row rendered for 1
+//        ... for 2, 3, 4, 5
+//        fill: FAIL ...timeSpentOutsideUSTable.1.dateLeftTheUS - element not on page
+//    myUSCIS opens ONE row at a time and ignores Add while a row is still open;
+//    the row has to be committed first. fillPage opened every row up front and
+//    only then started typing, so on any list of two or more rows exactly one
+//    row was ever filled. The other repeaters on that case are one row each,
+//    which is the only reason they looked fine.
+//
+//    It also mis-reported the cause: the rows that never rendered were blamed on
+//    "the reveal is wrong or the form changed", which is the wrong thing to hunt.
+describe("fillPage - a repeater list longer than one row", () => {
+  const CHILD = (i: number) =>
+    textInput(`${CH}.${i}.childInfo.name.firstName`) + textInput(`${CH}.${i}.childInfo.dateOfBirth`);
+
+  it("commits each row before opening the next", async () => {
+    goTo("/your-family/children");
+    setBody(
+      textInput("yourFamily.children.totalNumberOfChildren") +
+        `<button id="add">Add a child</button><button id="save">Save child</button>`,
+    );
+    // myUSCIS's actual behaviour: Add is ignored while a row is open, and the
+    // commit button is what closes it.
+    let rowOpen = false;
+    let nextIndex = 0;
+    const clicks: string[] = [];
+    document.getElementById("add")!.addEventListener("click", () => {
+      clicks.push("add");
+      if (rowOpen) return;
+      document.body.insertAdjacentHTML("beforeend", CHILD(nextIndex++));
+      rowOpen = true;
+    });
+    document.getElementById("save")!.addEventListener("click", () => {
+      clicks.push("save");
+      rowOpen = false;
+    });
+
+    const res = await fillPage(childrenPage(), {
+      "yourFamily.children.totalNumberOfChildren": "2",
+      [`${CH}.0.childInfo.name.firstName`]: "Rhea",
+      [`${CH}.0.childInfo.dateOfBirth`]: "01/02/2015",
+      [`${CH}.1.childInfo.name.firstName`]: "Kabir",
+      [`${CH}.1.childInfo.dateOfBirth`]: "03/04/2018",
+    });
+
+    expect(res.failed, "a row after the first never rendered").toBe(0);
+    const value = (n: string) =>
+      document.querySelector<HTMLInputElement>(`[name="${n}"]`)?.value;
+    expect(value(`${CH}.0.childInfo.name.firstName`)).toBe("Rhea");
+    expect(value(`${CH}.1.childInfo.name.firstName`), "row 1 was never filled").toBe("Kabir");
+    // The commit belongs BETWEEN the rows. Committing only at the end of the page
+    // is what left Add with nothing to do.
+    expect(clicks.slice(0, 3)).toEqual(["add", "save", "add"]);
+  }, 30000);
+
+  it("still fills a single-row list without committing it", async () => {
+    // The last row stays open on purpose: fillAll commits it before Next, which
+    // is also what covers a page whose rows were all already saved.
+    goTo("/your-family/children");
+    setBody(`<button id="add">Add a child</button><button id="save">Save child</button>`);
+    let nextIndex = 0;
+    const clicks: string[] = [];
+    document.getElementById("add")!.addEventListener("click", () => {
+      clicks.push("add");
+      document.body.insertAdjacentHTML("beforeend", CHILD(nextIndex++));
+    });
+    document.getElementById("save")!.addEventListener("click", () => clicks.push("save"));
+
+    const res = await fillPage(childrenPage(), {
+      [`${CH}.0.childInfo.name.firstName`]: "Rhea",
+    });
+
+    expect(res.filled).toBe(1);
+    expect(clicks, "a one-row page must not click the commit button").toEqual(["add"]);
+  }, 20000);
+});
+
+// 7. A NEXT THAT WAS CLICKED TOO EARLY. Live on prod draft 13370795 (2026-08-29)
+//    /moral-character/crimes-and-offenses/crimes-and-offenses-page-2 advanced on
+//    one run and refused on the next, both times reporting 0/0 and, with the new
+//    stop line, NO error text on the page. A page with nothing to type gets no
+//    render wait at all - an empty plan is a legitimate 0/0 page, not a race - so
+//    Next is clicked on a React page that has mounted the button but not yet
+//    wired it. The upload branch has retried exactly this since v0.6.0; the form
+//    branch clicked once and stopped the whole walk.
+describe("fillAll - a form page that ignores the first Next", () => {
+  it("waits and clicks once more before giving up", async () => {
+    goTo("/moral-character/crimes-and-offenses/crimes-and-offenses-page-2");
+    setBody(`<button data-testid="next-button">Next</button>`);
+    let clicks = 0;
+    document.querySelector<HTMLElement>('[data-testid="next-button"]')!.addEventListener(
+      "click",
+      () => {
+        clicks += 1;
+        // The first click lands before the page is wired and does nothing.
+        if (clicks >= 2) goTo("/review-and-submit/review-your-application");
+      },
+    );
+    const config: FormConfig = {
+      formType: "N-400",
+      hostPath: "/forms/application-for-naturalization/",
+      label: "N-400",
+      pages: N400_PAGES,
+    };
+    const from = debugLog.length;
+
+    await fillAll(config, {}, async () => 0);
+
+    expect(clicks, "the walk gave up after one click").toBeGreaterThanOrEqual(2);
+    expect(
+      debugLog.slice(from).some((l) => l.includes("did not change after Next, stopping")),
+      "stopped the walk on a page that only needed a second click",
+    ).toBe(false);
+  }, 60000);
+});
+
+// 5. A BOX THE FORM EMPTIED AFTER IT WAS TYPED. Live on prod draft 13730483
+//    (2026-09-04) the run reported
+//        fill: /about-you/your-contact-information — planning 15 value(s)
+//        fillAll: /about-you/your-contact-information — 15/15 filled
+//    and the current-address ZIP box was blank on the saved page, while the
+//    mailing ZIP — the last field typed — held its value. The ZIP was in the
+//    payload and setText had read it back off the box, so nothing in the log said
+//    a field was lost. Filling that one page on its own filled the ZIP and it
+//    survived a Next, which is what makes this a race: choosing the State starts a
+//    lookup whose late response re-renders the block with the ZIP cleared.
+describe("fillPage - a box the form empties after we type in it", () => {
+  it("re-types it, instead of reporting a filled page over an empty box", async () => {
+    setBody(textInput("a.address.zipCode") + textInput("a.address.city"));
+    // Stands in for the State lookup landing late: something else on the page
+    // clears the ZIP box a moment after it was typed and verified.
+    const zip = document.querySelector<HTMLInputElement>('[name="a.address.zipCode"]');
+    const city = document.querySelector<HTMLInputElement>('[name="a.address.city"]');
+    let wiped = false;
+    city?.addEventListener("input", () => {
+      if (wiped || !zip) return;
+      wiped = true;
+      zip.value = "";
+    });
+
+    const page: FormPage = {
+      slug: "/contact",
+      title: "Contact",
+      kind: "form",
+      fields: [t("a.address.zipCode"), t("a.address.city")],
+    };
+    const res = await fillPage(page, {
+      "a.address.zipCode": "10001",
+      "a.address.city": "New York",
+    });
+
+    expect(zip?.value, "the ZIP the form wiped was never put back").toBe("10001");
+    expect(city?.value).toBe("New York");
+    expect(res.filled).toBe(2);
+    expect(res.failed).toBe(0);
+    // Handed to the walk so it can look again after the row commit and before
+    // Next: a box emptied on the way out never reaches the save.
+    expect(res.typed.map((box) => box.spec.name)).toEqual(["a.address.zipCode", "a.address.city"]);
+  }, 20000);
+
+  it("leaves a box the form rewrote alone", async () => {
+    // The form rewriting our value is not the form throwing it away. Masks do it to
+    // every ZIP, SSN and phone on the N-400, and re-typing over one starts a fight
+    // nobody wins — so the sweep only ever puts back an EMPTY box.
+    setBody(textInput("b.address.zipCode") + textInput("b.address.city"));
+    const zip = document.querySelector<HTMLInputElement>('[name="b.address.zipCode"]');
+    const city = document.querySelector<HTMLInputElement>('[name="b.address.city"]');
+    let rewritten = false;
+    city?.addEventListener("input", () => {
+      if (rewritten || !zip) return;
+      rewritten = true;
+      zip.value = "10001-1234";
+    });
+
+    const page: FormPage = {
+      slug: "/contact",
+      title: "Contact",
+      kind: "form",
+      fields: [t("b.address.zipCode"), t("b.address.city")],
+    };
+    const res = await fillPage(page, {
+      "b.address.zipCode": "10001",
+      "b.address.city": "New York",
+    });
+
+    expect(zip?.value, "re-typed over the form's own formatting").toBe("10001-1234");
+    expect(res.failed).toBe(0);
   }, 20000);
 });

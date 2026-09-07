@@ -320,10 +320,48 @@ export interface PageFillResult {
    */
   skipped: number;
   results: SetResult[];
+  /**
+   * Every plain box this page typed into and verified, so the walk can look again
+   * immediately before Next. The end-of-page sweep found the N-400's
+   * current-address ZIP still holding its value, and the saved page had it blank —
+   * so whatever empties it happens on the way out, not during the fill.
+   */
+  typed: TypedBox[];
+}
+
+/** A plain box that was typed into and read back, for the re-check passes. */
+export interface TypedBox {
+  spec: FieldSpec;
+  value: string;
 }
 
 /** How long to wait for a revealed block to render after its answer is set. */
 const REVEAL_RENDER_TIMEOUT_MS = 4000;
+
+/**
+ * How long to let myUSCIS close a committed row before clicking Add for the next
+ * one. The commit collapses the row into the saved list and re-renders it, and an
+ * Add clicked mid-render is the click that gets ignored.
+ */
+const ROW_COMMIT_SETTLE_MS = 800;
+/** How long a State/Country lookup gets to land before the page is re-checked. */
+const LOOKUP_SETTLE_MS = 1200;
+/** Kinds that live in a plain box, and so can be read back and re-typed. */
+const TYPED_KINDS = new Set(["text", "textarea", "date", "phone"]);
+
+/**
+ * How long to wait before clicking a form page's Next a SECOND time, and how long
+ * to give that second click.
+ *
+ * A page with nothing to type gets no render wait at all — an empty plan is a
+ * legitimate 0/0 page and stalling there would be worse — so the click can land on
+ * a React page that has mounted the button but not yet wired it. Live on
+ * 2026-08-29 the crimes-and-offenses table page advanced on one run and refused on
+ * the next, with no error text on the page either time. The upload branch has
+ * retried exactly this since v0.6.0.
+ */
+const NEXT_RETRY_WAIT_MS = 1200;
+const NEXT_RETRY_WINDOW_MS = 6000;
 
 /**
  * The last two segments of a Formik name. The full names run to 90+ characters
@@ -372,12 +410,21 @@ export async function fillPage(
   // What this page is about to do, and what it is NOT going to do. Both halves
   // matter when reading a run back: a field the backend never sent a value for
   // is invisible in the results, so it has to be named here or it looks filled.
-  dbg(`fill: ${page.slug} — planning ${plan.length} of ${page.fields.length} descriptor field(s)`);
+  // "19 of 4" is what this read as on a six-row repeater. The plan expands one
+  // descriptor line into one entry PER ROW, so the two numbers are not comparable.
+  const rowsPlanned = new Set(plan.filter((p) => !p.plain).map((p) => p.rowIndex)).size;
+  dbg(
+    `fill: ${page.slug} — planning ${plan.length} value(s) from ` +
+      `${page.fields.length} descriptor field(s)` +
+      (rowsPlanned ? ` across ${rowsPlanned} row(s)` : ""),
+  );
   if (plan.length) {
     dbg(`  order: ${plan.map((p) => shortName(p.spec.name)).join(" -> ")}`);
   }
+  // {j} as well as {i}: a nested list's placeholder used to survive into the
+  // lookup, so a per-row country the backend DID send was reported as unsent.
   const unsent = page.fields
-    .map((f) => f.name.replace(/\{i\}/g, "0"))
+    .map((f) => f.name.replace(/\{i\}/g, "0").replace(/\{j\}/g, "0"))
     .filter((n) => fieldValues[n] === undefined || fieldValues[n] === "");
   if (unsent.length) {
     dbg(`  no value from the backend for: ${unsent.map(shortName).join(", ")}`);
@@ -387,24 +434,56 @@ export async function fillPage(
   // Clicking a repeater Add COVERS the page's plain inputs, which is why
   // /your-family/children reported its count field missing on a live run. The plan
   // is already sorted plain-first, so deferring Add is all that is needed.
-  let rowsRendered = false;
+  //
+  // ONE ROW AT A TIME. myUSCIS opens a single row form and IGNORES Add while that
+  // row is still open — the row has to be committed first. Opening every row up
+  // front and only then typing therefore filled exactly one row on any list longer
+  // than that: live on prod draft 13664289 (2026-08-29) an applicant with six trips
+  // logged `clicked "add trip" but no new row rendered` five times, then failed
+  // every field of rows 1-5 with "element not on page". The other repeaters on that
+  // case were one row each, which is the only reason they looked fine.
+  //
+  // So the cycle is add -> fill -> commit -> add. The plan is sorted by row index
+  // (orderFields), so walking it in order walks the rows in order.
+  //
   // How far the DOM's row numbering runs ahead of the payload's. Zero on a blank
   // draft; on a draft that already holds rows it is however many are saved, learned
   // from the index the FIRST Add actually opened rather than assumed or counted.
   let rowOffset = 0;
-  const renderRowsOnce = async (): Promise<void> => {
-    if (rowsRendered || !page.repeater) return;
-    rowsRendered = true;
+  let offsetLearned = false;
+  // The payload row whose form is open on the page right now, or null when none is.
+  let openRow: number | null = null;
+
+  const openRowForFilling = async (rowIndex: number): Promise<void> => {
+    const repeater = page.repeater;
+    if (!repeater || openRow === rowIndex) return;
+    if (openRow !== null && repeater.rowCommitButtonText) {
+      const commit = findRowCommitButton(repeater.rowCommitButtonText);
+      if (commit) {
+        dbg(
+          `fill: committing row ${openRow} with "${repeater.rowCommitButtonText}" ` +
+            `so row ${rowIndex} can open`,
+        );
+        commit.click();
+        await sleep(ROW_COMMIT_SETTLE_MS);
+      } else {
+        dbg(
+          `fill: no "${repeater.rowCommitButtonText}" button to close row ${openRow} — ` +
+            `row ${rowIndex} may not open`,
+        );
+      }
+    }
     // Count rows from the {i} fields
     // only (so single-instance fields on a mixed page don't inflate the count).
     // Row 0 usually renders after one Add click; the dump shows repeaters render
     // no inputs until Add (on a mixed page row 0 may already be present).
-    const repeaterFields = page.fields.filter((f) => f.name.includes("{i}"));
-    const rows = repeaterRowCount(page.repeater, repeaterFields, fieldValues);
-    for (let i = 0; i < rows; i++) {
-      const rendered = await ensureRepeaterRow(page.repeater, i + rowOffset);
-      if (i === 0 && rendered !== null) rowOffset = rendered;
+    const rendered = await ensureRepeaterRow(repeater, rowIndex + rowOffset);
+    if (rendered === null) return; // openRow stays put, so the next row retries the commit
+    if (!offsetLearned) {
+      rowOffset = rendered - rowIndex;
+      offsetLearned = true;
     }
+    openRow = rowIndex;
   };
 
   /**
@@ -423,8 +502,11 @@ export async function fillPage(
 
   let lastWasRadio = false;
   let skipped = 0;
+  // What was typed into a plain box and verified, for the sweep below.
+  const typed: { spec: FieldSpec; value: string; at: number }[] = [];
+  let setASearch = false;
   for (const p of plan) {
-    if (!p.plain) await renderRowsOnce();
+    if (!p.plain) await openRowForFilling(p.rowIndex);
     // AFTER renderRowsOnce, which is what learns the offset.
     const spec = onRenderedRow(p);
     if (lastWasRadio && p.spec.kind !== "radio") {
@@ -440,9 +522,20 @@ export async function fillPage(
       // exactly what let the premium radio and the address block sit unfilled.
       const appeared = await waitForRevealed(spec);
       if (!appeared) {
+        // A row field that is missing because its ROW never opened is not a broken
+        // reveal, and saying so sends the reader hunting the wrong thing. Live on
+        // 2026-08-29 five trips reported "the reveal is wrong or the form changed"
+        // when the reveal was fine and Add had been refused.
+        const rowMissing =
+          !p.plain &&
+          page.repeater !== undefined &&
+          !rowRendered(`${page.repeater.namePrefix}.${p.rowIndex + rowOffset}.`);
         dbg(
-          `fill: ${p.spec.name} did not appear after setting "${p.revealedBy.by}" — ` +
-            `the reveal is wrong or the form changed`,
+          rowMissing
+            ? `fill: ${p.spec.name} is missing because row ${p.rowIndex} never opened — ` +
+                `the reveal is fine, the row is not there`
+            : `fill: ${p.spec.name} did not appear after setting "${p.revealedBy.by}" — ` +
+                `the reveal is wrong or the form changed`,
         );
       }
     } else if (p.conditional && locateElement(spec) === null) {
@@ -470,17 +563,29 @@ export async function fillPage(
     // Checked here rather than in setValue so it lands in `skipped` beside the
     // conditional non-reveals: both are "legitimately not filled", which is what the
     // count means, and neither is a failure anyone should chase.
+    //
+    // But ONLY a read-only box that HOLDS something: the mirror's whole point is
+    // that the form put its own value there. myUSCIS also renders the row
+    // Country/State dropdowns read-only by construction — a list you pick from
+    // does not accept typing — and those come up EMPTY. Skipping them left the
+    // N-400's employer Country and State (and both on a prior address) blank on a
+    // live run while the log called them "the form's own". An empty read-only box
+    // is protecting nothing, and the native setter reaches it anyway.
     const el = locateElement(spec);
     if (el && "readOnly" in el && (el as HTMLInputElement).readOnly) {
-      skipped++;
-      dbg(`fill: skip ${spec.name} — the form has made it read-only, so its value is not ours to set`);
-      lastWasRadio = false;
-      continue;
+      if ((el as HTMLInputElement).value.trim() !== "") {
+        skipped++;
+        dbg(`fill: skip ${spec.name} — the form has made it read-only, so its value is not ours to set`);
+        lastWasRadio = false;
+        continue;
+      }
+      dbg(`fill: ${spec.name} is read-only but empty — the form is holding no value, so filling it`);
     }
 
     const res = await setValue(spec, p.value);
     results.push(res);
     if (!res.success) dbg(`fill: FAIL ${spec.name} — ${res.message}`);
+    else if (TYPED_KINDS.has(spec.kind)) typed.push({ spec, value: p.value, at: results.length - 1 });
     lastWasRadio = p.spec.kind === "radio" && res.success;
 
     // This answer opens a block below it. Give the block a chance to mount before
@@ -493,19 +598,46 @@ export async function fillPage(
     // After country/state autocomplete, wait for dependent lookups.
     const n = spec.name.toLowerCase();
     if ((n.includes("country") || n.includes("state")) && spec.kind === "search" && res.success) {
+      setASearch = true;
       await sleep(1200);
     }
   }
 
-  // A page whose row fields were ALL dropped from the plan still gets its rows
-  // rendered, so the walk's Save/Next logic sees the real page, not a collapsed one.
-  await renderRowsOnce();
+  // A BOX THE FORM EMPTIED AFTER WE TYPED IN IT. Choosing a State starts a
+  // dependent lookup, and its late response re-renders the address block with the
+  // ZIP box blank — after setText read the value back and counted it filled. Live
+  // on the N-400 the current-address ZIP arrived from the backend, verified, and
+  // was empty by the time the page saved, while the mailing ZIP — typed last, after
+  // the lookup had landed — survived. A single-page fill hit the race the other way
+  // and looked fine, which is why "15/15 filled" hid it for two rounds of testing.
+  //
+  // Only an EMPTIED box is re-typed. A box the form reformatted holds our value in
+  // its own shape (masks do this to ZIP, SSN and phone), and typing over that
+  // starts a fight nobody wins.
+  if (typed.length && setASearch) await sleep(LOOKUP_SETTLE_MS);
+  for (const done of typed) {
+    const again = await retypeIfEmptied(done);
+    if (again) results[done.at] = again;
+  }
+
+  // A page whose row fields were ALL dropped from the plan still needs a row on
+  // screen, so the walk's commit/Next logic sees the real page rather than a
+  // collapsed one. One row is enough for that — there is nothing to type into the
+  // rest of the list. The LAST open row is deliberately left open: fillAll commits
+  // it right before Next, which is also what covers a page this never ran on.
+  if (page.repeater && openRow === null) {
+    const repeaterFields = page.fields.filter((f) => f.name.includes("{i}"));
+    if (repeaterRowCount(page.repeater, repeaterFields, fieldValues) > 0) {
+      await openRowForFilling(0);
+    }
+  }
 
   // Health telemetry: which questions on this page does our descriptor not cover?
   if (coverage) auditUnmappedFields(coverage, page.title);
 
   const filled = results.filter((r) => r.success).length;
   return {
+    typed: typed.map(({ spec, value }) => ({ spec, value })),
     slug: page.slug,
     total: results.length,
     filled,
@@ -513,6 +645,38 @@ export async function fillPage(
     skipped,
     results,
   };
+}
+
+/**
+ * Put back a box the form emptied after we typed in it, and say so.
+ *
+ * Only an EMPTIED box is re-typed. A box the form reformatted holds our value in
+ * its own shape (masks do this to ZIP, SSN and phone), and typing over that starts
+ * a fight nobody wins. Returns the new result when it re-typed, else null.
+ */
+async function retypeIfEmptied(done: TypedBox): Promise<SetResult | null> {
+  const el = locateElement(done.spec);
+  if (el === null || !("value" in el)) return null;
+  const box = el as HTMLInputElement | HTMLTextAreaElement;
+  if ("readOnly" in box && box.readOnly) return null;
+  if (box.value.trim() !== "") return null;
+  dbg(`fill: re-typing ${done.spec.name} — the form emptied it after we set it`);
+  const again = await setValue(done.spec, done.value);
+  if (!again.success) dbg(`fill: FAIL ${done.spec.name} — ${again.message} (on the re-type)`);
+  return again;
+}
+
+/**
+ * The last look before the page is left. A box empty HERE never reaches the save,
+ * so this is the only check that can speak for what myUSCIS stores.
+ *
+ * Live on the N-400 the current-address ZIP was typed, read back, still held its
+ * value at the end of the page fill — and was blank on the saved page, while the
+ * mailing ZIP (typed last) survived. So something between the end of the fill and
+ * the Next click empties it, and this is where that shows up.
+ */
+async function recheckBeforeLeaving(typed: TypedBox[]): Promise<void> {
+  for (const done of typed) await retypeIfEmptied(done);
 }
 
 /** Every row index currently rendered for `namePrefix`, read off the input names. */
@@ -727,12 +891,13 @@ export function findNextButton(doc: Document = document): HTMLButtonElement | nu
  * global nav/sidebar/header (which carries the form-wide "Save and exit") is
  * excluded so we never click out of the form.
  */
+// "Save and exit/close", "Save draft", "Save for later" all LEAVE the form.
+const LEAVE = /save\s+(and|&)\s+(exit|close)|save\s+draft|save\s+for\s+later/;
+
 export function findSaveButton(
   doc: Document = document,
   preferredLabel?: string,
 ): HTMLElement | null {
-  // "Save and exit/close", "Save draft", "Save for later" all LEAVE the form.
-  const LEAVE = /save\s+(and|&)\s+(exit|close)|save\s+draft|save\s+for\s+later/;
   const candidates = Array.from(
     doc.querySelectorAll<HTMLElement>('button, [role="button"]'),
   ).filter((b) => !b.closest('nav, aside, header, [role="navigation"]'));
@@ -761,6 +926,83 @@ export function findSaveButton(
     if (/\bsave\b/.test(t) && !LEAVE.test(t)) return b;
   }
   return null;
+}
+
+/**
+ * The row-commit button for a repeater page, matched on the descriptor's EXACT
+ * captured label and nothing else.
+ *
+ * Deliberately narrower than findSaveButton. This one runs while a Next button is
+ * on the page, where "any save-ish control" would be a guess with a real cost --
+ * the N-400 renders four different commit labels and a bare "Save" is a substring
+ * of three of them. A label that does not match returns null and the walk simply
+ * tries Next, which is what it did before.
+ */
+export function findRowCommitButton(
+  label: string | undefined,
+  doc: Document = document,
+): HTMLElement | null {
+  const want = (label ?? "").trim().toLowerCase();
+  if (!want || LEAVE.test(want)) return null;
+  const candidates = Array.from(
+    doc.querySelectorAll<HTMLElement>('button, [role="button"]'),
+  ).filter((b) => !b.closest('nav, aside, header, [role="navigation"]'));
+  for (const b of candidates) {
+    if ((b.textContent || "").trim().toLowerCase() === want) return b;
+  }
+  return null;
+}
+
+/**
+ * The error text myUSCIS is showing right now, as one line, or "" when it shows
+ * none.
+ *
+ * A refused Next used to stop the walk with "page did not change after Next",
+ * which is equally true of an uncommitted repeater row, a blank required field
+ * and a form that changed shape. Nothing read the page's own error text, so
+ * telling those apart meant reading the source -- on 2026-08-29 that was the
+ * whole cost of answering "why did it stop on page 6 of 58".
+ *
+ * The extension's own chrome is excluded: the stale-context notice is itself a
+ * role="alert", and reporting our own banner back as USCIS's error would be
+ * worse than silence.
+ */
+export function pageErrorSummary(doc: Document = document): string {
+  const SELECTORS = [
+    '[role="alert"]',
+    '[aria-live="assertive"]',
+    ".usa-error-message",
+    ".usa-alert--error",
+    ".Mui-error",
+    // myUSCIS is not USWDS everywhere; a class or id merely CONTAINING "error" is
+    // the only rule that holds across its screens. Kept honest by the innermost
+    // filter below, so a wrapper cannot dump half the page into the log.
+    '[class*="error" i]',
+    '[id*="error" i]',
+  ].join(", ");
+  const hits = Array.from(doc.querySelectorAll<HTMLElement>(SELECTORS)).filter(
+    (el) => !el.closest('[id^="mk-family"]'),
+  );
+  const seen = new Set<string>();
+  const messages: string[] = [];
+  for (const el of hits) {
+    // Innermost only: an error wrapper that contains another hit is a container,
+    // and its text is the child's text plus everything around it.
+    if (hits.some((other) => other !== el && el.contains(other))) continue;
+    const text = (el.textContent || "").replace(/\s+/g, " ").trim();
+    if (!text || seen.has(text)) continue;
+    seen.add(text);
+    messages.push(text.length > 160 ? `${text.slice(0, 160)}...` : text);
+    if (messages.length >= 6) break;
+  }
+  const flagged = Array.from(doc.querySelectorAll<HTMLElement>('[aria-invalid="true"]'))
+    .map((el) => el.getAttribute("name") || el.getAttribute("id") || "")
+    .filter(Boolean)
+    .slice(0, 8);
+  const parts: string[] = [];
+  if (messages.length) parts.push(`myUSCIS is showing: ${messages.join(" | ")}`);
+  if (flagged.length) parts.push(`fields it flagged: ${flagged.map(shortName).join(", ")}`);
+  return parts.length ? ` -- ${parts.join("; ")}` : "";
 }
 
 /**
@@ -997,6 +1239,8 @@ export async function fillAll(
     let attachedHere: number | null = null;
     // Set by the upload branch, which does its own click-and-retry advance.
     let advanced = false;
+    // What this page typed into, for the re-check below.
+    let typedHere: TypedBox[] = [];
     if (!page) {
       // Page not in the descriptor — e.g. a preparer detail sub-page, or an
       // uncaptured conditional. Don't stop the whole run; skip past it via Next.
@@ -1041,6 +1285,7 @@ export async function fillAll(
           // race doesn't whiff every field with "element not on page".
           await waitForPageReady(page, fieldValues);
           const res = await fillPage(page, fieldValues, coverage);
+          typedHere = res.typed;
           summaries.push(res);
           dbg(
             `fillAll: ${page.slug} — ${res.filled}/${res.total} filled` +
@@ -1144,19 +1389,38 @@ export async function fillAll(
         break;
       }
     } else {
-      // A repeater page shows only its COMMIT button until the row is saved; there
-      // is no Next at all. Waiting the full window first cost 12s on three separate
-      // pages of a live run. The descriptor carries the exact label, so use it.
-      if (page?.repeater?.rowCommitButtonText && !findNextButton()) {
-        const commit = findSaveButton(document, page.repeater.rowCommitButtonText);
+      // A REPEATER ROW IS NOT PART OF THE PAGE UNTIL IT IS COMMITTED.
+      //
+      // Some repeater pages show only their commit button until the row is saved
+      // (waiting out the full Next window there cost 12s on each of three pages
+      // of a live run). Others -- /about-you/where-you-have-lived among them --
+      // show the row's "Save entry" AND the footer's Next at the same time, and
+      // refuse that Next while the row is still open. Gating the commit on Next
+      // being ABSENT handled the first shape and walked straight into the second:
+      // on 2026-08-29 the N-400 typed 6/6 on where-you-have-lived and stopped
+      // dead there, six pages into fifty-eight.
+      //
+      // So commit whenever the descriptor's exact label is on the page. Once a row
+      // is committed myUSCIS removes that button, so there is nothing to click and
+      // nothing changes for the pages that were already working.
+      if (page?.repeater?.rowCommitButtonText) {
+        const commit = findRowCommitButton(page.repeater.rowCommitButtonText);
         if (commit) {
-          dbg(`fillAll: committing the row with "${page.repeater.rowCommitButtonText}" before looking for Next`);
+          dbg(`fillAll: committing the row with "${page.repeater.rowCommitButtonText}" before Next`);
           commit.click();
           await sleep(600);
         }
       }
-      let next = await waitForNextEnabled();
-      if (!next) {
+      // AFTER the row commit, which re-renders the page, and before Next.
+      if (typedHere.length) await recheckBeforeLeaving(typedHere);
+      // A commit that advanced the page on its own must not then have the NEXT
+      // page's Next clicked -- that would skip a page unfilled.
+      if (window.location.href !== prevUrl) {
+        advanced = true;
+        dbg("fillAll: the commit advanced the page on its own");
+      }
+      let next = advanced ? null : await waitForNextEnabled();
+      if (!next && !advanced) {
         // Repeater pages (e.g. /other-information/other-petitions) expose NO
         // Next/Continue until the just-entered row is COMMITTED via a "Save
         // Entry" button; clicking it surfaces the page's Next. Try that
@@ -1186,8 +1450,26 @@ export async function fillAll(
       if (next) next.click();
     }
 
-    if (!advanced && !(await waitForPageChange(prevUrl))) {
-      dbg("fillAll: page did not change after Next, stopping");
+    let moved = advanced || (await waitForPageChange(prevUrl));
+    // The upload branch does its own click-and-retry; this is the same idea for a
+    // form page, where a single early click used to end the whole walk.
+    if (!moved && !isUploadPage) {
+      dbg("fillAll: Next did not move the page — waiting and clicking it once more");
+      await sleep(NEXT_RETRY_WAIT_MS);
+      const again = findNextButton();
+      if (again) {
+        again.click();
+        moved = await waitForPageChange(prevUrl, NEXT_RETRY_WINDOW_MS);
+      }
+    }
+    if (!moved) {
+      const why = pageErrorSummary();
+      dbg(
+        "fillAll: page did not change after Next, stopping" +
+          (why ||
+            " -- and the page is showing no error text, so this is not a field it " +
+              "rejected. Most likely a row is still open or a control moved."),
+      );
       break;
     }
     // Safety net: the walk must NEVER leave this form. If a stray Next/link
