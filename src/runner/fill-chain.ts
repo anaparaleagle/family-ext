@@ -333,6 +333,10 @@ export interface PageFillResult {
 export interface TypedBox {
   spec: FieldSpec;
   value: string;
+  /** The payload row it belongs to; undefined for a single-instance box. */
+  rowIndex?: number;
+  /** Set once the box has been read back, so later passes stay quiet about it. */
+  checked?: boolean;
 }
 
 /** How long to wait for a revealed block to render after its answer is set. */
@@ -453,6 +457,23 @@ export async function fillPage(
   let offsetLearned = false;
   // The payload row whose form is open on the page right now, or null when none is.
   let openRow: number | null = null;
+  // What was typed into a plain box and verified, for the sweeps below.
+  const typed: TypedBox[] = [];
+  const resultAt = new Map<TypedBox, number>();
+  let setASearch = false;
+
+  // A committed row is CLOSED and its boxes leave the page, so this is the only
+  // point at which one can still be put back.
+  const recheckRow = async (rowIndex: number): Promise<void> => {
+    const mine = typed.filter((box) => box.rowIndex === rowIndex);
+    if (!mine.length) return;
+    if (setASearch) await sleep(LOOKUP_SETTLE_MS);
+    for (const done of mine) {
+      const again = await retypeIfEmptied(done);
+      const at = resultAt.get(done);
+      if (again && at !== undefined) results[at] = again;
+    }
+  };
 
   const openRowForFilling = async (rowIndex: number): Promise<void> => {
     const repeater = page.repeater;
@@ -460,6 +481,7 @@ export async function fillPage(
     if (openRow !== null && repeater.rowCommitButtonText) {
       const commit = findRowCommitButton(repeater.rowCommitButtonText);
       if (commit) {
+        await recheckRow(openRow);
         dbg(
           `fill: committing row ${openRow} with "${repeater.rowCommitButtonText}" ` +
             `so row ${rowIndex} can open`,
@@ -502,9 +524,6 @@ export async function fillPage(
 
   let lastWasRadio = false;
   let skipped = 0;
-  // What was typed into a plain box and verified, for the sweep below.
-  const typed: { spec: FieldSpec; value: string; at: number }[] = [];
-  let setASearch = false;
   for (const p of plan) {
     if (!p.plain) await openRowForFilling(p.rowIndex);
     // AFTER renderRowsOnce, which is what learns the offset.
@@ -585,7 +604,11 @@ export async function fillPage(
     const res = await setValue(spec, p.value);
     results.push(res);
     if (!res.success) dbg(`fill: FAIL ${spec.name} — ${res.message}`);
-    else if (TYPED_KINDS.has(spec.kind)) typed.push({ spec, value: p.value, at: results.length - 1 });
+    else if (TYPED_KINDS.has(spec.kind)) {
+      const box: TypedBox = { spec, value: p.value, rowIndex: p.plain ? undefined : p.rowIndex };
+      typed.push(box);
+      resultAt.set(box, results.length - 1);
+    }
     lastWasRadio = p.spec.kind === "radio" && res.success;
 
     // This answer opens a block below it. Give the block a chance to mount before
@@ -617,7 +640,8 @@ export async function fillPage(
   if (typed.length && setASearch) await sleep(LOOKUP_SETTLE_MS);
   for (const done of typed) {
     const again = await retypeIfEmptied(done);
-    if (again) results[done.at] = again;
+    const at = resultAt.get(done);
+    if (again && at !== undefined) results[at] = again;
   }
 
   // A page whose row fields were ALL dropped from the plan still needs a row on
@@ -637,7 +661,7 @@ export async function fillPage(
 
   const filled = results.filter((r) => r.success).length;
   return {
-    typed: typed.map(({ spec, value }) => ({ spec, value })),
+    typed,
     slug: page.slug,
     total: results.length,
     filled,
@@ -656,7 +680,17 @@ export async function fillPage(
  */
 async function retypeIfEmptied(done: TypedBox): Promise<SetResult | null> {
   const el = locateElement(done.spec);
-  if (el === null || !("value" in el)) return null;
+  if (el === null) {
+    // Only for a box no pass ever managed to read back. A committed row is gone
+    // by design and was checked on its way out; silence about one that never was
+    // is what let an empty ZIP ship as a filled page for two rounds of testing.
+    if (!done.checked) {
+      dbg(`fill: cannot re-check ${done.spec.name} — it is no longer on the page`);
+    }
+    return null;
+  }
+  if (!("value" in el)) return null;
+  done.checked = true;
   const box = el as HTMLInputElement | HTMLTextAreaElement;
   if ("readOnly" in box && box.readOnly) return null;
   if (box.value.trim() !== "") return null;
@@ -1403,16 +1437,19 @@ export async function fillAll(
       // So commit whenever the descriptor's exact label is on the page. Once a row
       // is committed myUSCIS removes that button, so there is nothing to click and
       // nothing changes for the pages that were already working.
+      // BEFORE the commit, because it closes the row and takes its boxes with it,
+      // and AFTER it, because the re-render can empty a box that is still on the
+      // page. The second pass therefore looks at single-instance boxes only.
+      if (typedHere.length) await recheckBeforeLeaving(typedHere);
       if (page?.repeater?.rowCommitButtonText) {
         const commit = findRowCommitButton(page.repeater.rowCommitButtonText);
         if (commit) {
           dbg(`fillAll: committing the row with "${page.repeater.rowCommitButtonText}" before Next`);
           commit.click();
           await sleep(600);
+          await recheckBeforeLeaving(typedHere.filter((box) => box.rowIndex === undefined));
         }
       }
-      // AFTER the row commit, which re-renders the page, and before Next.
-      if (typedHere.length) await recheckBeforeLeaving(typedHere);
       // A commit that advanced the page on its own must not then have the NEXT
       // page's Next clicked -- that would skip a page unfilled.
       if (window.location.href !== prevUrl) {

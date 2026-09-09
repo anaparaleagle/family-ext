@@ -630,7 +630,7 @@ describe("fillAll - a form page that ignores the first Next", () => {
   }, 60000);
 });
 
-// 5. A BOX THE FORM EMPTIED AFTER IT WAS TYPED. Live on prod draft 13730483
+// 8. A BOX THE FORM EMPTIED AFTER IT WAS TYPED. Live on prod draft 13730483
 //    (2026-09-04) the run reported
 //        fill: /about-you/your-contact-information — planning 15 value(s)
 //        fillAll: /about-you/your-contact-information — 15/15 filled
@@ -702,4 +702,119 @@ describe("fillPage - a box the form empties after we type in it", () => {
     expect(zip?.value, "re-typed over the form's own formatting").toBe("10001-1234");
     expect(res.failed).toBe(0);
   }, 20000);
+});
+
+// 9. THE SAME BOX, BUT INSIDE A REPEATER ROW. The re-type above only ever ran
+//    once the whole page was typed, and by then every row but the last has been
+//    closed with "Save entry" and its inputs are off the page. locateElement
+//    returned null and the repair returned quietly, so a ZIP emptied in row 0 of
+//    "Where you have lived" was never put back and the run still read as a clean
+//    fill. A row can only be checked while it is still open.
+describe("fillPage - a box the form empties inside a repeater row", () => {
+  const WL = "applicant.whereYouHaveLived";
+  const zipName = (i: number) => `${WL}.${i}.address.zipCode`;
+  const cityName = (i: number) => `${WL}.${i}.address.city`;
+
+  const livedPage = (): FormPage => ({
+    slug: "/about-you/where-you-have-lived",
+    title: "Where you have lived",
+    kind: "form",
+    fields: [t(`${WL}.{i}.address.zipCode`), t(`${WL}.{i}.address.city`)],
+    repeater: {
+      namePrefix: WL,
+      addButtonText: "Add an address",
+      rowCommitButtonText: "Save entry",
+    },
+  });
+
+  /** Rows that open one at a time, wipe their own ZIP, and leave the page on save. */
+  function mountList(savedZips: string[]): void {
+    setBody(`<button id="add">Add an address</button><button id="save">Save entry</button>`);
+    let rowOpen = false;
+    let nextIndex = 0;
+    document.getElementById("add")!.addEventListener("click", () => {
+      if (rowOpen) return;
+      const i = nextIndex++;
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        `<div id="row${i}">${textInput(zipName(i)) + textInput(cityName(i))}</div>`,
+      );
+      rowOpen = true;
+      const zip = document.querySelector<HTMLInputElement>(`[name="${zipName(i)}"]`);
+      const city = document.querySelector<HTMLInputElement>(`[name="${cityName(i)}"]`);
+      let wiped = false;
+      city?.addEventListener("input", () => {
+        if (wiped || !zip) return;
+        wiped = true;
+        zip.value = "";
+      });
+    });
+    document.getElementById("save")!.addEventListener("click", () => {
+      if (!rowOpen) return;
+      const i = nextIndex - 1;
+      savedZips.push(document.querySelector<HTMLInputElement>(`[name="${zipName(i)}"]`)?.value ?? "");
+      document.getElementById(`row${i}`)!.remove();
+      rowOpen = false;
+    });
+  }
+
+  it("puts the ZIP back before the row is saved and taken off the page", async () => {
+    goTo("/about-you/where-you-have-lived");
+    const savedZips: string[] = [];
+    mountList(savedZips);
+
+    const res = await fillPage(livedPage(), {
+      [zipName(0)]: "48201",
+      [cityName(0)]: "Detroit",
+      [zipName(1)]: "10001",
+      [cityName(1)]: "New York",
+    });
+
+    expect(savedZips, "row 0 was saved with an empty ZIP").toEqual(["48201"]);
+    // The last row is left open on purpose, so the end-of-page sweep covers it.
+    expect(document.querySelector<HTMLInputElement>(`[name="${zipName(1)}"]`)?.value).toBe("10001");
+    expect(res.failed).toBe(0);
+  }, 30000);
+
+  it("says so when a row's box can no longer be checked", async () => {
+    // A repair that cannot find its box used to return null in silence, which is
+    // what made "15/15 filled" over an empty required box believable. Here the
+    // re-render drops the input rather than blanking it, so there is nothing to
+    // put back - and that has to be said out loud.
+    goTo("/about-you/where-you-have-lived");
+    setBody(`<button id="add">Add an address</button><button id="save">Save entry</button>`);
+    let rowOpen = false;
+    let nextIndex = 0;
+    document.getElementById("add")!.addEventListener("click", () => {
+      if (rowOpen) return;
+      const i = nextIndex++;
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        `<div id="row${i}">${textInput(zipName(i)) + textInput(cityName(i))}</div>`,
+      );
+      rowOpen = true;
+      document
+        .querySelector<HTMLInputElement>(`[name="${cityName(i)}"]`)
+        ?.addEventListener("input", () => {
+          document.querySelector(`[name="${zipName(i)}"]`)?.remove();
+        });
+    });
+    document.getElementById("save")!.addEventListener("click", () => {
+      if (!rowOpen) return;
+      document.getElementById(`row${nextIndex - 1}`)!.remove();
+      rowOpen = false;
+    });
+
+    const from = debugLog.length;
+    await fillPage(livedPage(), {
+      [zipName(0)]: "48201",
+      [cityName(0)]: "Detroit",
+      [zipName(1)]: "10001",
+      [cityName(1)]: "New York",
+    });
+    expect(
+      debugLog.slice(from).some((l) => l.includes("no longer on the page")),
+      "a box that vanished was passed over without a word",
+    ).toBe(true);
+  }, 30000);
 });
