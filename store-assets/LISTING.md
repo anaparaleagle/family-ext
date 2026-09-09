@@ -5,7 +5,7 @@ rather than improvised. Keep this file in step with the manifest.
 
 Dashboard: https://chrome.google.com/webstore/devconsole
 
-Upload: `paraleagle-family-ext-v0.9.0-webstore.zip` (repo root, gitignored —
+Upload: `paraleagle-family-ext-v0.10.0-webstore.zip` (repo root, gitignored —
 rebuild with `npm run build` then re-zip the CONTENTS of `dist/`).
 
 ---
