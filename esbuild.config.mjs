@@ -25,12 +25,22 @@ cpSync("src/popup/popup.html", "dist/popup.html");
 cpSync("src/popup/popup.css", "dist/popup.css");
 if (existsSync("icons")) cpSync("icons", "dist/icons", { recursive: true });
 
+// Slack telemetry webhook, injected at build time — never committed (GitHub push
+// protection blocks a webhook URL in source). Set SLACK_TELEMETRY_WEBHOOK in the
+// env, or drop the URL into a gitignored `.slack-webhook` file. Unset → the
+// telemetry silently no-ops.
+let slackWebhook = process.env.SLACK_TELEMETRY_WEBHOOK ?? "";
+if (!slackWebhook && existsSync(".slack-webhook")) {
+  slackWebhook = readFileSync(".slack-webhook", "utf-8").trim();
+}
+
 const buildOptions = {
   bundle: true,
   minify: !isWatch,
   sourcemap: isWatch,
   target: "chrome120",
   format: "iife",
+  define: { __SLACK_WEBHOOK__: JSON.stringify(slackWebhook) },
   ...(!isWatch && { drop: ["console"] }),
 };
 
