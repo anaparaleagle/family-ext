@@ -13,7 +13,8 @@
     "https://*.s3.amazonaws.com/*",
     "https://s3.amazonaws.com/*",
     "https://*.s3.us-east-1.amazonaws.com/*",
-    "https://s3.us-east-1.amazonaws.com/*"
+    "https://s3.us-east-1.amazonaws.com/*",
+    "https://hooks.slack.com/*"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'"
