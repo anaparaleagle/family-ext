@@ -54,7 +54,9 @@ export const I130_PAGES: FormPage[] = [
     kind: "form",
     // P10 (captured 2026-06-29): "other names used = Yes" reveals an indexed
     // other-name repeater (row 0 renders automatically; "add another name" adds
-    // rows 1+). The hasAdditionalNames toggle stays UI-meta (backend `skip`).
+    // rows 1+). The hasAdditionalNames toggle is answered by the LIST: the
+    // backend sends "false" when no other names were added, so the radio is no
+    // longer left for a human to click.
     repeater: {
       namePrefix: "applicant.yourName.additionalNames.otherNames",
       addButtonText: "add another name",
