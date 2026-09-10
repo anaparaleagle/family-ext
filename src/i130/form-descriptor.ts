@@ -39,11 +39,35 @@ export const I130_PAGES: FormPage[] = [
     title: "Preparer and interpreter information",
     kind: "form",
     fields: [
-      // UI-meta toggles — backend leaves these unmapped (in `skip`); the user
-      // answers the helper question. Listed so the chain knows the page exists.
+      // SOF-1685: the firm's G-28 attorney IS the preparer, so the backend now
+      // DRIVES these reveal toggles (const true / true / false) — a preparer is
+      // assisting, no interpreter is — to open the preparer section below,
+      // exactly as the online I-539 and N-400 do.
       radio("formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.hasHelper", ["true", "false"]),
       radio("formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.helper.hasPreparer", ["true", "false"]),
       radio("formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.helper.hasInterpreter", ["true", "false"]),
+    ],
+  },
+  {
+    // SOF-1685. Reached because the reveal toggles above are driven to Yes. The
+    // firm's G-28 attorney IS the preparer, so these fill from the backend's
+    // firm.* block (the same source the paper I-130 preparer part uses, and the
+    // same shared myUSCIS component the I-539/N-400 drive). A blank
+    // firm.mobile_phone ticks the "no mobile" box so the required field never
+    // holds the page. Interpreter identity stays absent — a firm-prepared case
+    // uses none.
+    slug: "/getting-started/preparer",
+    title: "Preparer information",
+    kind: "form",
+    conditional: true,
+    fields: [
+      t("gettingStarted.preparer.name.firstName"),
+      t("gettingStarted.preparer.name.lastName"),
+      t("gettingStarted.preparer.business"),
+      phone("gettingStarted.preparer.contact.daytimePhone"),
+      phone("gettingStarted.preparer.contact.mobilePhone"),
+      check("formikFactoryUIMeta.gettingStarted.preparer.contact.noMobilePhone"),
+      t("gettingStarted.preparer.contact.emailAddress"),
     ],
   },
 
