@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { I130_PAGES, descriptorFieldNames } from "../src/i130/form-descriptor";
+import { I129_PAGES } from "../src/i129/form-descriptor";
 import { pageForUrl, pageForHeading } from "../src/runner/section-detector";
 import { descriptorForPath } from "../src/runner/doc-flow";
 import type { UploadPageDescriptor } from "../src/runner/payload";
@@ -73,6 +74,39 @@ describe("section-detector", () => {
     ];
     const p = pageForUrl(pages, `${BASE}/your-family/your-parents/your-parents-page-2`);
     expect(p?.slug).toBe("/your-family/your-parents/your-parents-page-2");
+  });
+
+  it("detects a page from the plain -1 child route the I-129 serves", () => {
+    // Same split, a second suffix: myUSCIS drops the "page" on the I-129, so
+    // the worksite and the H-1B data-collection groups arrive as
+    // `<slug>/<segment>-1` and were walked past unrecognised.
+    const pages = [stub("/employment/work-location"), stub("/employment/work-location/work-location-2")];
+    const p = pageForUrl(pages, `${BASE}/employment/work-location/work-location-1`);
+    expect(p?.slug).toBe("/employment/work-location");
+  });
+
+  it("resolves the real I-129 worksite and beneficiary-information -1 routes", () => {
+    const worksite = pageForUrl(I129_PAGES, `${BASE}/employment/work-location/work-location-1`);
+    expect(worksite?.slug).toBe("/employment/work-location");
+    const supplement = pageForUrl(
+      I129_PAGES,
+      `${BASE}/h-1b-and-h-1b1-data-collection-and-filling-fee-exemption-supplement/beneficiary-information/beneficiary-information-1`,
+    );
+    expect(supplement?.slug).toBe(
+      "/h-1b-and-h-1b1-data-collection-and-filling-fee-exemption-supplement/beneficiary-information",
+    );
+  });
+
+  it("does not let a bare page's -1 alias swallow its declared -2 sibling", () => {
+    const pages = [stub("/employment/work-location"), stub("/employment/work-location/work-location-2")];
+    const p = pageForUrl(pages, `${BASE}/employment/work-location/work-location-2`);
+    expect(p?.slug).toBe("/employment/work-location/work-location-2");
+  });
+
+  it("matches only the nested alias, not any URL ending in -1", () => {
+    expect(pageForUrl(I130_PAGES, `${BASE}/about-you/your-name-1`)).toBeNull();
+    expect(pageForUrl(I130_PAGES, `${BASE}/about-you/your-name/other-1`)).toBeNull();
+    expect(pageForUrl(I130_PAGES, `${BASE}/about-you/your-name/your-name-3`)).toBeNull();
   });
 
   it("matches only the nested alias, not any URL ending in -page-1", () => {
