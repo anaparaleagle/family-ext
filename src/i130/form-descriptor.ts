@@ -68,6 +68,15 @@ export const I130_PAGES: FormPage[] = [
       phone("gettingStarted.preparer.contact.mobilePhone"),
       check("formikFactoryUIMeta.gettingStarted.preparer.contact.noMobilePhone"),
       t("gettingStarted.preparer.contact.emailAddress"),
+      // SOF-1685: unlike the I-539/N-400 preparer component, the online I-130's
+      // has a mailing-address block. State + country are MUI Autocompletes (the
+      // backend sends the full "Texas"/"United States" the box matches on).
+      t("gettingStarted.preparer.address.addressLineOne"),
+      t("gettingStarted.preparer.address.addressLineTwo"),
+      t("gettingStarted.preparer.address.city"),
+      search("gettingStarted.preparer.address.state"),
+      t("gettingStarted.preparer.address.zipCode"),
+      search("gettingStarted.preparer.address.country"),
     ],
   },
 

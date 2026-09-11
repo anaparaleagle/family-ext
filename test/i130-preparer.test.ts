@@ -34,6 +34,21 @@ describe("I-130 preparer section (SOF-1685)", () => {
     }
   });
 
+  it("drives the preparer mailing-address block (SOF-1685)", () => {
+    // The online I-130 preparer component — unlike the I-539/N-400 — carries an
+    // address block; these names must match the backend map (firm.address_*).
+    for (const n of [
+      "gettingStarted.preparer.address.addressLineOne",
+      "gettingStarted.preparer.address.addressLineTwo",
+      "gettingStarted.preparer.address.city",
+      "gettingStarted.preparer.address.state",
+      "gettingStarted.preparer.address.zipCode",
+      "gettingStarted.preparer.address.country",
+    ]) {
+      expect(names.has(n), `descriptor missing ${n}`).toBe(true);
+    }
+  });
+
   it("still declares the three reveal toggles the backend now drives", () => {
     for (const n of [
       "formikFactoryUIMeta.gettingStarted.preparerAndInterpreterInformation.hasHelper",
