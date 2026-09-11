@@ -72,6 +72,7 @@ export const I130_PAGES: FormPage[] = [
       // has a mailing-address block. State + country are MUI Autocompletes (the
       // backend sends the full "Texas"/"United States" the box matches on).
       t("gettingStarted.preparer.address.addressLineOne"),
+      t("gettingStarted.preparer.address.addressLineTwo"),
       t("gettingStarted.preparer.address.city"),
       search("gettingStarted.preparer.address.state"),
       t("gettingStarted.preparer.address.zipCode"),

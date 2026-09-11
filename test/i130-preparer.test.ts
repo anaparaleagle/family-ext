@@ -39,6 +39,7 @@ describe("I-130 preparer section (SOF-1685)", () => {
     // address block; these names must match the backend map (firm.address_*).
     for (const n of [
       "gettingStarted.preparer.address.addressLineOne",
+      "gettingStarted.preparer.address.addressLineTwo",
       "gettingStarted.preparer.address.city",
       "gettingStarted.preparer.address.state",
       "gettingStarted.preparer.address.zipCode",
