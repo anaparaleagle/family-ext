@@ -1237,9 +1237,11 @@ export async function fillAll(
       `payload has ${Object.keys(fieldValues).length} field values`,
   );
   const visited = new Set<string>();
-  const maxSteps = config.pages.length + 10; // safety cap (room to skip unknown pages)
-  let consecutiveUnknown = 0;
-  const MAX_CONSECUTIVE_UNKNOWN = 4; // bail if we've clearly walked off the form
+  const undeclared: string[] = [];
+  // Bound the walk. Undeclared pages spend steps too, and the I-129 shows four
+  // in a row before its evidence uploads, so the cap has to clear the pages the
+  // descriptor does NOT know about as well as the ones it does.
+  const maxSteps = config.pages.length * 2 + 10;
 
   for (let step = 0; step < maxSteps; step++) {
     if (onLoginPage()) {
@@ -1265,20 +1267,15 @@ export async function fillAll(
     // What this page typed into, for the re-check below.
     let typedHere: TypedBox[] = [];
     if (!page) {
-      // Page not in the descriptor — e.g. a preparer detail sub-page, or an
-      // uncaptured conditional. Don't stop the whole run; skip past it via Next.
-      // Bail only if several unknown pages stack up, which means we've left the
-      // form entirely.
-      if (++consecutiveUnknown > MAX_CONSECUTIVE_UNKNOWN) {
-        dbg(
-          `fillAll: ${MAX_CONSECUTIVE_UNKNOWN} unrecognized pages in a row — ` +
-            `left the ${config.formType} form, stopping`,
-        );
-        break;
-      }
+      // Page not in the descriptor — e.g. a preparer detail sub-page, an
+      // uncaptured conditional, or an evidence page we deliberately do not
+      // handle. Skip past it via Next and keep walking: a page we have not
+      // declared is not the same as having left the form, and the declared
+      // pages that follow it are still ours to fill. Leaving the form is caught
+      // by the hostPath check at the foot of this loop, on the URL itself.
+      undeclared.push(window.location.pathname);
       dbg(`fillAll: page not in descriptor (${window.location.pathname}) — skipping past it`);
     } else {
-      consecutiveUnknown = 0;
       if (page.kind === "review") {
         dbg("fillAll: reached Review — stopping before Submit/Pay (never automate those)");
         break;
@@ -1511,7 +1508,7 @@ export async function fillAll(
     await sleep(600); // let the new page settle before re-detecting
   }
 
-  logRunSummary(config, summaries, uploadsSeen);
+  logRunSummary(config, summaries, uploadsSeen, undeclared);
   return summaries;
 }
 
@@ -1527,6 +1524,7 @@ function logRunSummary(
   config: FormConfig,
   summaries: PageFillResult[],
   uploadsSeen: string[],
+  undeclared: string[] = [],
 ): void {
   const filled = summaries.reduce((n, s) => n + s.filled, 0);
   const total = summaries.reduce((n, s) => n + s.total, 0);
@@ -1537,6 +1535,10 @@ function logRunSummary(
   dbg(`  fields filled:  ${filled}/${total}`);
   dbg(`  correctly skipped (not shown, or read-only and the form's own): ${skipped}`);
   dbg(`  upload pages visited: ${uploadsSeen.length ? uploadsSeen.join(", ") : "none"}`);
+  if (undeclared.length) {
+    dbg(`  walked past ${undeclared.length} page(s) the descriptor does not declare:`);
+    for (const p of undeclared) dbg(`    ${p}`);
+  }
 
   const failures: string[] = [];
   for (const s of summaries) {
