@@ -7,6 +7,7 @@
 import { I129_PAGES } from "../i129/form-descriptor";
 import { I130_PAGES } from "../i130/form-descriptor";
 import { I539_PAGES } from "../i539/form-descriptor";
+import { I765_PAGES } from "../i765/form-descriptor";
 import { N400_PAGES } from "../n400/form-descriptor";
 import { FormConfig } from "./types";
 
@@ -59,11 +60,28 @@ export const I129_CONFIG: FormConfig = {
   ],
 };
 
+export const I765_CONFIG: FormConfig = {
+  formType: "I-765",
+  // USCIS "PDF Intake" (BETA) — a different host path SHAPE from the guided
+  // forms (/pdf-intake/<form>/<draftUuid>/<slug>, not /forms/<name>/…).
+  hostPath: "/pdf-intake/I-765/",
+  label: "ParaLeagle I-765",
+  pages: I765_PAGES,
+  // The SAME IR types as the I-130, on purpose: the C9 pending-I-485 EAD is
+  // filed for the beneficiary of the family petition. formTypeForCaseType reads
+  // the FIRST match, and the I-130 stays first — the petition remains what the
+  // picker auto-follows, and filling the I-765 stays a manual form choice.
+  // PDF Intake cannot serve the OPT (c)(3) or H-4 (c)(26) I-765 case types —
+  // its eligibility dropdown simply does not offer those categories.
+  caseTypes: ["IR-1", "IR-2", "IR-5"],
+};
+
 export const FORM_CONFIGS: FormConfig[] = [
   I130_CONFIG,
   I539_CONFIG,
   N400_CONFIG,
   I129_CONFIG,
+  I765_CONFIG,
 ];
 
 /**

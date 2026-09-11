@@ -226,11 +226,18 @@ export function planPageFill(
   ): void => {
     let name = field.name.replace(/\{i\}/g, String(rowIndex));
     if (opts.nestedIndex !== undefined) name = name.replace(/\{j\}/g, String(opts.nestedIndex));
-    const value = fieldValues[name];
-    if (value === undefined) return;
+    const sent = fieldValues[name];
+    if (sent === undefined) return;
     // Empty string fills nothing except a checkbox (where "" => leave unchecked,
     // which is the default — so we skip it too; checkboxes only act when truthy).
-    if (value === "") return;
+    if (sent === "") return;
+    // The descriptor's code -> widget-text table (the I-765 eligibility
+    // autocomplete commits "C9" but filters on the full option label). Applied
+    // HERE, before the plan is built, so the engine and the reveal-waits all see
+    // the value that can actually be typed. Reveal GATES stay in payload terms:
+    // revealUnsatisfied reads fieldValues directly, so a revealedBy.is of "C9"
+    // keeps matching what the backend sent.
+    const value = field.valueMap?.[sent] ?? sent;
     if (field.revealedBy && revealUnsatisfied(field.revealedBy, fieldValues)) {
       dbg(
         `fill: not attempting ${name} — nothing answered ` +
@@ -243,6 +250,11 @@ export function planPageFill(
         name,
         kind: field.kind,
         optionValue: field.options ? value : undefined,
+        // When valueMap translated, keep the RAW payload value too: it is what
+        // the underlying input actually commits (the I-765 eligibility control
+        // is clicked by label but its hidden input commits "C9"), and the only
+        // ground truth a select-style set can be verified against.
+        ...(field.valueMap && field.valueMap[sent] !== undefined ? { commitValue: sent } : {}),
         ...(field.locate ? { locate: field.locate } : {}),
       },
       value,
@@ -863,6 +875,17 @@ const NEVER_CLICK_TEXT = /submit|pay\b|payment|e-?sign|sign\s+(and|&)|file\s+(an
  */
 const TERMINAL_PATH = /\/review-and-submit(\/|$)/i;
 
+/**
+ * The same stop for USCIS "PDF Intake" (the I-765), whose terminal page lives at
+ * …/pdf-intake/<form>/<draftUuid>/review — no `review-and-submit` parent exists
+ * on that host path. The guard matters MORE there than on the guided forms:
+ * pdf-intake's Next (testid next-btn) is disabled on /review only until the
+ * uploads land, and then SELF-ENABLES — so a walk that failed to recognize the
+ * page would find a live Next waiting for it. Anchored on the /pdf-intake/
+ * segment so a guided form's mid-walk page can never trip it.
+ */
+const PDF_INTAKE_TERMINAL_PATH = /\/pdf-intake\/.+\/review(\/|$)/i;
+
 /** True when a control must never be clicked by the walk (Submit/Pay/e-sign). */
 export function isForbiddenAdvanceControl(el: Element | null): boolean {
   if (!el) return false;
@@ -888,7 +911,7 @@ export function onTerminalPath(url: string): boolean {
   } catch {
     path = url;
   }
-  return TERMINAL_PATH.test(path);
+  return TERMINAL_PATH.test(path) || PDF_INTAKE_TERMINAL_PATH.test(path);
 }
 
 /**

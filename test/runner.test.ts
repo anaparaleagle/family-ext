@@ -74,16 +74,31 @@ describe("form config registry", () => {
     }
   });
 
-  it("lets no two myUSCIS forms claim the same case type", () => {
-    // The auto-switch reads the FIRST match, so an overlap would silently pick
-    // one of two forms for that case type.
-    const seen = new Set<string>();
+  it("lets no two myUSCIS forms claim the same case type, except the documented I-130/I-765 pair", () => {
+    // The auto-switch reads the FIRST match, so an overlap silently picks one of
+    // two forms for that case type. The ONE sanctioned overlap is the IR family:
+    // an IR case files the I-130 petition AND, once the I-485 is pending, the C9
+    // I-765 via pdf-intake. The I-130 is declared first so the picker keeps
+    // following the petition; the I-765 stays a manual form choice. Any OTHER
+    // overlap is still a bug.
+    const ALLOWED = new Map([
+      ["IR-1", ["I-130", "I-765"]],
+      ["IR-2", ["I-130", "I-765"]],
+      ["IR-5", ["I-130", "I-765"]],
+    ]);
+    const claims = new Map<string, string[]>();
     for (const config of FORM_CONFIGS) {
       for (const code of config.caseTypes ?? []) {
-        expect(seen.has(code)).toBe(false);
-        seen.add(code);
+        claims.set(code, [...(claims.get(code) ?? []), config.formType]);
       }
     }
+    for (const [code, forms] of claims) {
+      if (forms.length > 1) {
+        expect(ALLOWED.get(code), `${code} claimed by ${forms.join(" + ")}`).toEqual(forms);
+      }
+    }
+    // And the pair's precedence is pinned: first match must stay the petition.
+    for (const code of ALLOWED.keys()) expect(formTypeForCaseType(code)).toBe("I-130");
   });
 
   it("keeps every config's host path distinct (no ambiguous routing)", () => {

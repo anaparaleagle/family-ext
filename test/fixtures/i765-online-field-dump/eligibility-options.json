@@ -1,0 +1,12 @@
+{
+ "_note": "Full option list of the eligibility-choice autocomplete on /select-eligibility, captured live 2026-09-11 with the list open. PDF-intake supports ONLY these categories - no (c)(3) OPT, no (c)(26) H-4. The page banner says unsupported categories must use the guided online form or paper. The corresponding input `value` observed for (a)(12) was 'A12' and for (c)(9) was 'C9' (code style: letter+digits, no parens).",
+ "options": [
+  "Select one",
+  "(a)(12) Temporary Protected Status Granted",
+  "(c)(8) Pending Asylum and Withholding of Removal Applicants and Applicants for Asylum under the ABC Settlement Agreement",
+  "(c)(9) Certain Family and Employment Based Adjustment Applicant Under Section 245",
+  "(c)(11) Parole",
+  "(c)(11) Ukraine Parolee",
+  "(c)(19) Temporary Protected Status Pending"
+ ]
+}
