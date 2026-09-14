@@ -115,3 +115,104 @@ describe("fillAll: a failing upload page never kills the walk", () => {
     expect(window.location.pathname).toContain("/review-and-submit/review-your-application");
   }, 20000);
 });
+
+// ── The walk must not mistake an undeclared page for having left the form ────
+//
+// Live I-129 run 2026-09-09 (draft 13775600): 104/106 fields filled, and
+// "upload pages visited: none". Four evidence pages we deliberately do not
+// handle sit back to back after the last typed page, and the old guard read
+// four unrecognised pages in a row as "we have left the form" and stopped — so
+// the passport and I-94 pages BEHIND them were never reached and nothing
+// attached. Leaving the form is a property of the URL, which the hostPath check
+// at the foot of the loop already tests; a page inside the form that we simply
+// have not declared is not the same thing.
+
+const EVIDENCE_CONFIG: FormConfig = {
+  formType: "I-539",
+  label: "Test I-539",
+  hostPath: HOST_PATH,
+  pages: [
+    { slug: "/evidence/form-i-94", title: "Form I-94", kind: "upload", fields: [] },
+    {
+      slug: "/review-and-submit/review-your-application",
+      title: "Review your application",
+      kind: "review",
+      fields: [],
+    },
+  ],
+};
+
+/**
+ * Walk a fixed list of URLs: each page carries a Next that navigates to the one
+ * after it and re-renders, which is what a real Next click does.
+ */
+function driveChain(urls: string[]): void {
+  let i = 0;
+  const mount = (): void => {
+    goTo(urls[i]);
+    document.body.innerHTML = `
+      <h1>Step ${i + 1}</h1>
+      <button data-testid="next-button">Next</button>
+    `;
+    document.querySelector("button")!.addEventListener("click", () => {
+      if (i < urls.length - 1) {
+        i += 1;
+        mount();
+      }
+    });
+  };
+  mount();
+}
+
+const FIVE_UNDECLARED = [
+  `${BASE}/evidence/certified-labor-condition-application`,
+  `${BASE}/evidence/evidence-of-specialty-occupation`,
+  `${BASE}/evidence/degree-or-evidence-of-special-training`,
+  `${BASE}/evidence/license-and-certificates`,
+  `${BASE}/evidence/one-more-page-we-never-captured`,
+];
+
+describe("fillAll: undeclared pages inside the form do not end the walk", () => {
+  it("reaches the declared upload page sitting behind five undeclared ones", async () => {
+    driveChain([
+      ...FIVE_UNDECLARED,
+      `${BASE}/evidence/form-i-94`,
+      `${BASE}/review-and-submit/review-your-application`,
+    ]);
+    const onUploadPage = vi.fn(async () => 1);
+
+    await fillAll(EVIDENCE_CONFIG, {}, onUploadPage);
+
+    expect(onUploadPage).toHaveBeenCalledTimes(1);
+    expect(window.location.pathname).toContain("/review-and-submit/review-your-application");
+  }, 20000);
+
+  it("names the undeclared pages it walked past in the run summary", async () => {
+    driveChain([
+      ...FIVE_UNDECLARED,
+      `${BASE}/evidence/form-i-94`,
+      `${BASE}/review-and-submit/review-your-application`,
+    ]);
+
+    await fillAll(EVIDENCE_CONFIG, {}, async () => 1);
+
+    const log = debugLog.join("\n");
+    expect(log).toMatch(/walked past 5 page\(s\) the descriptor does not declare/);
+    expect(log).toMatch(/license-and-certificates/);
+  }, 20000);
+
+  it("still stops when the URL actually leaves the form", async () => {
+    driveChain([
+      `${BASE}/evidence/certified-labor-condition-application`,
+      "https://my.uscis.gov/account/change-of-address",
+      `${BASE}/evidence/form-i-94`,
+    ]);
+    const onUploadPage = vi.fn(async () => 1);
+
+    await fillAll(EVIDENCE_CONFIG, {}, onUploadPage);
+
+    expect(debugLog.join("\n")).toMatch(/navigation left the .* form/);
+    expect(onUploadPage).not.toHaveBeenCalled();
+    expect(window.location.pathname).toContain("/account/change-of-address");
+  }, 20000);
+});

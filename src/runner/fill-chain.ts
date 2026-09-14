@@ -227,11 +227,18 @@ export function planPageFill(
   ): void => {
     let name = field.name.replace(/\{i\}/g, String(rowIndex));
     if (opts.nestedIndex !== undefined) name = name.replace(/\{j\}/g, String(opts.nestedIndex));
-    const value = fieldValues[name];
-    if (value === undefined) return;
+    const sent = fieldValues[name];
+    if (sent === undefined) return;
     // Empty string fills nothing except a checkbox (where "" => leave unchecked,
     // which is the default — so we skip it too; checkboxes only act when truthy).
-    if (value === "") return;
+    if (sent === "") return;
+    // The descriptor's code -> widget-text table (the I-765 eligibility
+    // autocomplete commits "C9" but filters on the full option label). Applied
+    // HERE, before the plan is built, so the engine and the reveal-waits all see
+    // the value that can actually be typed. Reveal GATES stay in payload terms:
+    // revealUnsatisfied reads fieldValues directly, so a revealedBy.is of "C9"
+    // keeps matching what the backend sent.
+    const value = field.valueMap?.[sent] ?? sent;
     if (field.revealedBy && revealUnsatisfied(field.revealedBy, fieldValues)) {
       dbg(
         `fill: not attempting ${name} — nothing answered ` +
@@ -244,6 +251,11 @@ export function planPageFill(
         name,
         kind: field.kind,
         optionValue: field.options ? value : undefined,
+        // When valueMap translated, keep the RAW payload value too: it is what
+        // the underlying input actually commits (the I-765 eligibility control
+        // is clicked by label but its hidden input commits "C9"), and the only
+        // ground truth a select-style set can be verified against.
+        ...(field.valueMap && field.valueMap[sent] !== undefined ? { commitValue: sent } : {}),
         ...(field.locate ? { locate: field.locate } : {}),
       },
       value,
@@ -871,6 +883,17 @@ const NEVER_CLICK_TEXT = /submit|pay\b|payment|e-?sign|sign\s+(and|&)|file\s+(an
  */
 const TERMINAL_PATH = /\/review-and-submit(\/|$)/i;
 
+/**
+ * The same stop for USCIS "PDF Intake" (the I-765), whose terminal page lives at
+ * …/pdf-intake/<form>/<draftUuid>/review — no `review-and-submit` parent exists
+ * on that host path. The guard matters MORE there than on the guided forms:
+ * pdf-intake's Next (testid next-btn) is disabled on /review only until the
+ * uploads land, and then SELF-ENABLES — so a walk that failed to recognize the
+ * page would find a live Next waiting for it. Anchored on the /pdf-intake/
+ * segment so a guided form's mid-walk page can never trip it.
+ */
+const PDF_INTAKE_TERMINAL_PATH = /\/pdf-intake\/.+\/review(\/|$)/i;
+
 /** True when a control must never be clicked by the walk (Submit/Pay/e-sign). */
 export function isForbiddenAdvanceControl(el: Element | null): boolean {
   if (!el) return false;
@@ -896,7 +919,7 @@ export function onTerminalPath(url: string): boolean {
   } catch {
     path = url;
   }
-  return TERMINAL_PATH.test(path);
+  return TERMINAL_PATH.test(path) || PDF_INTAKE_TERMINAL_PATH.test(path);
 }
 
 /**
@@ -1248,9 +1271,11 @@ export async function fillAll(
       `payload has ${Object.keys(fieldValues).length} field values`,
   );
   const visited = new Set<string>();
-  const maxSteps = config.pages.length + 10; // safety cap (room to skip unknown pages)
-  let consecutiveUnknown = 0;
-  const MAX_CONSECUTIVE_UNKNOWN = 4; // bail if we've clearly walked off the form
+  const undeclared: string[] = [];
+  // Bound the walk. Undeclared pages spend steps too, and the I-129 shows four
+  // in a row before its evidence uploads, so the cap has to clear the pages the
+  // descriptor does NOT know about as well as the ones it does.
+  const maxSteps = config.pages.length * 2 + 10;
 
   for (let step = 0; step < maxSteps; step++) {
     if (onLoginPage()) {
@@ -1276,20 +1301,15 @@ export async function fillAll(
     // What this page typed into, for the re-check below.
     let typedHere: TypedBox[] = [];
     if (!page) {
-      // Page not in the descriptor — e.g. a preparer detail sub-page, or an
-      // uncaptured conditional. Don't stop the whole run; skip past it via Next.
-      // Bail only if several unknown pages stack up, which means we've left the
-      // form entirely.
-      if (++consecutiveUnknown > MAX_CONSECUTIVE_UNKNOWN) {
-        dbg(
-          `fillAll: ${MAX_CONSECUTIVE_UNKNOWN} unrecognized pages in a row — ` +
-            `left the ${config.formType} form, stopping`,
-        );
-        break;
-      }
+      // Page not in the descriptor — e.g. a preparer detail sub-page, an
+      // uncaptured conditional, or an evidence page we deliberately do not
+      // handle. Skip past it via Next and keep walking: a page we have not
+      // declared is not the same as having left the form, and the declared
+      // pages that follow it are still ours to fill. Leaving the form is caught
+      // by the hostPath check at the foot of this loop, on the URL itself.
+      undeclared.push(window.location.pathname);
       dbg(`fillAll: page not in descriptor (${window.location.pathname}) — skipping past it`);
     } else {
-      consecutiveUnknown = 0;
       if (page.kind === "review") {
         dbg("fillAll: reached Review — stopping before Submit/Pay (never automate those)");
         break;
@@ -1522,7 +1542,7 @@ export async function fillAll(
     await sleep(600); // let the new page settle before re-detecting
   }
 
-  logRunSummary(config, summaries, uploadsSeen);
+  logRunSummary(config, summaries, uploadsSeen, undeclared);
   return summaries;
 }
 
@@ -1538,6 +1558,7 @@ function logRunSummary(
   config: FormConfig,
   summaries: PageFillResult[],
   uploadsSeen: string[],
+  undeclared: string[] = [],
 ): void {
   const filled = summaries.reduce((n, s) => n + s.filled, 0);
   const total = summaries.reduce((n, s) => n + s.total, 0);
@@ -1548,6 +1569,10 @@ function logRunSummary(
   dbg(`  fields filled:  ${filled}/${total}`);
   dbg(`  correctly skipped (not shown, or read-only and the form's own): ${skipped}`);
   dbg(`  upload pages visited: ${uploadsSeen.length ? uploadsSeen.join(", ") : "none"}`);
+  if (undeclared.length) {
+    dbg(`  walked past ${undeclared.length} page(s) the descriptor does not declare:`);
+    for (const p of undeclared) dbg(`    ${p}`);
+  }
 
   const failures: string[] = [];
   for (const s of summaries) {
