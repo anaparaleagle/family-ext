@@ -3,6 +3,22 @@ import { setValue, findByName, labelKey } from "../src/engine/value-setter";
 import { debugLog, resetDebugLog } from "../src/engine/logger";
 import { setBody, textInput, radioGroup, checkbox, select, mountMuiSelect } from "./fixtures/dom";
 
+/**
+ * The I-485's A-number box: a mask that reformats on every input event and drops
+ * anything not starting with its own "A-" prefix — so a value written in one go,
+ * or typed after the prefix was deleted, lands as nothing.
+ */
+function mountMaskedANumber(): HTMLInputElement {
+  setBody(textInput("aNumber"));
+  const el = findByName("aNumber") as HTMLInputElement;
+  el.value = "A-";
+  el.addEventListener("input", () => {
+    const digits = el.value.startsWith("A-") ? el.value.slice(2).replace(/\D/g, "") : "";
+    el.value = `A-${digits.slice(0, 9)}`;
+  });
+  return el;
+}
+
 describe("value-setter: text", () => {
   beforeEach(() => setBody(""));
 
@@ -22,6 +38,29 @@ describe("value-setter: text", () => {
     const res = await setValue({ name: "applicant.nope", kind: "text" }, "x");
     expect(res.success).toBe(false);
     expect(res.message).toMatch(/not on page/);
+  });
+
+  it("fills a masked box that keeps its own prefix (the I-485 A-number)", async () => {
+    const el = mountMaskedANumber();
+    const res = await setValue({ name: "aNumber", kind: "text" }, "123456789");
+    expect(res.success).toBe(true);
+    expect(el.value).toBe("A-123456789");
+  });
+
+  it("fills a short A-number without the mask padding it", async () => {
+    const el = mountMaskedANumber();
+    const res = await setValue({ name: "aNumber", kind: "text" }, "1234567");
+    expect(res.success).toBe(true);
+    expect(el.value).toBe("A-1234567");
+  });
+
+  it("still OVERWRITES a box holding a real value, rather than typing after it", async () => {
+    setBody(textInput("firstName"));
+    const el = findByName("firstName") as HTMLInputElement;
+    el.value = "Daniel";
+    const res = await setValue({ name: "firstName", kind: "text" }, "Maya");
+    expect(res.success).toBe(true);
+    expect(el.value).toBe("Maya");
   });
 
   it("handles dotted names with numeric repeater indices", async () => {

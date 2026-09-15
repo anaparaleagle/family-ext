@@ -136,12 +136,12 @@ export const I485_PAGES: FormPage[] = [
     ],
   },
   {
-    // Next never enables here: the page ends in an "Add Client" button that
-    // writes a real client record into the attorney's USCIS account. The walk
-    // fills the fields and stops; a human presses Add Client.
+    // Next never enables here — "Add Client" is what advances the page, and it
+    // writes a real client record into the attorney's USCIS account.
     slug: "/client-information/0",
     title: "About Your New Client",
     kind: "form",
+    advanceButtonText: "Add Client",
     fields: [
       t("firstName"),
       t("middleName"),
