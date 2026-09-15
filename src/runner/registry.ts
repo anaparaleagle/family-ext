@@ -6,6 +6,7 @@
 
 import { I129_PAGES } from "../i129/form-descriptor";
 import { I130_PAGES } from "../i130/form-descriptor";
+import { I485_PAGES } from "../i485/form-descriptor";
 import { I539_PAGES } from "../i539/form-descriptor";
 import { I765_PAGES } from "../i765/form-descriptor";
 import { N400_PAGES } from "../n400/form-descriptor";
@@ -76,12 +77,23 @@ export const I765_CONFIG: FormConfig = {
   caseTypes: ["IR-1", "IR-2", "IR-5"],
 };
 
+export const I485_CONFIG: FormConfig = {
+  formType: "I-485",
+  hostPath: "/pdf-intake/I-485/",
+  label: "ParaLeagle I-485",
+  pages: I485_PAGES,
+  // Same IR types as the I-130 and the I-765; the I-130 stays first so the
+  // picker keeps auto-following the petition.
+  caseTypes: ["IR-1", "IR-2", "IR-5"],
+};
+
 export const FORM_CONFIGS: FormConfig[] = [
   I130_CONFIG,
   I539_CONFIG,
   N400_CONFIG,
   I129_CONFIG,
   I765_CONFIG,
+  I485_CONFIG,
 ];
 
 /**

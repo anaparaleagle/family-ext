@@ -844,6 +844,16 @@ const UPLOAD_ADVANCE_WAIT_MS = 12000;
 /** Pause between click attempts. 6 attempts x (12s + 8s) ~= 2 minutes, which
  * comfortably covers a 10MB scan without ever looking hung: every attempt logs. */
 const UPLOAD_ADVANCE_RETRY_MS = 8000;
+/** An EMPTY upload page needs a second click for a different reason: pdf-intake
+ * answers the first one with an in-page "Missing Evidence" warning instead of
+ * navigating, and only the second advances (live I-485 capture, 2026-09-15). The
+ * I-485 has 14 evidence slots and several are "if applicable", so leaving one
+ * empty is normal — a single click stalls the whole walk there. Nothing is
+ * processing server-side, so this path is short: two quick clicks, not the
+ * upload budget. */
+const EMPTY_UPLOAD_ADVANCE_ATTEMPTS = 2;
+const EMPTY_UPLOAD_ADVANCE_WAIT_MS = 3000;
+const EMPTY_UPLOAD_ADVANCE_RETRY_MS = 500;
 /** Selectors that signal an active upload/progress indicator in the page body. */
 const UPLOAD_PROGRESS_SELECTOR =
   '[role="progressbar"], progress, [class*="progress" i], [class*="spinner" i], [class*="uploading" i]';
@@ -1400,31 +1410,39 @@ export async function fillAll(
       // exactly what a second Fill all was doing by hand.
       advanced = false;
       // With NOTHING attached there is no server-side processing to wait for, so
-      // the retry loop would spend a minute insisting myUSCIS was busy. One click.
-      const attempts = attachedHere === 0 ? 1 : UPLOAD_ADVANCE_ATTEMPTS;
-      if (attachedHere === 0) {
-        dbg("fillAll: nothing attached here — advancing once instead of retrying");
+      // the upload retry budget would spend a minute insisting myUSCIS was busy.
+      // But one click is not enough either: pdf-intake answers the first click on
+      // an empty evidence page with a "Missing Evidence" warning and only moves on
+      // the second. So: two quick clicks here, the full budget when files went up.
+      const empty = attachedHere === 0;
+      const attempts = empty ? EMPTY_UPLOAD_ADVANCE_ATTEMPTS : UPLOAD_ADVANCE_ATTEMPTS;
+      const waitMs = empty ? EMPTY_UPLOAD_ADVANCE_WAIT_MS : UPLOAD_ADVANCE_WAIT_MS;
+      const retryMs = empty ? EMPTY_UPLOAD_ADVANCE_RETRY_MS : UPLOAD_ADVANCE_RETRY_MS;
+      if (empty) {
+        dbg("fillAll: nothing attached here — clicking past the missing-evidence warning");
       }
       for (let attempt = 1; attempt <= attempts; attempt++) {
         const btn = findNextButton() ?? next;
         btn.click();
-        if (await waitForPageChange(prevUrl, UPLOAD_ADVANCE_WAIT_MS)) {
+        if (await waitForPageChange(prevUrl, waitMs)) {
           advanced = true;
           break;
         }
         if (attempt < attempts) {
           dbg(
             `fillAll: Next did not move the page (attempt ${attempt}/${attempts}) — ` +
-              `myUSCIS is still processing the upload; waiting and clicking again`,
+              (empty
+                ? "clicking again past the missing-evidence warning"
+                : "myUSCIS is still processing the upload; waiting and clicking again"),
           );
-          await sleep(UPLOAD_ADVANCE_RETRY_MS);
+          await sleep(retryMs);
         }
       }
       if (!advanced) {
         dbg(
           `fillAll: Next would not advance past ${page?.slug ?? "this upload page"} after ` +
-            `${attempts} attempt${attempts === 1 ? "" : "s"}. ` +
-            (attachedHere === 0
+            `${attempts} attempts. ` +
+            (empty
               ? "Nothing was attached here, so this is a page myUSCIS will not let " +
                 "us leave empty — attach the document in ParaLeagle and re-run."
               : "The upload is taking longer than expected — let it finish and re-run."),
