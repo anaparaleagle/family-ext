@@ -76,6 +76,9 @@ export function mountMuiSelect(opts: {
   /** false simulates a commit React swallowed: the click closes the popup but
    * the hidden input keeps its old value. */
   commitOnClick?: boolean;
+  /** Swallow the commit for this many opening clicks, then behave normally —
+   * a popup that was still settling when the first pick landed. */
+  swallowClicks?: number;
   /** Delay before the hidden input reflects the click — a slow React commit. */
   commitDelayMs?: number;
   /** Called once a commit lands (to simulate revealed blocks re-rendering). */
@@ -97,6 +100,7 @@ export function mountMuiSelect(opts: {
   const handle: MuiSelectHandle = { input, combobox, opens: 0 };
 
   let portal: HTMLElement | null = null;
+  let swallowed = 0;
   const closePopup = (): void => {
     portal?.remove();
     portal = null;
@@ -118,6 +122,10 @@ export function mountMuiSelect(opts: {
       li.addEventListener("click", () => {
         closePopup();
         if (opts.commitOnClick === false) return;
+        if (swallowed < (opts.swallowClicks ?? 0)) {
+          swallowed += 1;
+          return;
+        }
         const commit = (): void => {
           input.value = o.value;
           combobox.textContent = o.label;

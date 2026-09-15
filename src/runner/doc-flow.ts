@@ -231,7 +231,10 @@ async function downloadAsFile(
     dbg(`doc-flow: ${message}`);
     return { file: null, error: message };
   }
-  dbg(`doc-flow: downloaded ${filename} (${Math.round(bytes.length / 1024)} KB)`);
+  // Bytes under 1 KB, because rounding a 400-byte stub to "0 KB" reads as empty.
+  const size =
+    bytes.length < 1024 ? `${bytes.length} B` : `${Math.round(bytes.length / 1024)} KB`;
+  dbg(`doc-flow: downloaded ${filename} (${size})`);
   const blob = new Blob([bytes], { type: response.contentType });
   return { file: new File([blob], filename, { type: response.contentType }) };
 }
@@ -372,6 +375,16 @@ async function resolveFilesFor(
       ctx.accessToken,
       name,
     );
+    if (downloadError && /\b404\b/.test(downloadError)) {
+      // The listing said this form exists, so a 404 is a missing FILE behind a
+      // live record — not "generate it", which is what the caseworker would
+      // otherwise try.
+      const message =
+        `ParaLeagle lists a generated ${formType} for this case but its file is ` +
+        `missing (404). Regenerate it, then re-run.`;
+      dbg(`doc-flow: ${message}`);
+      return { files: [], errors: [message], alreadyAttached: 0 };
+    }
     return {
       files: file ? [file] : [],
       errors: downloadError ? [downloadError] : [],

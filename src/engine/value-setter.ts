@@ -863,6 +863,12 @@ const MUISELECT_OPEN_TIMEOUT_MS = 3000;
  * polled — it is the ground truth, and it can land late. */
 const MUISELECT_COMMIT_TIMEOUT_MS = 4000;
 const MUISELECT_POLL_MS = 100;
+/** How many times to pick an option before giving up. A click that lands while
+ * the popup is still settling leaves the hidden input empty with no error —
+ * seen once on the I-485's Family-based category in six live runs. */
+const MUISELECT_ATTEMPTS = 2;
+/** Let the popup finish closing before picking again. */
+const MUISELECT_RETRY_WAIT_MS = 400;
 
 /**
  * The combobox DISPLAY element when `el` is a MUI Select's hidden native
@@ -969,13 +975,34 @@ async function setMuiSelect(
     `value-setter: "${name}" is a MUI Select (hidden native input + combobox display) — ` +
       `opening the popup instead of typing`,
   );
+  for (let attempt = 1; attempt <= MUISELECT_ATTEMPTS; attempt += 1) {
+    const outcome = await pickMuiSelectOption(el, combo, value, name, commitValue);
+    if (outcome !== "no-commit") return outcome === "ok";
+    if (attempt < MUISELECT_ATTEMPTS) {
+      dbg(`value-setter: picking "${value}" again on "${name}" — the first click did not stick`);
+      closeMuiSelectPopup(combo);
+      await sleep(MUISELECT_RETRY_WAIT_MS);
+    }
+  }
+  return false;
+}
+
+/** One open-pick-verify pass. "no-commit" is the retryable outcome: the option
+ * was clicked but the hidden input never took the value. */
+async function pickMuiSelectOption(
+  el: HTMLInputElement,
+  combo: HTMLElement,
+  value: string,
+  name: string,
+  commitValue?: string,
+): Promise<"ok" | "no-commit" | "fail"> {
   const before = el.value;
 
   if (!(await openMuiSelectPopup(combo))) {
     dbg(`value-setter: the "${name}" popup never rendered any [role="option"] items`);
     await diagnoseMuiSelectMiss(el, combo, value);
     closeMuiSelectPopup(combo);
-    return false;
+    return "fail";
   }
 
   const picked = await selectRenderedOption(value);
@@ -983,7 +1010,7 @@ async function setMuiSelect(
     dbg(`value-setter: no select option matched "${value}" for "${name}"`);
     await diagnoseMuiSelectMiss(el, combo, value);
     closeMuiSelectPopup(combo);
-    return false;
+    return "fail";
   }
 
   const want = commitValue ?? picked.getAttribute("data-value") ?? undefined;
@@ -992,7 +1019,7 @@ async function setMuiSelect(
     const committed = want !== undefined ? el.value === want : el.value !== before;
     if (committed) {
       dbg(`value-setter: "${name}" committed ${JSON.stringify(el.value)} for ${JSON.stringify(value)}`);
-      return true;
+      return "ok";
     }
     if (Date.now() >= deadline) break;
     await sleep(MUISELECT_POLL_MS);
@@ -1005,7 +1032,7 @@ async function setMuiSelect(
       `value-setter: clicked ${JSON.stringify(value)} on "${name}" but no expected code is ` +
         `declared and the hidden input still holds ${JSON.stringify(before)} — treating as set`,
     );
-    return true;
+    return "ok";
   }
   dbg(
     `value-setter: clicked ${JSON.stringify(value)} but the hidden "${name}" input holds ` +
@@ -1013,7 +1040,7 @@ async function setMuiSelect(
       (want !== undefined ? ` (expected ${JSON.stringify(want)})` : "") +
       ` — the selection did NOT commit`,
   );
-  return false;
+  return "no-commit";
 }
 
 // ── Public entry point ─────────────────────────────────────────────────────

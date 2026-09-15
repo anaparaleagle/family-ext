@@ -628,6 +628,23 @@ describe("value-setter: MUI Select (hidden native input + combobox display)", ()
     expect(h.input.value).toBe("C9");
   }, 20000);
 
+  it("picks again when the first click did not reach the hidden input", async () => {
+    // The I-485's Family-based category, one live run in six: the option was
+    // clicked, the popup closed, and the hidden input stayed empty.
+    const h = mountMuiSelect({
+      name: "eligibility-category-choice",
+      options: ELIGIBILITY_OPTIONS,
+      swallowClicks: 1,
+    });
+    const res = await setValue(
+      { name: "eligibility-category-choice", kind: "search", commitValue: "C9" },
+      C9_LABEL,
+    );
+    expect(res.success).toBe(true);
+    expect(h.input.value).toBe("C9");
+    expect(h.opens).toBe(2);
+  }, 30000);
+
   it("fails loudly when the click never commits to the hidden input", async () => {
     // The clicked label LOOKED right, but React swallowed the commit — the
     // display text is not proof, so this must be a failure, not a silent pass.
