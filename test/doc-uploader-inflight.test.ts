@@ -97,6 +97,35 @@ describe("doc-uploader: a row whose upload is still running", () => {
     expect(injected).toBe(1);
   });
 
+  it("hands the batch over again when the dropzone ignored the first injection", async () => {
+    // The I-485 police-and-court-records page, 2026-09-15: five files injected,
+    // myUSCIS showed none of them, and the identical five-file batch on the next
+    // page went up fine. A freshly navigated dropzone is not listening yet.
+    mountWithRows([]);
+    const input = document.getElementById("desktop-drop") as HTMLInputElement;
+    let injections = 0;
+    input.addEventListener("change", () => {
+      injections += 1;
+      if (injections < 2) return;
+      const row = document.createElement("div");
+      row.className = "uploaded-file";
+      row.innerHTML = '<span>final_court_order.pdf</span><button class="act">Remove</button>';
+      document.body.appendChild(row);
+    });
+    const res = await attachFiles([pdf("final_court_order.pdf")], 600);
+    expect(injections).toBe(2);
+    expect(res.attached).toBe(1);
+    expect(res.warnings).toEqual([]);
+  });
+
+  it("says what the page was showing when a batch never lands", async () => {
+    mountWithRows([]);
+    const res = await attachFiles([pdf("final_court_order.pdf")], 600);
+    expect(res.attached).toBe(0);
+    expect(res.warnings[0]).toMatch(/after 2 attempts/);
+    expect(res.warnings[0]).toMatch(/0 file row\(s\)/);
+  });
+
   it("treats a settled Remove row exactly as before (no regression)", async () => {
     mountWithRows([{ name: "i94.pdf", action: "Remove" }]);
     const res = await attachFiles([pdf("i94.pdf")]);

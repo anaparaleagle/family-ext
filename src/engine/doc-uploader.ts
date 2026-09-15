@@ -17,6 +17,19 @@ import { dbg } from "./logger";
  * carrying more silently drops the overflow. */
 const MAX_FILES_PER_BATCH = 5;
 
+/** How many times to hand a batch to the dropzone before giving up.
+ *
+ * A page reached by the walk has just navigated, and react-dropzone's handlers
+ * are wired a tick after the <input type="file"> itself is in the DOM — so a
+ * first injection can land on a dropzone that is not listening yet and vanish
+ * with no error. That is what lost all five files on the I-485's police-and-court
+ * records page on 2026-09-15 while the identical five-file batch on
+ * additional-evidence went up fine. */
+const INJECT_ATTEMPTS = 2;
+
+/** How long to wait for myUSCIS to show a batch before treating it as dropped. */
+const ACK_TIMEOUT_MS = 20000;
+
 export interface AttachResult {
   attached: number;
   /** Files already on the page, so deliberately not re-attached (SOF-1005).
@@ -30,13 +43,14 @@ export interface AttachResult {
  * Attach a set of files to the current page's react-dropzone file input, in
  * batches of MAX_FILES_PER_BATCH, waiting for each batch to be acknowledged.
  */
-export async function attachFiles(files: File[]): Promise<AttachResult> {
+export async function attachFiles(
+  files: File[],
+  ackTimeoutMs = ACK_TIMEOUT_MS,
+): Promise<AttachResult> {
   const warnings: string[] = [];
   if (files.length === 0) return { attached: 0, alreadyAttached: 0, warnings };
 
-  const fileInput =
-    document.querySelector<HTMLInputElement>('input[type="file"]#desktop-drop') ||
-    document.querySelector<HTMLInputElement>('input[type="file"]');
+  const fileInput = currentFileInput();
   if (!fileInput) {
     dbg("doc-uploader: no file input on this page");
     return { attached: 0, alreadyAttached: 0, warnings: ["No file input found on this page."] };
@@ -57,26 +71,48 @@ export async function attachFiles(files: File[]): Promise<AttachResult> {
   let attached = 0;
   for (let i = 0; i < pending.length; i += MAX_FILES_PER_BATCH) {
     const batch = pending.slice(i, i + MAX_FILES_PER_BATCH);
-    const dt = new DataTransfer();
-    for (const f of batch) dt.items.add(f);
-
     const baseline = countAttachedFileControls();
     const lastFilename = batch[batch.length - 1].name;
 
-    injectFilesIntoDropzone(fileInput, dt);
-    dbg(`doc-uploader: injected batch of ${batch.length} (${i + batch.length}/${pending.length})`);
-
-    const ok = await waitForUploadAccepted(fileInput, lastFilename, baseline);
+    let ok = false;
+    for (let attempt = 1; attempt <= INJECT_ATTEMPTS && !ok; attempt += 1) {
+      // Re-read the input and rebuild the transfer each time: a re-render after a
+      // dropped injection replaces the element we were holding.
+      const input = currentFileInput() ?? fileInput;
+      const dt = new DataTransfer();
+      for (const f of batch) dt.items.add(f);
+      injectFilesIntoDropzone(input, dt);
+      dbg(
+        `doc-uploader: injected batch of ${batch.length} (${i + batch.length}/${pending.length})` +
+          (attempt > 1 ? ` — attempt ${attempt}` : ""),
+      );
+      ok = await waitForUploadAccepted(input, lastFilename, baseline, ackTimeoutMs);
+      if (!ok && attempt < INJECT_ATTEMPTS) {
+        dbg(
+          `doc-uploader: myUSCIS never showed "${lastFilename}" — the dropzone may not ` +
+            `have been listening yet; handing it the batch again`,
+        );
+      }
+    }
     if (ok) {
       attached += batch.length;
     } else {
       warnings.push(
-        `myUSCIS did not acknowledge the upload batch ending "${lastFilename}" ` +
-          `within the wait window. Verify the page before filing.`,
+        `myUSCIS did not acknowledge the upload batch ending "${lastFilename}" after ` +
+          `${INJECT_ATTEMPTS} attempts — the page shows ${countAttachedFileControls()} ` +
+          `file row(s), ${uploadsInFlight()} still uploading. Verify the page before filing.`,
       );
     }
   }
   return { attached, alreadyAttached, warnings };
+}
+
+/** The page's dropzone input, re-read each time — a re-render replaces it. */
+function currentFileInput(): HTMLInputElement | null {
+  return (
+    document.querySelector<HTMLInputElement>('input[type="file"]#desktop-drop') ||
+    document.querySelector<HTMLInputElement>('input[type="file"]')
+  );
 }
 
 /**
@@ -222,7 +258,7 @@ async function waitForUploadAccepted(
   fileInput: HTMLInputElement,
   expectedFilename: string,
   baselineControlCount: number,
-  timeoutMs = 20000,
+  timeoutMs = ACK_TIMEOUT_MS,
 ): Promise<boolean> {
   const start = Date.now();
   const stem = expectedFilename.replace(/\.[^.]+$/, "");
