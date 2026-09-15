@@ -819,6 +819,8 @@ const SAVE_COMMIT_TIMEOUT_MS = 8000;
 /** After a page's own advance button ("Add Client"), how long to wait for the
  * navigation it triggers — it posts to USCIS before moving. */
 const ADVANCE_BUTTON_TIMEOUT_MS = 20000;
+/** How long to watch for the confirmation that button raises instead of moving. */
+const CONFIRM_DIALOG_TIMEOUT_MS = 4000;
 /** Upload pages keep Next DISABLED while the just-attached file finishes
  * uploading server-side (processing runs a few seconds past the point the
  * doc-uploader reports "attached"); give Next much longer to enable. */
@@ -1000,6 +1002,21 @@ export function findSaveButton(
  * of three of them. A label that does not match returns null and the walk simply
  * tries Next, which is what it did before.
  */
+/**
+ * A confirmation myUSCIS shows INSTEAD of navigating — "Your client has been
+ * successfully added", dismissed with Okay.
+ *
+ * Exact match only. "Okay" is a dismissal everywhere on this site, while
+ * "Continue" is a Next by another name and must not be clicked from here.
+ */
+export function findConfirmationButton(doc: Document = document): HTMLElement | null {
+  for (const b of Array.from(doc.querySelectorAll<HTMLElement>('button, [role="button"]'))) {
+    const text = (b.textContent || "").trim().toLowerCase();
+    if ((text === "ok" || text === "okay") && !isForbiddenAdvanceControl(b)) return b;
+  }
+  return null;
+}
+
 export function findRowCommitButton(
   label: string | undefined,
   doc: Document = document,
@@ -1483,12 +1500,29 @@ export async function fillAll(
           dbg(`fillAll: "${page.advanceButtonText}" is not on ${page.slug} — trying Next instead`);
         }
       }
-      if (clickedOwnButton && !(await waitForPageChange(prevUrl, ADVANCE_BUTTON_TIMEOUT_MS))) {
-        dbg(
-          `fillAll: "${page?.advanceButtonText}" did not move the page` +
-            pageErrorSummary() +
-            " — trying Next instead",
-        );
+      if (clickedOwnButton) {
+        // The button may answer with a confirmation rather than a navigation.
+        // Dismissing it is both the right click and the proof it worked, so there
+        // is nothing left to wait for afterwards.
+        let confirmed = false;
+        for (let waited = 0; waited < CONFIRM_DIALOG_TIMEOUT_MS; waited += 300) {
+          if (window.location.href !== prevUrl) break;
+          const okay = findConfirmationButton();
+          if (okay) {
+            dbg(`fillAll: myUSCIS confirmed "${page?.advanceButtonText}" — dismissing its notice`);
+            okay.click();
+            confirmed = true;
+            break;
+          }
+          await sleep(300);
+        }
+        if (!confirmed && !(await waitForPageChange(prevUrl, ADVANCE_BUTTON_TIMEOUT_MS))) {
+          dbg(
+            `fillAll: "${page?.advanceButtonText}" did not move the page` +
+              pageErrorSummary() +
+              " — trying Next instead",
+          );
+        }
       }
       if (page?.repeater?.rowCommitButtonText) {
         const commit = findRowCommitButton(page.repeater.rowCommitButtonText);

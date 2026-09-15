@@ -6,6 +6,7 @@ import {
   waitForPageReady,
   findSaveButton,
   findRowCommitButton,
+  findConfirmationButton,
   isForbiddenAdvanceControl,
 } from "../src/runner/fill-chain";
 import { I130_PAGES } from "../src/i130/form-descriptor";
@@ -143,6 +144,15 @@ describe("findRowCommitButton (a page's own advance button)", () => {
   it("returns null when the declared button is not on the page", () => {
     setBody('<button data-testid="next-button" disabled>Next</button>');
     expect(findRowCommitButton("Add Client")).toBeNull();
+  });
+
+  it('finds the "Okay" that dismisses a confirmation, and never a Continue', () => {
+    // Add Client answers with "Your client has been successfully added" + Okay
+    // rather than navigating; waiting for a page change there costs 20s.
+    setBody('<div role="alert">Your client has been successfully added</div><button>Okay</button>');
+    expect(findConfirmationButton()?.textContent).toBe("Okay");
+    setBody('<button>Continue</button>');
+    expect(findConfirmationButton()).toBeNull();
   });
 });
 

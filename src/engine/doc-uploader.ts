@@ -17,6 +17,12 @@ import { dbg } from "./logger";
  * carrying more silently drops the overflow. */
 const MAX_FILES_PER_BATCH = 5;
 
+/** How many times to hand a SINGLE file to the dropzone before giving up. */
+const INJECT_ATTEMPTS = 2;
+
+/** How long to wait for myUSCIS to show a batch before treating it as dropped. */
+const ACK_TIMEOUT_MS = 20000;
+
 export interface AttachResult {
   attached: number;
   /** Files already on the page, so deliberately not re-attached (SOF-1005).
@@ -30,13 +36,14 @@ export interface AttachResult {
  * Attach a set of files to the current page's react-dropzone file input, in
  * batches of MAX_FILES_PER_BATCH, waiting for each batch to be acknowledged.
  */
-export async function attachFiles(files: File[]): Promise<AttachResult> {
+export async function attachFiles(
+  files: File[],
+  ackTimeoutMs = ACK_TIMEOUT_MS,
+): Promise<AttachResult> {
   const warnings: string[] = [];
   if (files.length === 0) return { attached: 0, alreadyAttached: 0, warnings };
 
-  const fileInput =
-    document.querySelector<HTMLInputElement>('input[type="file"]#desktop-drop') ||
-    document.querySelector<HTMLInputElement>('input[type="file"]');
+  const fileInput = currentFileInput();
   if (!fileInput) {
     dbg("doc-uploader: no file input on this page");
     return { attached: 0, alreadyAttached: 0, warnings: ["No file input found on this page."] };
@@ -57,26 +64,81 @@ export async function attachFiles(files: File[]): Promise<AttachResult> {
   let attached = 0;
   for (let i = 0; i < pending.length; i += MAX_FILES_PER_BATCH) {
     const batch = pending.slice(i, i + MAX_FILES_PER_BATCH);
-    const dt = new DataTransfer();
-    for (const f of batch) dt.items.add(f);
-
     const baseline = countAttachedFileControls();
     const lastFilename = batch[batch.length - 1].name;
 
-    injectFilesIntoDropzone(fileInput, dt);
-    dbg(`doc-uploader: injected batch of ${batch.length} (${i + batch.length}/${pending.length})`);
-
-    const ok = await waitForUploadAccepted(fileInput, lastFilename, baseline);
+    const ok = await handOver(batch, baseline, ackTimeoutMs, fileInput);
+    dbg(
+      `doc-uploader: injected batch of ${batch.length} (${i + batch.length}/${pending.length})`,
+    );
     if (ok) {
       attached += batch.length;
-    } else {
+      continue;
+    }
+    if (batch.length === 1) {
       warnings.push(
-        `myUSCIS did not acknowledge the upload batch ending "${lastFilename}" ` +
-          `within the wait window. Verify the page before filing.`,
+        `myUSCIS did not acknowledge "${lastFilename}"${uploadErrorSuffix()} — the page shows ` +
+          `${countAttachedFileControls()} file row(s), ${uploadsInFlight()} still uploading. ` +
+          `Verify the page before filing.`,
       );
+      continue;
+    }
+    // ONE AT A TIME. A dropzone that takes a single file can still refuse a
+    // multi-file drop outright, and the whole batch then vanishes with no error —
+    // the I-485's police-and-court-records page swallowed five PDFs that way while
+    // every page that ever took more than one also accepted images. Sending them
+    // singly costs a few seconds and turns "nothing went up" into "all of them did".
+    dbg(
+      `doc-uploader: myUSCIS took none of the ${batch.length} files at once — ` +
+        `sending them one at a time`,
+    );
+    for (const file of batch) {
+      const oneOk = await handOver([file], countAttachedFileControls(), ackTimeoutMs, fileInput);
+      if (oneOk) {
+        attached += 1;
+        dbg(`doc-uploader: "${file.name}" went up on its own`);
+      } else {
+        warnings.push(
+          `myUSCIS did not acknowledge "${file.name}", alone or in a batch` +
+            `${uploadErrorSuffix()}. Verify the page before filing.`,
+        );
+      }
     }
   }
   return { attached, alreadyAttached, warnings };
+}
+
+/**
+ * Hand `batch` to the dropzone and wait for myUSCIS to show it, trying twice: a
+ * page reached by the walk has just navigated, and react-dropzone is wired a tick
+ * after its <input type="file"> reaches the DOM, so a first injection can land on
+ * a dropzone that is not listening yet and vanish with no error.
+ */
+async function handOver(
+  batch: File[],
+  baseline: number,
+  ackTimeoutMs: number,
+  fallbackInput: HTMLInputElement,
+): Promise<boolean> {
+  const lastFilename = batch[batch.length - 1].name;
+  for (let attempt = 1; attempt <= INJECT_ATTEMPTS; attempt += 1) {
+    // Re-read the input and rebuild the transfer each time: a re-render after a
+    // dropped injection replaces the element we were holding.
+    const input = currentFileInput() ?? fallbackInput;
+    const dt = new DataTransfer();
+    for (const f of batch) dt.items.add(f);
+    injectFilesIntoDropzone(input, dt);
+    if (await waitForUploadAccepted(input, lastFilename, baseline, ackTimeoutMs)) return true;
+  }
+  return false;
+}
+
+/** The page's dropzone input, re-read each time — a re-render replaces it. */
+function currentFileInput(): HTMLInputElement | null {
+  return (
+    document.querySelector<HTMLInputElement>('input[type="file"]#desktop-drop') ||
+    document.querySelector<HTMLInputElement>('input[type="file"]')
+  );
 }
 
 /**
@@ -215,6 +277,52 @@ function filenameNeedle(filename: string): string {
 }
 
 /**
+ * myUSCIS's own upload error, if it is showing one.
+ *
+ * The page answers a refused upload with "Error attempting to upload file(s).
+ * Please try again later." — its server saying no, which no amount of re-dropping
+ * fixes. Without reading it the log could only report what it did NOT see, and
+ * every failure looked like the same mystery.
+ */
+function uploadErrorText(): string {
+  const hits = Array.from(
+    document.querySelectorAll<HTMLElement>('[role="alert"], [class*="error" i], [id*="error" i]'),
+  ).filter((el) => !el.closest('[id^="mk-family"]'));
+  for (const el of hits) {
+    const text = (el.textContent || "").replace(/\s+/g, " ").trim();
+    if (/error/i.test(text) && /upload|file/i.test(text)) {
+      return text.length > 140 ? `${text.slice(0, 140)}...` : text;
+    }
+  }
+  return "";
+}
+
+function uploadErrorSuffix(): string {
+  const text = uploadErrorText();
+  return text ? ` — the page is showing "${text}"` : "";
+}
+
+/**
+ * The page's visible text, MINUS the extension's own panels.
+ *
+ * The debug panel prints every filename it downloads and is appended to
+ * document.body, so while it is OPEN a plain `body.innerText` contains the very
+ * name we are waiting for — and every upload reads as accepted the instant it is
+ * attempted, whatever myUSCIS did with the files. Hidden, it contributes nothing
+ * to innerText, which is why the same page passed with the log open and failed
+ * with it closed.
+ */
+function pageTextWithoutOurChrome(): string {
+  const parts: string[] = [];
+  for (const child of Array.from(document.body.children)) {
+    const el = child as HTMLElement;
+    if (el.id?.startsWith("mk-family")) continue;
+    parts.push(el.innerText ?? el.textContent ?? "");
+  }
+  return parts.join(" ");
+}
+
+/**
  * Poll until myUSCIS acknowledges a batch: the filename text appears, OR the
  * per-file control count grows past the pre-batch baseline.
  */
@@ -222,7 +330,7 @@ async function waitForUploadAccepted(
   fileInput: HTMLInputElement,
   expectedFilename: string,
   baselineControlCount: number,
-  timeoutMs = 20000,
+  timeoutMs = ACK_TIMEOUT_MS,
 ): Promise<boolean> {
   const start = Date.now();
   const stem = expectedFilename.replace(/\.[^.]+$/, "");
@@ -230,7 +338,7 @@ async function waitForUploadAccepted(
 
   while (Date.now() - start < timeoutMs) {
     await new Promise((r) => setTimeout(r, 400));
-    if (needle && document.body.innerText.includes(needle)) return true;
+    if (needle && pageTextWithoutOurChrome().includes(needle)) return true;
     if (countAttachedFileControls() > baselineControlCount) return true;
     if (
       fileInput.files &&

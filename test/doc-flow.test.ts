@@ -247,6 +247,26 @@ describe("doc-flow: generated_form (I-130A) resolution", () => {
     });
   });
 
+  it("names a live record whose FILE is gone, not a form that was never generated", async () => {
+    // The I-485's G-28 on 2026-09-15: the listing had the row, its file_url
+    // answered 404. "Generate it" is the wrong remedy for that.
+    installProxy({
+      apiResponder: () =>
+        apiOk([
+          { id: "g1", form_type: "G-28-BEN", version: 1, file_url: "https://x/media/g28.pdf" },
+        ]),
+      downloadResponder: () => ({ success: false, error: "HTTP 404" }),
+    });
+    const descriptor: UploadPageDescriptor = {
+      page_path: "/form-g28",
+      kind: "generated_form",
+      form_type: "G-28-BEN",
+    };
+    const res = await fillUploadPage(descriptor, CTX);
+    expect(res.attached).toBe(0);
+    expect(res.warnings[0]).toMatch(/lists a generated G-28-BEN .* missing \(404\)/);
+  });
+
   it("warns (no attach) when no generated form of that type is on file", async () => {
     installProxy({ apiResponder: () => apiOk([]) });
     const descriptor: UploadPageDescriptor = {
