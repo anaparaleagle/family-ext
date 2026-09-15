@@ -55,6 +55,7 @@ interface Dump {
   url: string;
   heading: string;
   fields?: DumpField[];
+  buttons?: { text: string }[];
   file_inputs?: { accept: string; multiple: boolean }[];
 }
 
@@ -130,6 +131,15 @@ describe("I-485 descriptor <-> live pdf-intake dump", () => {
     const box = page.fields.find((f) => f.name === "client-information.a-number-unknown")!;
     expect(box.kind).toBe("checkbox");
     expect(nameless[0].label!.toLowerCase()).toContain(box.locate!.labelContains!.toLowerCase());
+  });
+
+  it('advances About Your New Client with the "Add Client" button the capture shows', () => {
+    const page = I485_PAGES.find((p) => p.slug === "/client-information/0")!;
+    expect(page.advanceButtonText).toBe("Add Client");
+    const buttons = (readDump("03-client-information.json").buttons ?? []).map((b) =>
+      b.text.trim(),
+    );
+    expect(buttons).toContain(page.advanceButtonText);
   });
 
   it("never drives the colliding MUI default radio name literally", () => {

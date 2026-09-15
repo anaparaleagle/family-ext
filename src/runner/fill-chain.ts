@@ -816,6 +816,9 @@ const DEFAULT_NEXT_TIMEOUT_MS = 12000;
 /** After clicking a repeater "Save Entry" commit button, how long to wait for
  * the row to commit and a Next/Continue to appear + enable. */
 const SAVE_COMMIT_TIMEOUT_MS = 8000;
+/** After a page's own advance button ("Add Client"), how long to wait for the
+ * navigation it triggers — it posts to USCIS before moving. */
+const ADVANCE_BUTTON_TIMEOUT_MS = 20000;
 /** Upload pages keep Next DISABLED while the just-attached file finishes
  * uploading server-side (processing runs a few seconds past the point the
  * doc-uploader reports "attached"); give Next much longer to enable. */
@@ -1468,6 +1471,25 @@ export async function fillAll(
       // and AFTER it, because the re-render can empty a box that is still on the
       // page. The second pass therefore looks at single-instance boxes only.
       if (typedHere.length) await recheckBeforeLeaving(typedHere);
+      // A page whose Next never enables advances with its own button instead.
+      let clickedOwnButton = false;
+      if (page?.advanceButtonText) {
+        const own = findRowCommitButton(page.advanceButtonText);
+        if (own && !isForbiddenAdvanceControl(own)) {
+          dbg(`fillAll: ${page.slug} advances with its own "${page.advanceButtonText}" button`);
+          own.click();
+          clickedOwnButton = true;
+        } else {
+          dbg(`fillAll: "${page.advanceButtonText}" is not on ${page.slug} — trying Next instead`);
+        }
+      }
+      if (clickedOwnButton && !(await waitForPageChange(prevUrl, ADVANCE_BUTTON_TIMEOUT_MS))) {
+        dbg(
+          `fillAll: "${page?.advanceButtonText}" did not move the page` +
+            pageErrorSummary() +
+            " — trying Next instead",
+        );
+      }
       if (page?.repeater?.rowCommitButtonText) {
         const commit = findRowCommitButton(page.repeater.rowCommitButtonText);
         if (commit) {

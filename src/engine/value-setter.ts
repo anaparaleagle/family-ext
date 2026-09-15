@@ -176,6 +176,10 @@ async function setText(el: HTMLInputElement | HTMLTextAreaElement, value: string
   el.focus();
   el.dispatchEvent(new FocusEvent("focus", { bubbles: true }));
 
+  // Strategy 0: a masked box (the I-485 A-number's "A-") gets keystrokes, before
+  // anything below clears the mask's own prefix out of it.
+  if (maskPrefix(el, value) && (await typeKeystrokes(el, value))) return true;
+
   // Strategy 1: char-by-char execCommand (best for React-controlled inputs).
   el.select();
   safeExec("delete");
@@ -194,7 +198,7 @@ async function setText(el: HTMLInputElement | HTMLTextAreaElement, value: string
   el.focus();
   el.dispatchEvent(new FocusEvent("focus", { bubbles: true }));
   el.select();
-  if (safeExec("insertText", value) && el.value === value) {
+  if (safeExec("insertText", value) && matchesValue(el, value)) {
     commitText(el);
     setViaFormik(el, value);
     return true;
@@ -207,23 +211,76 @@ async function setText(el: HTMLInputElement | HTMLTextAreaElement, value: string
   }
 
   // Strategy 4: native value setter + change (reset React's _valueTracker).
-  const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement : HTMLInputElement;
-  const nativeSetter = Object.getOwnPropertyDescriptor(proto.prototype, "value")?.set;
-  if (nativeSetter) {
-    const tracker = (el as unknown as { _valueTracker?: { setValue(v: string): void } })._valueTracker;
-    if (tracker) tracker.setValue("");
-    nativeSetter.call(el, value);
-    el.dispatchEvent(new Event("input", { bubbles: true }));
-    el.dispatchEvent(new Event("change", { bubbles: true }));
-    if (el.value === value) {
-      el.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
-      return true;
-    }
+  setNativeValue(el, value);
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+  if (matchesValue(el, value)) {
+    el.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+    return true;
   }
+
+  // Strategy 5: keystrokes, for a mask that only showed itself once something
+  // was written into the box.
+  if (await typeKeystrokes(el, value)) return true;
 
   dbg(`value-setter: all text strategies failed for "${el.getAttribute("name")}"`);
   el.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
   return false;
+}
+
+/**
+ * The fixed prefix a masked box is already showing, or "".
+ *
+ * myUSCIS masks the I-485 A-number with a literal "A-" that lives IN the input.
+ * The mask reads what the box holds on every input event and throws away
+ * anything that does not start with its prefix, so select-all-and-type (which
+ * deletes the "A-" first) leaves the field empty and the page refusing Next.
+ *
+ * Deliberately narrow: short, no digits, and not a head of the value we are
+ * about to write — a box holding a real stale value must still be overwritten.
+ */
+function maskPrefix(el: HTMLInputElement | HTMLTextAreaElement, value: string): string {
+  const current = el.value;
+  if (!current || value.startsWith(current)) return "";
+  const bare = current.replace(/[\u200B-\u200D\uFEFF]/g, "");
+  return bare.length <= 3 && !/\d/.test(bare) ? current : "";
+}
+
+/**
+ * Type `value` one character at a time, the way a person does: each keystroke
+ * appends to whatever the box currently holds, so a mask reformats as it goes
+ * and its own prefix is never deleted. The last resort for inputs that refuse a
+ * value written in one go.
+ */
+async function typeKeystrokes(
+  el: HTMLInputElement | HTMLTextAreaElement,
+  value: string,
+): Promise<boolean> {
+  el.focus();
+  el.dispatchEvent(new FocusEvent("focus", { bubbles: true }));
+  if (el.value && !maskPrefix(el, value)) {
+    setNativeValue(el, "");
+    el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "deleteContentBackward" }));
+  }
+  for (const char of value) {
+    const before = el.value;
+    el.dispatchEvent(new KeyboardEvent("keydown", { key: char, bubbles: true }));
+    setNativeValue(el, before + char);
+    try {
+      el.setSelectionRange(el.value.length, el.value.length);
+    } catch {
+      // not every input type carries a selection
+    }
+    el.dispatchEvent(
+      new InputEvent("input", { bubbles: true, data: char, inputType: "insertText" }),
+    );
+    el.dispatchEvent(new KeyboardEvent("keyup", { key: char, bubbles: true }));
+    await sleep(30);
+  }
+  await sleep(120);
+  if (!matchesValue(el, value)) return false;
+  commitText(el);
+  return true;
 }
 
 /** True when the input shows the value, OR shows the same digits (masked
@@ -453,10 +510,11 @@ const OPTION_SELECTORS = [
  * The prototype setter is what React's `_valueTracker` watches, and the tracker
  * is cleared first so an assignment it thinks it already has is not swallowed.
  */
-function setNativeValue(el: HTMLInputElement, value: string): void {
+function setNativeValue(el: HTMLInputElement | HTMLTextAreaElement, value: string): void {
   const tracker = (el as unknown as { _valueTracker?: { setValue(v: string): void } })._valueTracker;
   if (tracker) tracker.setValue("");
-  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+  const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement : HTMLInputElement;
+  const setter = Object.getOwnPropertyDescriptor(proto.prototype, "value")?.set;
   if (setter) setter.call(el, value);
   else el.value = value;
 }

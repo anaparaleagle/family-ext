@@ -169,6 +169,11 @@ export interface FormPage {
   /** Present when this page is a repeater (address/employment history etc.). */
   repeater?: RepeaterSpec;
   /**
+   * Exact label of the page's OWN advance button, for a page whose Next never
+   * enables (the PDF-intake /client-information/0 ends in "Add Client").
+   */
+  advanceButtonText?: string;
+  /**
    * Conditional page — only reachable when upstream answers are set (e.g. the
    * I-130 spouse-only pages, the I-539 preparer pages). The chain tolerates
    * these being absent.
