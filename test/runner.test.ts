@@ -40,8 +40,9 @@ describe("form config registry", () => {
       "/forms/application-to-extend-change-nonimmigrant-status/",
     );
     expect(configForFormType("I-485")?.hostPath).toBe("/pdf-intake/I-485/");
-    // A form with no online map yet — the I-131 is the next pdf-intake build.
-    expect(configForFormType("I-131")).toBeNull();
+    expect(configForFormType("I-131")?.hostPath).toBe("/pdf-intake/I-131/");
+    // A form the IR bundle files on PAPER — no online surface of any kind.
+    expect(configForFormType("I-864")).toBeNull();
   });
 
   it("names the form a case type is filed on", () => {
@@ -80,13 +81,14 @@ describe("form config registry", () => {
     // The auto-switch reads the FIRST match, so an overlap silently picks one of
     // several forms for that case type. The ONE sanctioned overlap is the IR
     // family, which files the whole adjustment bundle: the I-130 petition, the
-    // I-485 itself, and the C9 I-765 — the last two via pdf-intake. The I-130 is
+    // I-485 itself, the C9 I-765 and the advance-parole I-131 — the last three
+    // via pdf-intake. The I-130 is
     // declared first so the picker keeps following the petition; the others stay
     // a manual form choice. Any OTHER overlap is still a bug.
     const ALLOWED = new Map([
-      ["IR-1", ["I-130", "I-765", "I-485"]],
-      ["IR-2", ["I-130", "I-765", "I-485"]],
-      ["IR-5", ["I-130", "I-765", "I-485"]],
+      ["IR-1", ["I-130", "I-765", "I-485", "I-131"]],
+      ["IR-2", ["I-130", "I-765", "I-485", "I-131"]],
+      ["IR-5", ["I-130", "I-765", "I-485", "I-131"]],
     ]);
     const claims = new Map<string, string[]>();
     for (const config of FORM_CONFIGS) {

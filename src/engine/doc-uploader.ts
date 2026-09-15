@@ -134,7 +134,7 @@ async function handOver(
 }
 
 /** The page's dropzone input, re-read each time — a re-render replaces it. */
-function currentFileInput(): HTMLInputElement | null {
+export function currentFileInput(): HTMLInputElement | null {
   return (
     document.querySelector<HTMLInputElement>('input[type="file"]#desktop-drop') ||
     document.querySelector<HTMLInputElement>('input[type="file"]')

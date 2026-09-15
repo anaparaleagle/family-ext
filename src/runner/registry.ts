@@ -6,6 +6,7 @@
 
 import { I129_PAGES } from "../i129/form-descriptor";
 import { I130_PAGES } from "../i130/form-descriptor";
+import { I131_PAGES } from "../i131/form-descriptor";
 import { I485_PAGES } from "../i485/form-descriptor";
 import { I539_PAGES } from "../i539/form-descriptor";
 import { I765_PAGES } from "../i765/form-descriptor";
@@ -87,6 +88,17 @@ export const I485_CONFIG: FormConfig = {
   caseTypes: ["IR-1", "IR-2", "IR-5"],
 };
 
+export const I131_CONFIG: FormConfig = {
+  formType: "I-131",
+  hostPath: "/pdf-intake/I-131/",
+  label: "ParaLeagle I-131",
+  pages: I131_PAGES,
+  // The advance-parole travel document filed alongside a pending I-485. Same IR
+  // types as the rest of the bundle; the I-130 stays first in the list so the
+  // picker keeps auto-following the petition.
+  caseTypes: ["IR-1", "IR-2", "IR-5"],
+};
+
 export const FORM_CONFIGS: FormConfig[] = [
   I130_CONFIG,
   I539_CONFIG,
@@ -94,6 +106,7 @@ export const FORM_CONFIGS: FormConfig[] = [
   I129_CONFIG,
   I765_CONFIG,
   I485_CONFIG,
+  I131_CONFIG,
 ];
 
 /**

@@ -29,7 +29,12 @@
 // its preflight refused and never sends the real request. That is what broke doc
 // upload entirely: the rejected fetch was uncaught and killed the walk silently.
 
-import { attachFiles, attachedFileRowTexts, isFilenameAttached } from "../engine/doc-uploader";
+import {
+  attachFiles,
+  attachedFileRowTexts,
+  currentFileInput,
+  isFilenameAttached,
+} from "../engine/doc-uploader";
 import { dbg } from "../engine/logger";
 import { apiGet } from "./api-transport";
 import { UploadPageDescriptor } from "./payload";
@@ -396,6 +401,49 @@ async function resolveFilesFor(
 }
 
 /**
+ * Split files by whether THIS slot's dropzone will take them, per its own
+ * `accept` attribute.
+ *
+ * Why this has to exist: a dropzone silently DISCARDS a file of the wrong type.
+ * The live I-131 run on 2026-09-15 reported "2 attached" on
+ * /photo-id/I-131/evidence and the page showed "Missing Evidence" — that slot
+ * takes image/jpeg and image/png only, and both documents were PDFs. Nothing on
+ * our side was wrong-looking: the files resolved, downloaded and were handed
+ * over, and the run summary said FAILURES: none. That is the worst shape a bug
+ * can have on a federal filing — a filing that reads as complete here and is
+ * empty at USCIS.
+ *
+ * An empty or missing `accept` means the slot takes anything; matching is by
+ * MIME (exact or `type/*`) or by file extension, because these lists mix both.
+ */
+export function splitByAccept(
+  files: File[],
+  accept: string | null | undefined,
+): { accepted: File[]; refused: File[]; allowed: string[] } {
+  const allowed = (accept ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (allowed.length === 0) return { accepted: files, refused: [], allowed };
+
+  const takes = (file: File): boolean => {
+    const mime = (file.type || "").toLowerCase();
+    const dot = file.name.toLowerCase().lastIndexOf(".");
+    const ext = dot === -1 ? "" : file.name.toLowerCase().slice(dot);
+    return allowed.some((rule) => {
+      if (rule.startsWith(".")) return rule === ext;
+      if (rule.endsWith("/*")) return !!mime && mime.startsWith(rule.slice(0, -1));
+      return !!mime && rule === mime;
+    });
+  };
+
+  const accepted: File[] = [];
+  const refused: File[] = [];
+  for (const file of files) (takes(file) ? accepted : refused).push(file);
+  return { accepted, refused, allowed };
+}
+
+/**
  * A human label for the document an upload page expects — its doc_type for a
  * stored document, or the form_type for a generated form (e.g. "I-130A").
  */
@@ -517,11 +565,30 @@ export async function fillUploadPageAll(
       ],
     };
   }
+  // A file this slot's dropzone will not take must never be handed over: it is
+  // discarded in silence and the run still reports it attached. Say so instead.
+  const { accepted, refused, allowed } = splitByAccept(files, currentFileInput()?.accept);
+  for (const file of refused) {
+    const message =
+      `${file.name} is a ${file.type || "file of unknown type"}, and ` +
+      `${descriptor.page_path} accepts only ${allowed.join(", ")} — NOT attached. ` +
+      `Upload it to this slot by hand, or replace it in ParaLeagle with an accepted format.`;
+    dbg(`doc-flow: ${message}`);
+    errors.push(message);
+  }
+  if (accepted.length === 0) {
+    return {
+      attached: 0,
+      alreadyAttached,
+      warnings: errors.map((e) => `Could not attach to ${descriptor.page_path} — ${e}`),
+    };
+  }
+
   // Some files resolved and some failed: attach what we have, but say so.
   // resolveFilesFor already dropped the already-attached ones, so attachFiles'
   // own count is 0 on this path; summing keeps the total right for any other
   // caller too.
-  const result = await attachFiles(files);
+  const result = await attachFiles(accepted);
   return {
     ...result,
     alreadyAttached: result.alreadyAttached + alreadyAttached,
