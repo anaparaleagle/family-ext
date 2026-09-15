@@ -39,7 +39,9 @@ describe("form config registry", () => {
     expect(configForFormType("I-539")?.hostPath).toBe(
       "/forms/application-to-extend-change-nonimmigrant-status/",
     );
-    expect(configForFormType("I-485")).toBeNull();
+    expect(configForFormType("I-485")?.hostPath).toBe("/pdf-intake/I-485/");
+    // A form with no online map yet — the I-131 is the next pdf-intake build.
+    expect(configForFormType("I-131")).toBeNull();
   });
 
   it("names the form a case type is filed on", () => {
@@ -74,17 +76,17 @@ describe("form config registry", () => {
     }
   });
 
-  it("lets no two myUSCIS forms claim the same case type, except the documented I-130/I-765 pair", () => {
+  it("lets no two myUSCIS forms claim the same case type, except the documented IR bundle", () => {
     // The auto-switch reads the FIRST match, so an overlap silently picks one of
-    // two forms for that case type. The ONE sanctioned overlap is the IR family:
-    // an IR case files the I-130 petition AND, once the I-485 is pending, the C9
-    // I-765 via pdf-intake. The I-130 is declared first so the picker keeps
-    // following the petition; the I-765 stays a manual form choice. Any OTHER
-    // overlap is still a bug.
+    // several forms for that case type. The ONE sanctioned overlap is the IR
+    // family, which files the whole adjustment bundle: the I-130 petition, the
+    // I-485 itself, and the C9 I-765 — the last two via pdf-intake. The I-130 is
+    // declared first so the picker keeps following the petition; the others stay
+    // a manual form choice. Any OTHER overlap is still a bug.
     const ALLOWED = new Map([
-      ["IR-1", ["I-130", "I-765"]],
-      ["IR-2", ["I-130", "I-765"]],
-      ["IR-5", ["I-130", "I-765"]],
+      ["IR-1", ["I-130", "I-765", "I-485"]],
+      ["IR-2", ["I-130", "I-765", "I-485"]],
+      ["IR-5", ["I-130", "I-765", "I-485"]],
     ]);
     const claims = new Map<string, string[]>();
     for (const config of FORM_CONFIGS) {

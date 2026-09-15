@@ -1,0 +1,51 @@
+{
+ "_note": "The three cascading controls on /select-eligibility, captured live 2026-09-15 with each list open. Unlike the I-765 pdf-intake (one flat list of (a)/(c) category codes), the I-485 asks WHO you are, then WHICH track, then WHICH relationship. Codes are the input `value` actually observed on the elements. The subcategory radio group is named '<eligibility-choice value>-subcategories', so it is 'PrincipalApplicant-subcategories' or 'DerivativeApplicant-subcategories'; both carry the same option sets.",
+ "eligibility-choice": {
+  "control": "MUI autocomplete, name=eligibility-choice",
+  "label": "I-485 eligibility selection (Required)",
+  "options": ["Select one", "Principal Applicant", "Derivative Applicant"],
+  "values": {"Principal Applicant": "PrincipalApplicant", "Derivative Applicant": "DerivativeApplicant"}
+ },
+ "eligibility-category-choice": {
+  "control": "MUI autocomplete, name=eligibility-category-choice, revealed once eligibility-choice is set",
+  "label": "eligibility category (Required)",
+  "heading": "What category are you filing under?",
+  "options": ["Family-based", "Employment-based"],
+  "values": {"Family-based": "FAMILY_BASED", "Employment-based": "EMPLOYMENT_BASED"},
+  "_note": "No 'Select one' placeholder in this list."
+ },
+ "subcategories_FAMILY_BASED": [
+  {"value": "USC_SPOUSE", "label": "Spouse of a U.S. Citizen"},
+  {"value": "USC_MINOR_CHILD", "label": "Unmarried child under 21 years of age of a U.S. citizen"},
+  {"value": "USC_PARENT", "label": "Parent of a U.S. citizen (if the citizen is at least 21 years of age)"},
+  {"value": "USC_FIANCE_K1K2", "label": "Person admitted to the United States as a fiancé(e) or child of a fiancé(e) of a U.S. citizen (K-1/K-2 Nonimmigrant)"},
+  {"value": "USC_WIDOW", "label": "Widow or widower of a U.S. citizen"},
+  {"value": "USC_MIL_REL", "label": "Spouse, child, or parent of a deceased U.S. active-duty service member in the armed forces under the National Defense Authorization Act (NDAA)"},
+  {"value": "USC_UNMARRIED_ADULT_SON_DAU", "label": "Unmarried son or daughter of a U.S. citizen and I am 21 years of age or older"},
+  {"value": "USC_MARRIED_SON_DAU", "label": "Married son or daughter of a U.S. citizen"},
+  {"value": "USC_SIBLING", "label": "Brother or sister of a U.S. citizen (if the citizen is at least 21 years of age)"},
+  {"value": "LPR_SPOUSE", "label": "Spouse of a lawful permanent resident"},
+  {"value": "LPR_MINOR_CHILD", "label": "Unmarried child under 21 years of age of a lawful permanent resident"},
+  {"value": "LPR_UNMARRIED_ADULT_SON_DAU", "label": "Unmarried son or daughter of a lawful permanent resident and I am 21 years of age or older"},
+  {"value": "VAWA_USC_SPOUSE", "label": "VAWA self-petitioning spouse of a U.S. citizen or lawful permanent resident"},
+  {"value": "VAWA_USC_CHILD", "label": "VAWA self-petitioning child of a U.S. citizen or lawful permanent resident"},
+  {"value": "VAWA_USC_PARENT", "label": "VAWA self-petitioning parent of a U.S. citizen(if the citizen is at least 21 years of age)"}
+ ],
+ "subcategories_EMPLOYMENT_BASED": [
+  {"value": "ALIEN_OF_EXTRAORDINARY_ABILITY", "label": "Alien of Extraordinary Ability"},
+  {"value": "OUTSTANDING_PROFESSOR_OR_RESEARCHER", "label": "Outstanding Professor or Researcher"},
+  {"value": "MULTINATIONAL_EXECUTIVE_OR_MANAGER", "label": "Multinational Executive or Manager"},
+  {"value": "MEMBER_OF_THE_PROFESSIONS_HOLDING_AN_ADVANCED_DEGREE_OR_ALIEN_OF_EXCEPTIONAL_ABILITY", "label": "Member of the Professions Holding an Advanced Degree or Alien of Exceptional Ability (who is NOT seeking a National Interest Waiver)"},
+  {"value": "A_PROFESSIONAL", "label": "A Professional (at a minimum, requiring a bachelor's degree or a foreign degree equivalent to a U.S. bachelor's degree)"},
+  {"value": "A_SKILLED_WORKER", "label": "A Skilled Worker (requiring at least 2 years of specialized training or experience)"},
+  {"value": "ANY_OTHER_WORKER", "label": "Any Other Worker (requiring less than 2 years of training or experience)"},
+  {"value": "AN_ALIEN_APPLYING_FOR_A_NATIONAL_INTEREST_WAIVER", "label": "An Alien Applying For a National Interest Waiver (who IS a member of the professions holding an advanced degree or an alien of exceptional ability)"}
+ ],
+ "six_and_six_radio": {
+  "control": "radio, name=controlled-radio-buttons-group",
+  "question": "Are you filing as an applicant who served honorably on active duty in the U.S. armed forces and who is filing under INA section 101(a)(27)(K). Select Part 2., Item Number 3.c.: Certain U.S. Armed Forces Members (also known as the Six and Six program)?",
+  "options": ["Yes", "No"],
+  "default": "No",
+  "_note": "Pre-checked 'No' on arrival - the only control in the whole walk with a non-empty default."
+ }
+}

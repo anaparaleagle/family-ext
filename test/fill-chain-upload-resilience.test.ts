@@ -216,3 +216,78 @@ describe("fillAll: undeclared pages inside the form do not end the walk", () => 
     expect(window.location.pathname).toContain("/account/change-of-address");
   }, 20000);
 });
+
+// ── An EMPTY pdf-intake evidence page needs a SECOND Next click ──────────────
+//
+// Live I-485 capture 2026-09-15: the first Next click on an evidence page with
+// nothing uploaded does not navigate — it injects a "Missing Evidence" warning
+// and waits. The second click advances. The advance logic used to spend exactly
+// one click whenever nothing was attached (correctly, for the I-765, where an
+// empty page simply had nothing to wait for), so the walk stalled at the first
+// empty slot. The I-485 has 14 evidence slots and several are "if applicable",
+// so an empty one is the normal case, not the exception.
+
+const PDF_INTAKE_HOST = "/pdf-intake/I-485";
+const PDF_INTAKE_BASE = `https://my.uscis.gov${PDF_INTAKE_HOST}/5ab9035c`;
+
+const PDF_INTAKE_CONFIG: FormConfig = {
+  formType: "I-485",
+  label: "Test I-485",
+  hostPath: PDF_INTAKE_HOST,
+  pages: [
+    {
+      slug: "/i-508-form-upload/I-485/evidence",
+      title: "I-508 waiver",
+      kind: "upload",
+      fields: [],
+    },
+    { slug: "/review", title: "Review your submission", kind: "review", fields: [] },
+  ],
+};
+
+/** The live behaviour: click 1 warns in-page, click 2 navigates. */
+function mountEmptyEvidencePage(): () => number {
+  goTo(`${PDF_INTAKE_BASE}/i-508-form-upload/I-485/evidence`);
+  document.body.innerHTML = `
+    <h1>I-508 waiver</h1>
+    <button data-testid="next-btn">Next</button>
+  `;
+  let clicks = 0;
+  document.querySelector("button")!.addEventListener("click", () => {
+    clicks += 1;
+    if (clicks === 1) {
+      document.body.insertAdjacentHTML(
+        "afterbegin",
+        "<div>It does not appear that you have uploaded any evidence</div>",
+      );
+      return;
+    }
+    goTo(`${PDF_INTAKE_BASE}/review`);
+  });
+  return () => clicks;
+}
+
+describe("fillAll: an empty pdf-intake evidence page", () => {
+  it("clicks past the missing-evidence warning instead of stalling", async () => {
+    const clicks = mountEmptyEvidencePage();
+
+    await fillAll(PDF_INTAKE_CONFIG, {}, async () => 0);
+
+    expect(clicks(), "one click is not enough on an empty evidence page").toBe(2);
+    expect(window.location.pathname).toContain("/review");
+  }, 20000);
+
+  it("says in the log why it clicked again", async () => {
+    mountEmptyEvidencePage();
+    await fillAll(PDF_INTAKE_CONFIG, {}, async () => 0);
+    expect(debugLog.join("\n")).toMatch(/missing-evidence warning/i);
+  }, 20000);
+
+  it("never reports the empty page as an upload still processing", async () => {
+    // The old message told the caseworker myUSCIS was busy with a file that was
+    // never sent. Whatever happens on an empty page, it is not that.
+    mountEmptyEvidencePage();
+    await fillAll(PDF_INTAKE_CONFIG, {}, async () => 0);
+    expect(debugLog.join("\n")).not.toMatch(/still processing the upload/);
+  }, 20000);
+});
