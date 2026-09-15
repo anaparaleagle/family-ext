@@ -118,11 +118,68 @@ describe("doc-uploader: a row whose upload is still running", () => {
     expect(res.warnings).toEqual([]);
   });
 
-  it("says what the page was showing when a batch never lands", async () => {
+  it("sends the files one at a time when the dropzone refuses them together", async () => {
+    // The I-485 police-and-court-records page, 2026-09-15: five PDFs dropped at
+    // once, the page stayed empty, and re-dropping the same five changed nothing.
+    // Every page that ever accepted more than one file also accepted images.
+    mountWithRows([]);
+    const input = document.getElementById("desktop-drop") as HTMLInputElement;
+    const sizes: number[] = [];
+    input.addEventListener("change", () => {
+      const n = input.files?.length ?? 0;
+      sizes.push(n);
+      if (n !== 1) return;
+      const row = document.createElement("div");
+      row.className = "uploaded-file";
+      row.innerHTML = `<span>${input.files![0].name}</span><button class="act">Remove</button>`;
+      document.body.appendChild(row);
+    });
+
+    const res = await attachFiles(
+      [pdf("arrest_record.pdf"), pdf("police_report.pdf"), pdf("final_court_order.pdf")],
+      600,
+    );
+
+    expect(res.attached, "every file should still get up, just singly").toBe(3);
+    expect(res.warnings).toEqual([]);
+    expect(sizes.slice(-3), "the fallback sends one file per drop").toEqual([1, 1, 1]);
+  }, 30000);
+
+  it("does not read its OWN log panel as myUSCIS acknowledging the upload", async () => {
+    // The panel is appended to document.body and prints every filename it
+    // downloads, so a plain body.innerText check passed the instant the upload was
+    // attempted — while the panel was open. That is how a page that took nothing
+    // reported "5 attached" on one run and 0 on the next.
+    mountWithRows([]);
+    const panel = document.createElement("div");
+    panel.id = "mk-family-debug-panel";
+    panel.textContent = "doc-flow: downloading final_court_order.pdf…";
+    document.body.appendChild(panel);
+
+    const res = await attachFiles([pdf("final_court_order.pdf")], 600);
+
+    expect(res.attached, "our own log made an untouched page look accepted").toBe(0);
+  });
+
+  it("repeats myUSCIS's own upload error instead of guessing", async () => {
+    // Seen live 2026-09-15: the page took the first file, then answered the rest
+    // with "Error attempting to upload file(s). Please try again later." No amount
+    // of re-dropping fixes a server saying no, so the log must say so.
+    mountWithRows([]);
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      '<div role="alert">Error attempting to upload file(s). Please try again later.</div>',
+    );
+    const res = await attachFiles([pdf("final_court_order.pdf")], 600);
+    expect(res.attached).toBe(0);
+    expect(res.warnings[0]).toMatch(/Error attempting to upload file\(s\)/);
+  });
+
+  it("says what the page was showing when a lone file never lands", async () => {
     mountWithRows([]);
     const res = await attachFiles([pdf("final_court_order.pdf")], 600);
     expect(res.attached).toBe(0);
-    expect(res.warnings[0]).toMatch(/after 2 attempts/);
+    expect(res.warnings[0]).toMatch(/did not acknowledge "final_court_order.pdf"/);
     expect(res.warnings[0]).toMatch(/0 file row\(s\)/);
   });
 
