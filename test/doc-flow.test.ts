@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { fillUploadPage, fillUploadPageAll, descriptorsForPath, descriptorsForPage } from "../src/runner/doc-flow";
+import {
+  fillUploadPage,
+  fillUploadPageAll,
+  descriptorsForPath,
+  descriptorsForPage,
+  splitByAccept,
+} from "../src/runner/doc-flow";
 import type { UploadPageDescriptor } from "../src/runner/payload";
 
 const CTX = {
@@ -245,6 +251,26 @@ describe("doc-flow: generated_form (I-130A) resolution", () => {
       type: "DOWNLOAD_FILE",
       url: "http://localhost:8001/media/i130a_v2.pdf",
     });
+  });
+
+  it("names a live record whose FILE is gone, not a form that was never generated", async () => {
+    // The I-485's G-28 on 2026-09-15: the listing had the row, its file_url
+    // answered 404. "Generate it" is the wrong remedy for that.
+    installProxy({
+      apiResponder: () =>
+        apiOk([
+          { id: "g1", form_type: "G-28-BEN", version: 1, file_url: "https://x/media/g28.pdf" },
+        ]),
+      downloadResponder: () => ({ success: false, error: "HTTP 404" }),
+    });
+    const descriptor: UploadPageDescriptor = {
+      page_path: "/form-g28",
+      kind: "generated_form",
+      form_type: "G-28-BEN",
+    };
+    const res = await fillUploadPage(descriptor, CTX);
+    expect(res.attached).toBe(0);
+    expect(res.warnings[0]).toMatch(/lists a generated G-28-BEN .* missing \(404\)/);
   });
 
   it("warns (no attach) when no generated form of that type is on file", async () => {
@@ -644,6 +670,170 @@ describe("doc-flow: a document larger than USCIS accepts", () => {
     );
     expect(res.attached).toBe(1);
   });
+});
+
+// ── A slot that will not take this file type ────────────────────────────────
+//
+// Live I-131 run, 2026-09-15: /photo-id/I-131/evidence accepts image/jpeg and
+// image/png ONLY. Two PDFs were handed to it. The run logged "2 attached",
+// reported FAILURES: none — and the page showed "Missing Evidence" with nothing
+// on it. A dropzone DISCARDS a wrong-typed file in silence, so the filing read
+// as complete here and was empty at USCIS. That is the shape of bug this guard
+// exists to make impossible.
+
+/** A dropzone that only takes what its `accept` allows — like the real one. */
+function mountTypedDropzone(accept: string): void {
+  document.body.innerHTML =
+    `<div class="dropzone"><input type="file" id="desktop-drop" accept="${accept}" /></div>`;
+  const input = document.getElementById("desktop-drop") as HTMLInputElement;
+  const allowed = accept.split(",").map((a) => a.trim().toLowerCase());
+  input.addEventListener("change", () => {
+    for (const file of Array.from(input.files ?? [])) {
+      const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
+      const ok = allowed.includes((file.type || "").toLowerCase()) || allowed.includes(ext);
+      if (!ok) continue; // silently discarded, exactly as myUSCIS does
+      const row = document.createElement("div");
+      row.className = "uploaded-file";
+      row.innerHTML = `<span>${file.name}</span><button>Remove</button>`;
+      document.querySelector(".dropzone")!.appendChild(row);
+    }
+  });
+}
+
+describe("doc-flow: splitByAccept", () => {
+  const file = (name: string, type: string) => new File(["x"], name, { type });
+
+  it("takes everything when the slot declares no accept list", () => {
+    const files = [file("a.pdf", "application/pdf")];
+    expect(splitByAccept(files, "").accepted).toEqual(files);
+    expect(splitByAccept(files, null).accepted).toEqual(files);
+  });
+
+  it("matches by MIME type", () => {
+    const { accepted, refused } = splitByAccept(
+      [file("photo.jpg", "image/jpeg"), file("scan.pdf", "application/pdf")],
+      "image/jpeg,.jpeg,.png,.jpg",
+    );
+    expect(accepted.map((f) => f.name)).toEqual(["photo.jpg"]);
+    expect(refused.map((f) => f.name)).toEqual(["scan.pdf"]);
+  });
+
+  it("matches by EXTENSION too — these lists mix both", () => {
+    // A file the proxy handed us with no MIME still has a name.
+    const { accepted } = splitByAccept([file("photo.png", "")], "image/jpeg,.jpeg,.png,.jpg");
+    expect(accepted.map((f) => f.name)).toEqual(["photo.png"]);
+  });
+
+  it("honours a type/* wildcard", () => {
+    const { accepted, refused } = splitByAccept(
+      [file("photo.heic", "image/heic"), file("scan.pdf", "application/pdf")],
+      "image/*",
+    );
+    expect(accepted.map((f) => f.name)).toEqual(["photo.heic"]);
+    expect(refused.map((f) => f.name)).toEqual(["scan.pdf"]);
+  });
+
+  it("ignores the ORDER of the list — it is a set, not a string", () => {
+    // The I-131's photo slot lists .png before .jpg; the I-485's does the
+    // opposite. Comparing these as strings would call them different.
+    const files = [file("photo.jpg", "image/jpeg")];
+    expect(splitByAccept(files, "image/jpeg,.jpeg,.png,.jpg").accepted).toHaveLength(1);
+    expect(splitByAccept(files, "image/jpeg,.jpeg,.jpg,.png").accepted).toHaveLength(1);
+  });
+});
+
+describe("doc-flow: a document the slot will not accept", () => {
+  function pdfForAPhotoSlot(): void {
+    installProxy({
+      apiResponder: () =>
+        apiOk([
+          {
+            id: "d1",
+            doc_type: "passport",
+            file_url: "http://localhost:8001/media/passport.pdf",
+            filename: "passport.pdf",
+          },
+        ]),
+      downloadResponder: () => ({
+        success: true,
+        dataBase64: btoa("pdf bytes"),
+        contentType: "application/pdf",
+      }),
+    });
+  }
+
+  it("does not hand a PDF to a jpeg/png-only slot", async () => {
+    mountTypedDropzone("image/jpeg,.jpeg,.png,.jpg");
+    pdfForAPhotoSlot();
+    const res = await fillUploadPage(
+      { page_path: "/photo-id/I-131/evidence", kind: "document", doc_type: "passport" },
+      CTX,
+    );
+    expect(res.attached).toBe(0);
+    expect(document.querySelectorAll(".uploaded-file").length).toBe(0);
+  }, 30000);
+
+  it("NEVER reports it as attached — the whole point", async () => {
+    // The live run said "2 attached" for files the page had thrown away.
+    mountTypedDropzone("image/jpeg,.jpeg,.png,.jpg");
+    pdfForAPhotoSlot();
+    const res = await fillUploadPage(
+      { page_path: "/photo-id/I-131/evidence", kind: "document", doc_type: "passport" },
+      CTX,
+    );
+    expect(res.attached).toBe(0);
+    expect(res.warnings.length).toBeGreaterThan(0);
+  }, 30000);
+
+  it("names the file, its type, and what the slot allows", async () => {
+    mountTypedDropzone("image/jpeg,.jpeg,.png,.jpg");
+    pdfForAPhotoSlot();
+    const res = await fillUploadPage(
+      { page_path: "/photo-id/I-131/evidence", kind: "document", doc_type: "passport" },
+      CTX,
+    );
+    const warning = res.warnings.join(" ");
+    expect(warning).toContain("passport.pdf");
+    expect(warning).toContain("application/pdf");
+    expect(warning).toContain("image/jpeg");
+    // And NOT "no document on file" — the document exists, the slot refuses it.
+    expect(warning).not.toMatch(/upload it in ParaLeagle first/i);
+  }, 30000);
+
+  it("still attaches the files the slot DOES take, and reports only the rest", async () => {
+    mountTypedDropzone("image/jpeg,.jpeg,.png,.jpg");
+    installProxy({
+      apiResponder: () =>
+        apiOk([
+          {
+            id: "d1",
+            doc_type: "passport",
+            file_url: "http://localhost:8001/media/passport.pdf",
+            filename: "passport.pdf",
+          },
+          {
+            id: "d2",
+            doc_type: "photos",
+            file_url: "http://localhost:8001/media/photo.jpg",
+            filename: "photo.jpg",
+          },
+        ]),
+      downloadResponder: (url: string) => ({
+        success: true,
+        dataBase64: btoa("bytes"),
+        contentType: url.endsWith(".jpg") ? "image/jpeg" : "application/pdf",
+      }),
+    });
+    const res = await fillUploadPageAll(
+      [
+        { page_path: "/photo-id/I-131/evidence", kind: "document", doc_type: "passport" },
+        { page_path: "/photo-id/I-131/evidence", kind: "document", doc_type: "photos" },
+      ],
+      CTX,
+    );
+    expect(res.attached).toBe(1);
+    expect(res.warnings.join(" ")).toContain("passport.pdf");
+  }, 30000);
 });
 
 describe("doc-flow: two documents of the same type with no filename", () => {

@@ -84,6 +84,16 @@ export interface FieldSpec {
   optionValue?: string;
   /** Present only when the input cannot be found by `name`. */
   locate?: LocateSpec;
+  /**
+   * The value the underlying input COMMITS when the widget accepts `value`,
+   * when the two differ. Set by planPageFill whenever a descriptor valueMap
+   * translated the payload value: the pdf-intake I-765 eligibility control is
+   * driven by its option LABEL but its hidden native input commits the category
+   * CODE ("C9"). For a select-style widget that code is the only ground truth
+   * of commitment — the display text re-renders asynchronously, so reading it
+   * back races React.
+   */
+  commitValue?: string;
 }
 
 export interface SetResult {

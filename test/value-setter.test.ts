@@ -1,7 +1,23 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { setValue, findByName, labelKey } from "../src/engine/value-setter";
 import { debugLog, resetDebugLog } from "../src/engine/logger";
-import { setBody, textInput, radioGroup, checkbox, select } from "./fixtures/dom";
+import { setBody, textInput, radioGroup, checkbox, select, mountMuiSelect } from "./fixtures/dom";
+
+/**
+ * The I-485's A-number box: a mask that reformats on every input event and drops
+ * anything not starting with its own "A-" prefix — so a value written in one go,
+ * or typed after the prefix was deleted, lands as nothing.
+ */
+function mountMaskedANumber(): HTMLInputElement {
+  setBody(textInput("aNumber"));
+  const el = findByName("aNumber") as HTMLInputElement;
+  el.value = "A-";
+  el.addEventListener("input", () => {
+    const digits = el.value.startsWith("A-") ? el.value.slice(2).replace(/\D/g, "") : "";
+    el.value = `A-${digits.slice(0, 9)}`;
+  });
+  return el;
+}
 
 describe("value-setter: text", () => {
   beforeEach(() => setBody(""));
@@ -22,6 +38,29 @@ describe("value-setter: text", () => {
     const res = await setValue({ name: "applicant.nope", kind: "text" }, "x");
     expect(res.success).toBe(false);
     expect(res.message).toMatch(/not on page/);
+  });
+
+  it("fills a masked box that keeps its own prefix (the I-485 A-number)", async () => {
+    const el = mountMaskedANumber();
+    const res = await setValue({ name: "aNumber", kind: "text" }, "123456789");
+    expect(res.success).toBe(true);
+    expect(el.value).toBe("A-123456789");
+  });
+
+  it("fills a short A-number without the mask padding it", async () => {
+    const el = mountMaskedANumber();
+    const res = await setValue({ name: "aNumber", kind: "text" }, "1234567");
+    expect(res.success).toBe(true);
+    expect(el.value).toBe("A-1234567");
+  });
+
+  it("still OVERWRITES a box holding a real value, rather than typing after it", async () => {
+    setBody(textInput("firstName"));
+    const el = findByName("firstName") as HTMLInputElement;
+    el.value = "Daniel";
+    const res = await setValue({ name: "firstName", kind: "text" }, "Maya");
+    expect(res.success).toBe(true);
+    expect(el.value).toBe("Maya");
   });
 
   it("handles dotted names with numeric repeater indices", async () => {
@@ -525,6 +564,161 @@ describe("value-setter: search clears before it queries", () => {
     expect(seen.length, "no input event reached the widget at all").toBeGreaterThan(0);
     expect(seen[0], "the query was written over the old value instead of replacing it").toBe("");
     expect(seen[seen.length - 1]).toBe("5");
+  }, 20000);
+});
+
+// ===========================================================================
+// MUI SELECT — the pdf-intake I-765 eligibility control (LIVE FAILURE,
+// 2026-09-12). The control is NOT an autocomplete: the named input is MUI
+// Select's hidden native input (class MuiSelect-nativeInput) and the visible
+// element is a sibling div[role="combobox"]. Typing into the hidden input does
+// nothing — the popup only opens on MOUSEDOWN, never filters, and portals its
+// [role="option"] items to document.body. The type-to-filter path therefore
+// rendered "options: 0" and even the diagnostic's re-type recovered nothing.
+//
+// The engine must detect this STRUCTURE (the descriptor stays kind:"search" —
+// pdf-intake presented the same name as an autocomplete-looking input in the
+// capture, so the widget flavor is the DOM's to declare, not the descriptor's)
+// and drive it select-style: open by mousedown, click the option by label,
+// then verify the HIDDEN INPUT committed the payload code — the display text
+// re-renders asynchronously, so the input value is the only ground truth.
+// ===========================================================================
+
+describe("value-setter: MUI Select (hidden native input + combobox display)", () => {
+  beforeEach(() => {
+    setBody("");
+    resetDebugLog();
+  });
+
+  const C9_LABEL =
+    "(c)(9) Certain Family and Employment Based Adjustment Applicant Under Section 245";
+  const ELIGIBILITY_OPTIONS = [
+    { value: "", label: "Select one" },
+    { value: "A12", label: "(a)(12) Temporary Protected Status Granted" },
+    { value: "C9", label: C9_LABEL },
+    { value: "C11", label: "(c)(11) Parole" },
+  ];
+
+  it("opens the popup by mousedown and clicks the option matching the label", async () => {
+    const h = mountMuiSelect({ name: "eligibility-choice", options: ELIGIBILITY_OPTIONS });
+    // The popup is NOT mounted until the combobox is opened — nothing to read yet.
+    expect(document.querySelector('[role="option"]')).toBeNull();
+
+    const res = await setValue(
+      { name: "eligibility-choice", kind: "search", commitValue: "C9" },
+      C9_LABEL,
+    );
+
+    expect(res.success, "did not drive the select").toBe(true);
+    expect(h.opens, "never opened the popup (mousedown never reached the combobox)").toBeGreaterThan(0);
+    expect(h.input.value, "hidden input did not commit the code").toBe("C9");
+  }, 20000);
+
+  it("waits for a slow React commit instead of reading the input too early", async () => {
+    const h = mountMuiSelect({
+      name: "eligibility-choice",
+      options: ELIGIBILITY_OPTIONS,
+      commitDelayMs: 600,
+    });
+    const res = await setValue(
+      { name: "eligibility-choice", kind: "search", commitValue: "C9" },
+      C9_LABEL,
+    );
+    expect(res.success).toBe(true);
+    expect(h.input.value).toBe("C9");
+  }, 20000);
+
+  it("picks again when the first click did not reach the hidden input", async () => {
+    // The I-485's Family-based category, one live run in six: the option was
+    // clicked, the popup closed, and the hidden input stayed empty.
+    const h = mountMuiSelect({
+      name: "eligibility-category-choice",
+      options: ELIGIBILITY_OPTIONS,
+      swallowClicks: 1,
+    });
+    const res = await setValue(
+      { name: "eligibility-category-choice", kind: "search", commitValue: "C9" },
+      C9_LABEL,
+    );
+    expect(res.success).toBe(true);
+    expect(h.input.value).toBe("C9");
+    expect(h.opens).toBe(2);
+  }, 30000);
+
+  it("fails loudly when the click never commits to the hidden input", async () => {
+    // The clicked label LOOKED right, but React swallowed the commit — the
+    // display text is not proof, so this must be a failure, not a silent pass.
+    mountMuiSelect({
+      name: "eligibility-choice",
+      options: ELIGIBILITY_OPTIONS,
+      commitOnClick: false,
+    });
+    const res = await setValue(
+      { name: "eligibility-choice", kind: "search", commitValue: "C9" },
+      C9_LABEL,
+    );
+    expect(res.success).toBe(false);
+    expect(debugLog.join("\n")).toMatch(/did NOT commit/i);
+  }, 20000);
+
+  it("still succeeds when the control ALREADY holds the wanted code", async () => {
+    // Re-running a fill over a draft the user already answered: clicking the
+    // same option may fire no change at all, but the input holding "C9" IS the
+    // wanted end state.
+    const h = mountMuiSelect({
+      name: "eligibility-choice",
+      options: ELIGIBILITY_OPTIONS,
+      committed: { value: "C9", label: C9_LABEL },
+    });
+    const res = await setValue(
+      { name: "eligibility-choice", kind: "search", commitValue: "C9" },
+      C9_LABEL,
+    );
+    expect(res.success).toBe(true);
+    expect(h.input.value).toBe("C9");
+  }, 20000);
+
+  it("diagnoses a miss by opening the popup and listing the labels it finds", async () => {
+    // The live diagnostic printed NOTHING because its "re-type 'c'" fallback
+    // assumed a filtering autocomplete. For a select the only way to read the
+    // labels is to OPEN the popup — so the diagnostic must do that and dump
+    // what it sees.
+    mountMuiSelect({ name: "eligibility-choice", options: ELIGIBILITY_OPTIONS });
+    const res = await setValue(
+      { name: "eligibility-choice", kind: "search", commitValue: "C26" },
+      "(c)(26) Spouse of H-1B — not offered by pdf-intake",
+    );
+    expect(res.success).toBe(false);
+    const log = debugLog.join("\n");
+    expect(log).toContain('DIAGNOSTIC for "eligibility-choice" (MUI Select)');
+    expect(log).toContain("(a)(12) Temporary Protected Status Granted");
+    expect(log).toContain(C9_LABEL);
+  }, 20000);
+
+  it("does NOT hijack a typeable MUI Autocomplete (its input IS the combobox)", async () => {
+    // Regression guard for the guided forms: an Autocomplete puts
+    // role="combobox" on the typeable input itself, and the type-to-filter path
+    // must keep driving it.
+    setBody(
+      `<div class="MuiFormControl-root"><div class="MuiInputBase-root">` +
+        `<input type="text" role="combobox" name="addr.country" id="addr.country" />` +
+        `</div></div>` +
+        `<ul role="listbox"><li role="option">United States</li></ul>`,
+    );
+    const el = document.querySelector<HTMLInputElement>('[name="addr.country"]')!;
+    const inputEvents: string[] = [];
+    el.addEventListener("input", () => inputEvents.push(el.value));
+    let clicked = "";
+    document.querySelectorAll('[role="option"]').forEach((o) =>
+      o.addEventListener("click", () => (clicked = o.textContent || "")),
+    );
+
+    const res = await setValue({ name: "addr.country", kind: "search" }, "United States");
+
+    expect(res.success).toBe(true);
+    expect(clicked).toBe("United States");
+    // The select path never types; the autocomplete path must have.
+    expect(inputEvents.length, "no typing reached the autocomplete input").toBeGreaterThan(0);
   }, 20000);
 });
 

@@ -6,7 +6,10 @@
 
 import { I129_PAGES } from "../i129/form-descriptor";
 import { I130_PAGES } from "../i130/form-descriptor";
+import { I131_PAGES } from "../i131/form-descriptor";
+import { I485_PAGES } from "../i485/form-descriptor";
 import { I539_PAGES } from "../i539/form-descriptor";
+import { I765_PAGES } from "../i765/form-descriptor";
 import { N400_PAGES } from "../n400/form-descriptor";
 import { FormConfig } from "./types";
 
@@ -59,11 +62,51 @@ export const I129_CONFIG: FormConfig = {
   ],
 };
 
+export const I765_CONFIG: FormConfig = {
+  formType: "I-765",
+  // USCIS "PDF Intake" (BETA) — a different host path SHAPE from the guided
+  // forms (/pdf-intake/<form>/<draftUuid>/<slug>, not /forms/<name>/…).
+  hostPath: "/pdf-intake/I-765/",
+  label: "ParaLeagle I-765",
+  pages: I765_PAGES,
+  // The SAME IR types as the I-130, on purpose: the C9 pending-I-485 EAD is
+  // filed for the beneficiary of the family petition. formTypeForCaseType reads
+  // the FIRST match, and the I-130 stays first — the petition remains what the
+  // picker auto-follows, and filling the I-765 stays a manual form choice.
+  // PDF Intake cannot serve the OPT (c)(3) or H-4 (c)(26) I-765 case types —
+  // its eligibility dropdown simply does not offer those categories.
+  caseTypes: ["IR-1", "IR-2", "IR-5"],
+};
+
+export const I485_CONFIG: FormConfig = {
+  formType: "I-485",
+  hostPath: "/pdf-intake/I-485/",
+  label: "ParaLeagle I-485",
+  pages: I485_PAGES,
+  // Same IR types as the I-130 and the I-765; the I-130 stays first so the
+  // picker keeps auto-following the petition.
+  caseTypes: ["IR-1", "IR-2", "IR-5"],
+};
+
+export const I131_CONFIG: FormConfig = {
+  formType: "I-131",
+  hostPath: "/pdf-intake/I-131/",
+  label: "ParaLeagle I-131",
+  pages: I131_PAGES,
+  // The advance-parole travel document filed alongside a pending I-485. Same IR
+  // types as the rest of the bundle; the I-130 stays first in the list so the
+  // picker keeps auto-following the petition.
+  caseTypes: ["IR-1", "IR-2", "IR-5"],
+};
+
 export const FORM_CONFIGS: FormConfig[] = [
   I130_CONFIG,
   I539_CONFIG,
   N400_CONFIG,
   I129_CONFIG,
+  I765_CONFIG,
+  I485_CONFIG,
+  I131_CONFIG,
 ];
 
 /**

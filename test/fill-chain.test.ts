@@ -5,6 +5,9 @@ import {
   fillPage,
   waitForPageReady,
   findSaveButton,
+  findRowCommitButton,
+  findConfirmationButton,
+  isForbiddenAdvanceControl,
 } from "../src/runner/fill-chain";
 import { I130_PAGES } from "../src/i130/form-descriptor";
 import { findByName } from "../src/engine/value-setter";
@@ -125,6 +128,31 @@ describe("findSaveButton (repeater commit)", () => {
   it("returns null when there is no save button", () => {
     setBody('<button data-testid="next-button">Next</button>');
     expect(findSaveButton()).toBeNull();
+  });
+});
+
+describe("findRowCommitButton (a page's own advance button)", () => {
+  beforeEach(() => setBody(""));
+
+  it('finds "Add Client" and does not read it as a submit/pay control', () => {
+    setBody('<button type="button">Add Client</button>');
+    const btn = findRowCommitButton("Add Client");
+    expect(btn?.textContent).toBe("Add Client");
+    expect(isForbiddenAdvanceControl(btn)).toBe(false);
+  });
+
+  it("returns null when the declared button is not on the page", () => {
+    setBody('<button data-testid="next-button" disabled>Next</button>');
+    expect(findRowCommitButton("Add Client")).toBeNull();
+  });
+
+  it('finds the "Okay" that dismisses a confirmation, and never a Continue', () => {
+    // Add Client answers with "Your client has been successfully added" + Okay
+    // rather than navigating; waiting for a page change there costs 20s.
+    setBody('<div role="alert">Your client has been successfully added</div><button>Okay</button>');
+    expect(findConfirmationButton()?.textContent).toBe("Okay");
+    setBody('<button>Continue</button>');
+    expect(findConfirmationButton()).toBeNull();
   });
 });
 

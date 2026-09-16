@@ -1,0 +1,678 @@
+{
+ "_note": "The eligibility control on /select-eligibility, captured live 2026-09-15 with the list open, plus the per-category subcategory lists. Unlike the I-485 (three cascading controls: who -> which track -> which relationship) the I-131 has TWO levels: one category Select, then a subcategory radio list for the 4 categories that have one. Codes are the `data-value` observed on the [role=option] elements for the top-level list, and the metadata API's subcategory `category` codes for the radio lists. The subcategory radio group is named '<eligibility-choice value>-subcategories', e.g. 'ADVANCE_PAROLE-subcategories'. ADVANCE_PAROLE's subcategory list was verified live against the DOM; the other three were read from GET /pdf-intake/api/intake/forms/I-131/metadata, which matched the DOM exactly everywhere both were seen.",
+ "eligibility-choice": {
+  "control": "MUI Select (role=combobox, [role=option] children), name=eligibility-choice",
+  "label": "I-131 eligibility selection (Required)",
+  "heading": "What is your eligibility category?",
+  "placeholder_row": "Select one (value '')",
+  "source": "live DOM",
+  "options": [
+   {
+    "value": "",
+    "label": "Select one"
+   },
+   {
+    "value": "REENTRY_PERMIT",
+    "label": "Reentry Permit"
+   },
+   {
+    "value": "REFUGEE_STATUS",
+    "label": "Refugee Travel Document"
+   },
+   {
+    "value": "TPS_BENEFICIARY",
+    "label": "Travel Authorization Document (for Temporary Protected Status (TPS) beneficiaries who are inside the United States)"
+   },
+   {
+    "value": "ADVANCE_PAROLE",
+    "label": "Advance Parole Document (for aliens who are inside the United States) and Advance Permission to Travel for Commonwealth of Northern Mariana Islands (CNMI) Long-Term Residents"
+   },
+   {
+    "value": "INITIAL_PAROLE",
+    "label": "Initial Parole Document (for aliens who are currently outside the United States)"
+   },
+   {
+    "value": "PAROLE_IN_PLACE",
+    "label": "Initial Request for Arrival/Departure Record for Parole In Place (for aliens who are inside the United States)"
+   },
+   {
+    "value": "REPAROLE_NEW_PERIOD_OF_PAROLE",
+    "label": "Arrival/Departure Records for Re-parole for Aliens Who Are Requesting a New Period of Parole (from inside the United States)"
+   }
+  ]
+ },
+ "subcategories_REENTRY_PERMIT": {
+  "_note": "No subcategories; choosing this category renders no radio list and enables next-btn immediately. Verified live.",
+  "subCategoryHeader": "I am a lawful permanent resident or conditional permanent resident of the United States, and I am applying for a reentry permit.",
+  "options": []
+ },
+ "subcategories_REFUGEE_STATUS": {
+  "_note": "Radio group name 'REFUGEE_STATUS-subcategories'. From metadata API, not observed live.",
+  "subCategoryHeader": null,
+  "options": [
+   {
+    "value": "REFUGEE_STATUS_HOLD",
+    "label": "I now hold refugee or asylee status in the United States, and I am applying for a Refugee Travel Document.",
+    "applicationReasonCode": null,
+    "benefitTypeCodeOverride": "21",
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": null
+   },
+   {
+    "value": "REFUGEE_STATUS_PERM_RESIDENT",
+    "label": "I am a lawful permanent resident as a direct result of refugee or asylee status, and I am applying for a Refugee Travel Document.",
+    "applicationReasonCode": null,
+    "benefitTypeCodeOverride": "22",
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": null
+   }
+  ]
+ },
+ "subcategories_TPS_BENEFICIARY": {
+  "_note": "No subcategories; choosing this category renders no radio list and enables next-btn immediately.",
+  "subCategoryHeader": "I am a TPS beneficiary in the United States, and I am applying for a TPS Travel Authorization Document under the Immigration and Nationality Act (INA) section 244(f)(3) to allow me to seek admission under TPS upon my return from abroad.",
+  "options": []
+ },
+ "subcategories_ADVANCE_PAROLE": {
+  "_note": "Radio group name 'ADVANCE_PAROLE-subcategories'. Verified live.",
+  "subCategoryHeader": "I am located inside the United States, and I am applying for an Advance Parole Document to allow me to seek parole into the United States under INA section 212(d)(5)(A) upon my return from abroad based on:",
+  "options": [
+   {
+    "value": "PENDING_485",
+    "label": "A pending Form I-485, Application to Register Permanent Residence or Adjust Status",
+    "applicationReasonCode": "197",
+    "benefitTypeCodeOverride": null,
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": null
+   },
+   {
+    "value": "PENDING_INITIAL_821",
+    "label": "A pending initial Form I-821, Application for Temporary Protected Status",
+    "applicationReasonCode": "199",
+    "benefitTypeCodeOverride": null,
+    "feeWaivable": true,
+    "evidenceCategoriesToExclude": null
+   },
+   {
+    "value": "DEFERRED_ENFORCED_DEPARTURE",
+    "label": "Deferred Enforced Departure",
+    "applicationReasonCode": "200",
+    "benefitTypeCodeOverride": null,
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": [
+     "form-i-797",
+     "form-i-797c"
+    ]
+   },
+   {
+    "value": "APPROVED_821D",
+    "label": "Approved Form I-821D, Consideration of Deferred Action for Childhood Arrivals",
+    "applicationReasonCode": "201",
+    "benefitTypeCodeOverride": null,
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": null
+   },
+   {
+    "value": "APPROVED_918",
+    "label": "An approved Form I-918, Petition for U Nonimmigrant Status, or Form I-918, Supplement A, Petition for Qualifying Family Member of U-1 Recipient",
+    "applicationReasonCode": "203",
+    "benefitTypeCodeOverride": null,
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": [
+     "form-i-797",
+     "form-i-797c"
+    ]
+   }
+  ]
+ },
+ "subcategories_INITIAL_PAROLE": {
+  "_note": "Radio group name 'INITIAL_PAROLE-subcategories'. From metadata API, not observed live.",
+  "subCategoryHeader": "I am applying for a parole document under INA section 212(d)(5)(A) on my own behalf and I am outside the United States, or I am applying on behalf of someone else who is outside the United States, for the first time (initial application) under one of the following specific parole programs or processes:",
+  "options": [
+   {
+    "value": "IMMVI_MEMBER",
+    "label": "Immigrant Military Members and Veterans Initiative (IMMVI). A current or former service member.",
+    "applicationReasonCode": "211",
+    "benefitTypeCodeOverride": null,
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": [
+     "parole-document"
+    ]
+   },
+   {
+    "value": "IMMVI_DEPENDENT",
+    "label": "Immigrant Military Members and Veterans Initiative (IMMVI). A current spouse, child, or unmarried son or daughter (or their child under 21 years of age) of a current or former service member.",
+    "applicationReasonCode": "211",
+    "benefitTypeCodeOverride": null,
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": [
+     "parole-document"
+    ]
+   },
+   {
+    "value": "IMMVI_GUARDIAN",
+    "label": "Immigrant Military Members and Veterans Initiative (IMMVI). Current legal guardian or surrogate of a current or former service member.",
+    "applicationReasonCode": "211",
+    "benefitTypeCodeOverride": null,
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": [
+     "parole-document"
+    ]
+   },
+   {
+    "value": "FRTF",
+    "label": "Family Reunification Task Force (FRTF) Process",
+    "applicationReasonCode": "213",
+    "benefitTypeCodeOverride": null,
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": [
+     "parole-document"
+    ]
+   },
+   {
+    "value": "NON_SPECIFIC",
+    "label": "I am applying for a parole document under INA section 212(d)(5)(A) for myself and I am outside the United States, or I am applying for a parole document under INA section 212(d)(5)(A) on behalf of someone else who is outside the United States for the first time (initial application), but not under a specific parole program or process.",
+    "applicationReasonCode": null,
+    "benefitTypeCodeOverride": "153",
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": [
+     "form-i-94"
+    ]
+   }
+  ]
+ },
+ "subcategories_PAROLE_IN_PLACE": {
+  "_note": "Radio group name 'PAROLE_IN_PLACE-subcategories'. From metadata API, not observed live.",
+  "subCategoryHeader": "I am applying for an initial period of parole in place under INA section 212(d)(5)(A) and I am inside the United States, or I am applying for an initial period of parole in place under INA section 212(d)(5)(A) on behalf of someone else who is inside the United States, under:",
+  "options": [
+   {
+    "value": "FRTF",
+    "label": "Family Reunification Task Force (FRTF) Process",
+    "applicationReasonCode": "213",
+    "benefitTypeCodeOverride": null,
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": null
+   }
+  ]
+ },
+ "subcategories_REPAROLE_NEW_PERIOD_OF_PAROLE": {
+  "_note": "Radio group name 'REPAROLE_NEW_PERIOD_OF_PAROLE-subcategories'. From metadata API, not observed live.",
+  "subCategoryHeader": "I was initially paroled into the United States or granted parole in place under INA section 212(d)(5)(A) under one of the following programs or processes and I am requesting a new period of parole, or I am applying for a new period of parole on behalf of someone else who was initially paroled into the United States under one of the following programs or processes:",
+  "options": [
+   {
+    "value": "FAMILY_REUNIFICATION",
+    "label": "Family Reunification Parole Process",
+    "applicationReasonCode": "218",
+    "benefitTypeCodeOverride": null,
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": [
+     "military-service"
+    ]
+   },
+   {
+    "value": "CERTAIN_AFGHANS",
+    "label": "Certain Afghans Paroled Into the United States After July 31, 2021 (See form Instructions)",
+    "applicationReasonCode": "219",
+    "benefitTypeCodeOverride": null,
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": [
+     "military-service"
+    ]
+   },
+   {
+    "value": "UKRANIAN",
+    "label": "Re-parole Process for certain Ukrainian Citizens and Their Immediate Family Members Paroled Into the United States on or After February 11, 2022 (See form Instructions)",
+    "applicationReasonCode": "263",
+    "benefitTypeCodeOverride": null,
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": [
+     "military-service"
+    ]
+   },
+   {
+    "value": "FWVP",
+    "label": "Filipino World War II Veterans Parole (FWVP) Program",
+    "applicationReasonCode": "221",
+    "benefitTypeCodeOverride": null,
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": null
+   },
+   {
+    "value": "IMMVI_MEMBER",
+    "label": "Immigrant Military Members and Veterans Initiative (IMMVI). A current or former service member.",
+    "applicationReasonCode": "211",
+    "benefitTypeCodeOverride": null,
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": null
+   },
+   {
+    "value": "IMMVI_DEPENDENT",
+    "label": "Immigrant Military Members and Veterans Initiative (IMMVI). A current spouse, child, or unmarried son or daughter (or their child under 21 years of age) of a current or former service member.",
+    "applicationReasonCode": "211",
+    "benefitTypeCodeOverride": null,
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": null
+   },
+   {
+    "value": "IMMVI_GUARDIAN",
+    "label": "Immigrant Military Members and Veterans Initiative (IMMVI). Current legal guardian or surrogate of a current or former service member.",
+    "applicationReasonCode": "211",
+    "benefitTypeCodeOverride": null,
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": null
+   },
+   {
+    "value": "CAM",
+    "label": "Central American Minors (CAM) Program",
+    "applicationReasonCode": "223",
+    "benefitTypeCodeOverride": null,
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": [
+     "military-service"
+    ]
+   },
+   {
+    "value": "FRTF",
+    "label": "Family Reunification Task Force (FRTF) Process",
+    "applicationReasonCode": "213",
+    "benefitTypeCodeOverride": null,
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": [
+     "military-service"
+    ]
+   },
+   {
+    "value": "OTHER",
+    "label": "Other Program or Process",
+    "applicationReasonCode": "214",
+    "benefitTypeCodeOverride": null,
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": [
+     "military-service"
+    ]
+   },
+   {
+    "value": "NON_SPECIFIC",
+    "label": "I was initially paroled into the United States or granted parole in place under INA section 212(d)(5)(A) and I am requesting a new period of parole, but not under a specific program or process, or I am requesting a new period of parole on behalf of someone else who was initially paroled into the United States or granted parole in place, but not under a specific program or process.",
+    "applicationReasonCode": null,
+    "benefitTypeCodeOverride": "156",
+    "feeWaivable": false,
+    "evidenceCategoriesToExclude": [
+     "military-service"
+    ]
+   }
+  ]
+ },
+ "evidence_groups_by_category": {
+  "REENTRY_PERMIT": [
+   {
+    "id": "applicant-photo",
+    "name": "2\" x 2\" Photo of you",
+    "slug": "/applicant-photo/I-131/evidence",
+    "allowMediaTypes": [
+     "image/jpeg",
+     "image/jpg",
+     "image/png"
+    ],
+    "maxNumberOfFiles": 1
+   },
+   {
+    "id": "photo-id",
+    "name": "Photo Identity Document",
+    "slug": "/photo-id/I-131/evidence",
+    "allowMediaTypes": [
+     "image/jpeg",
+     "image/jpg",
+     "image/png"
+    ],
+    "maxNumberOfFiles": 1
+   },
+   {
+    "id": "additional-evidence",
+    "name": "Additional Evidence",
+    "slug": "/additional-evidence/I-131/evidence",
+    "allowMediaTypes": [
+     "application/pdf",
+     "image/jpeg",
+     "image/jpg",
+     "image/png",
+     "image/tiff"
+    ],
+    "maxNumberOfFiles": 200
+   }
+  ],
+  "REFUGEE_STATUS": [
+   {
+    "id": "applicant-photo",
+    "name": "2\" x 2\" Photo of you",
+    "slug": "/applicant-photo/I-131/evidence",
+    "allowMediaTypes": [
+     "image/jpeg",
+     "image/jpg",
+     "image/png"
+    ],
+    "maxNumberOfFiles": 1
+   },
+   {
+    "id": "photo-id",
+    "name": "Photo Identity Document",
+    "slug": "/photo-id/I-131/evidence",
+    "allowMediaTypes": [
+     "image/jpeg",
+     "image/jpg",
+     "image/png"
+    ],
+    "maxNumberOfFiles": 1
+   },
+   {
+    "id": "additional-evidence",
+    "name": "Additional Evidence",
+    "slug": "/additional-evidence/I-131/evidence",
+    "allowMediaTypes": [
+     "application/pdf",
+     "image/jpeg",
+     "image/jpg",
+     "image/png",
+     "image/tiff"
+    ],
+    "maxNumberOfFiles": 200
+   }
+  ],
+  "TPS_BENEFICIARY": [
+   {
+    "id": "applicant-photo",
+    "name": "2\" x 2\" Photo of you",
+    "slug": "/applicant-photo/I-131/evidence",
+    "allowMediaTypes": [
+     "image/jpeg",
+     "image/jpg",
+     "image/png"
+    ],
+    "maxNumberOfFiles": 1
+   },
+   {
+    "id": "photo-id",
+    "name": "Photo Identity Document",
+    "slug": "/photo-id/I-131/evidence",
+    "allowMediaTypes": [
+     "image/jpeg",
+     "image/jpg",
+     "image/png"
+    ],
+    "maxNumberOfFiles": 1
+   },
+   {
+    "id": "travel-authorization-i-797",
+    "name": "Travel Authorization I-797",
+    "slug": "/travel-authorization-i-797/I-131/evidence",
+    "allowMediaTypes": [
+     "application/pdf",
+     "image/jpeg",
+     "image/jpg",
+     "image/png",
+     "image/tif",
+     "image/tiff"
+    ],
+    "maxNumberOfFiles": 5
+   },
+   {
+    "id": "form-i-797c",
+    "name": "I-797C Notice of Action",
+    "slug": "/form-i-797c/I-131/evidence",
+    "allowMediaTypes": [
+     "application/pdf",
+     "image/jpeg",
+     "image/jpg",
+     "image/tiff"
+    ],
+    "maxNumberOfFiles": 200
+   },
+   {
+    "id": "additional-evidence",
+    "name": "Additional Evidence",
+    "slug": "/additional-evidence/I-131/evidence",
+    "allowMediaTypes": [
+     "application/pdf",
+     "image/jpeg",
+     "image/jpg",
+     "image/png",
+     "image/tiff"
+    ],
+    "maxNumberOfFiles": 200
+   }
+  ],
+  "ADVANCE_PAROLE": [
+   {
+    "id": "applicant-photo",
+    "name": "2\" x 2\" Photo of you",
+    "slug": "/applicant-photo/I-131/evidence",
+    "allowMediaTypes": [
+     "image/jpeg",
+     "image/jpg",
+     "image/png"
+    ],
+    "maxNumberOfFiles": 1
+   },
+   {
+    "id": "photo-id",
+    "name": "Photo Identity Document",
+    "slug": "/photo-id/I-131/evidence",
+    "allowMediaTypes": [
+     "image/jpeg",
+     "image/jpg",
+     "image/png"
+    ],
+    "maxNumberOfFiles": 1
+   },
+   {
+    "id": "form-i-797",
+    "name": "I-797 Notice of Action",
+    "slug": "/form-i-797/I-131/evidence",
+    "allowMediaTypes": [
+     "application/pdf",
+     "image/jpeg",
+     "image/jpg",
+     "image/tiff"
+    ],
+    "maxNumberOfFiles": 200
+   },
+   {
+    "id": "form-i-797c",
+    "name": "I-797C Notice of Action",
+    "slug": "/form-i-797c/I-131/evidence",
+    "allowMediaTypes": [
+     "application/pdf",
+     "image/jpeg",
+     "image/jpg",
+     "image/tiff"
+    ],
+    "maxNumberOfFiles": 200
+   },
+   {
+    "id": "additional-evidence",
+    "name": "Additional Evidence",
+    "slug": "/additional-evidence/I-131/evidence",
+    "allowMediaTypes": [
+     "application/pdf",
+     "image/jpeg",
+     "image/jpg",
+     "image/png",
+     "image/tiff"
+    ],
+    "maxNumberOfFiles": 200
+   }
+  ],
+  "INITIAL_PAROLE": [
+   {
+    "id": "applicant-photo",
+    "name": "2\" x 2\" Photo of you",
+    "slug": "/applicant-photo/I-131/evidence",
+    "allowMediaTypes": [
+     "image/jpeg",
+     "image/jpg",
+     "image/png"
+    ],
+    "maxNumberOfFiles": 1
+   },
+   {
+    "id": "photo-id",
+    "name": "Photo Identity Document",
+    "slug": "/photo-id/I-131/evidence",
+    "allowMediaTypes": [
+     "image/jpeg",
+     "image/jpg",
+     "image/png"
+    ],
+    "maxNumberOfFiles": 1
+   },
+   {
+    "id": "form-i-94",
+    "name": "Form I-94",
+    "slug": "/form-i-94/I-131/evidence",
+    "allowMediaTypes": [
+     "application/pdf",
+     "image/jpeg",
+     "image/jpg",
+     "image/tif",
+     "image/tiff"
+    ],
+    "maxNumberOfFiles": 5
+   },
+   {
+    "id": "parole-document",
+    "name": "Parole Document",
+    "slug": "/parole-document/I-131/evidence",
+    "allowMediaTypes": [
+     "image/jpeg",
+     "image/jpg",
+     "image/png"
+    ],
+    "maxNumberOfFiles": 5
+   },
+   {
+    "id": "additional-evidence",
+    "name": "Additional Evidence",
+    "slug": "/additional-evidence/I-131/evidence",
+    "allowMediaTypes": [
+     "application/pdf",
+     "image/jpeg",
+     "image/jpg",
+     "image/png",
+     "image/tiff"
+    ],
+    "maxNumberOfFiles": 200
+   }
+  ],
+  "PAROLE_IN_PLACE": [
+   {
+    "id": "applicant-photo",
+    "name": "2\" x 2\" Photo of you",
+    "slug": "/applicant-photo/I-131/evidence",
+    "allowMediaTypes": [
+     "image/jpeg",
+     "image/jpg",
+     "image/png"
+    ],
+    "maxNumberOfFiles": 1
+   },
+   {
+    "id": "photo-id",
+    "name": "Photo Identity Document",
+    "slug": "/photo-id/I-131/evidence",
+    "allowMediaTypes": [
+     "image/jpeg",
+     "image/jpg",
+     "image/png"
+    ],
+    "maxNumberOfFiles": 1
+   },
+   {
+    "id": "record-for-parole-in-place",
+    "name": "Arrival/Departure Record for Parole in Place",
+    "slug": "/record-for-parole-in-place/I-131/evidence",
+    "allowMediaTypes": [
+     "image/jpeg",
+     "image/jpg",
+     "image/png"
+    ],
+    "maxNumberOfFiles": 1
+   },
+   {
+    "id": "additional-evidence",
+    "name": "Additional Evidence",
+    "slug": "/additional-evidence/I-131/evidence",
+    "allowMediaTypes": [
+     "application/pdf",
+     "image/jpeg",
+     "image/jpg",
+     "image/png",
+     "image/tiff"
+    ],
+    "maxNumberOfFiles": 200
+   }
+  ],
+  "REPAROLE_NEW_PERIOD_OF_PAROLE": [
+   {
+    "id": "applicant-photo",
+    "name": "2\" x 2\" Photo of you",
+    "slug": "/applicant-photo/I-131/evidence",
+    "allowMediaTypes": [
+     "image/jpeg",
+     "image/jpg",
+     "image/png"
+    ],
+    "maxNumberOfFiles": 1
+   },
+   {
+    "id": "photo-id",
+    "name": "Photo Identity Document",
+    "slug": "/photo-id/I-131/evidence",
+    "allowMediaTypes": [
+     "image/jpeg",
+     "image/jpg",
+     "image/png"
+    ],
+    "maxNumberOfFiles": 1
+   },
+   {
+    "id": "form-i-94",
+    "name": "Form I-94",
+    "slug": "/form-i-94/I-131/evidence",
+    "allowMediaTypes": [
+     "application/pdf",
+     "image/jpeg",
+     "image/jpg",
+     "image/tiff"
+    ],
+    "maxNumberOfFiles": 200
+   },
+   {
+    "id": "military-service",
+    "name": "Military Service",
+    "slug": "/military-service/I-131/evidence",
+    "allowMediaTypes": [
+     "image/jpeg",
+     "image/jpg",
+     "image/png",
+     "image/tif",
+     "image/tiff"
+    ],
+    "maxNumberOfFiles": 5
+   },
+   {
+    "id": "additional-evidence",
+    "name": "Additional Evidence",
+    "slug": "/additional-evidence/I-131/evidence",
+    "allowMediaTypes": [
+     "application/pdf",
+     "image/jpeg",
+     "image/jpg",
+     "image/png",
+     "image/tiff"
+    ],
+    "maxNumberOfFiles": 200
+   }
+  ]
+ },
+ "_evidence_note": "THE EVIDENCE SLOT LIST VARIES BY CATEGORY - the I-485's fixed 14-slot list does not carry over. Verified live for two categories: ADVANCE_PAROLE renders 5 slots and REENTRY_PERMIT renders 3, and both matched this metadata exactly. Every category carries applicant-photo, photo-id and additional-evidence; the middle slots are what change. Subcategories can further REMOVE slots via evidenceCategoriesToExclude (e.g. ADVANCE_PAROLE + DEFERRED_ENFORCED_DEPARTURE drops form-i-797 and form-i-797c) - not verified live."
+}

@@ -67,6 +67,18 @@ export interface DescriptorField {
    * and the element is found structurally (or by label) instead.
    */
   locate?: LocateSpec;
+  /**
+   * Backend payload value -> the text the widget actually needs typed/clicked.
+   *
+   * Exists for the pdf-intake I-765's eligibility autocomplete: the input
+   * COMMITS the category code ("C9", read live off the element), and that code
+   * is the stable payload contract — but the MUI autocomplete FILTERS on the
+   * full option label, so driving the raw code renders zero options. The
+   * descriptor owns the code -> label table; planPageFill translates before the
+   * engine ever sees the value. A payload value with no entry passes through
+   * unchanged, so a map never blocks a value it does not know.
+   */
+  valueMap?: Record<string, string>;
 }
 
 /**
@@ -156,6 +168,11 @@ export interface FormPage {
   fields: DescriptorField[];
   /** Present when this page is a repeater (address/employment history etc.). */
   repeater?: RepeaterSpec;
+  /**
+   * Exact label of the page's OWN advance button, for a page whose Next never
+   * enables (the PDF-intake /client-information/0 ends in "Add Client").
+   */
+  advanceButtonText?: string;
   /**
    * Conditional page — only reachable when upstream answers are set (e.g. the
    * I-130 spouse-only pages, the I-539 preparer pages). The chain tolerates

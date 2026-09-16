@@ -227,11 +227,18 @@ export function planPageFill(
   ): void => {
     let name = field.name.replace(/\{i\}/g, String(rowIndex));
     if (opts.nestedIndex !== undefined) name = name.replace(/\{j\}/g, String(opts.nestedIndex));
-    const value = fieldValues[name];
-    if (value === undefined) return;
+    const sent = fieldValues[name];
+    if (sent === undefined) return;
     // Empty string fills nothing except a checkbox (where "" => leave unchecked,
     // which is the default — so we skip it too; checkboxes only act when truthy).
-    if (value === "") return;
+    if (sent === "") return;
+    // The descriptor's code -> widget-text table (the I-765 eligibility
+    // autocomplete commits "C9" but filters on the full option label). Applied
+    // HERE, before the plan is built, so the engine and the reveal-waits all see
+    // the value that can actually be typed. Reveal GATES stay in payload terms:
+    // revealUnsatisfied reads fieldValues directly, so a revealedBy.is of "C9"
+    // keeps matching what the backend sent.
+    const value = field.valueMap?.[sent] ?? sent;
     if (field.revealedBy && revealUnsatisfied(field.revealedBy, fieldValues)) {
       dbg(
         `fill: not attempting ${name} — nothing answered ` +
@@ -244,6 +251,11 @@ export function planPageFill(
         name,
         kind: field.kind,
         optionValue: field.options ? value : undefined,
+        // When valueMap translated, keep the RAW payload value too: it is what
+        // the underlying input actually commits (the I-765 eligibility control
+        // is clicked by label but its hidden input commits "C9"), and the only
+        // ground truth a select-style set can be verified against.
+        ...(field.valueMap && field.valueMap[sent] !== undefined ? { commitValue: sent } : {}),
         ...(field.locate ? { locate: field.locate } : {}),
       },
       value,
@@ -812,6 +824,11 @@ const DEFAULT_NEXT_TIMEOUT_MS = 12000;
 /** After clicking a repeater "Save Entry" commit button, how long to wait for
  * the row to commit and a Next/Continue to appear + enable. */
 const SAVE_COMMIT_TIMEOUT_MS = 8000;
+/** After a page's own advance button ("Add Client"), how long to wait for the
+ * navigation it triggers — it posts to USCIS before moving. */
+const ADVANCE_BUTTON_TIMEOUT_MS = 20000;
+/** How long to watch for the confirmation that button raises instead of moving. */
+const CONFIRM_DIALOG_TIMEOUT_MS = 4000;
 /** Upload pages keep Next DISABLED while the just-attached file finishes
  * uploading server-side (processing runs a few seconds past the point the
  * doc-uploader reports "attached"); give Next much longer to enable. */
@@ -840,6 +857,16 @@ const UPLOAD_ADVANCE_WAIT_MS = 12000;
 /** Pause between click attempts. 6 attempts x (12s + 8s) ~= 2 minutes, which
  * comfortably covers a 10MB scan without ever looking hung: every attempt logs. */
 const UPLOAD_ADVANCE_RETRY_MS = 8000;
+/** An EMPTY upload page needs a second click for a different reason: pdf-intake
+ * answers the first one with an in-page "Missing Evidence" warning instead of
+ * navigating, and only the second advances (live I-485 capture, 2026-09-15). The
+ * I-485 has 14 evidence slots and several are "if applicable", so leaving one
+ * empty is normal — a single click stalls the whole walk there. Nothing is
+ * processing server-side, so this path is short: two quick clicks, not the
+ * upload budget. */
+const EMPTY_UPLOAD_ADVANCE_ATTEMPTS = 2;
+const EMPTY_UPLOAD_ADVANCE_WAIT_MS = 3000;
+const EMPTY_UPLOAD_ADVANCE_RETRY_MS = 500;
 /** Selectors that signal an active upload/progress indicator in the page body. */
 const UPLOAD_PROGRESS_SELECTOR =
   '[role="progressbar"], progress, [class*="progress" i], [class*="spinner" i], [class*="uploading" i]';
@@ -871,6 +898,17 @@ const NEVER_CLICK_TEXT = /submit|pay\b|payment|e-?sign|sign\s+(and|&)|file\s+(an
  */
 const TERMINAL_PATH = /\/review-and-submit(\/|$)/i;
 
+/**
+ * The same stop for USCIS "PDF Intake" (the I-765), whose terminal page lives at
+ * …/pdf-intake/<form>/<draftUuid>/review — no `review-and-submit` parent exists
+ * on that host path. The guard matters MORE there than on the guided forms:
+ * pdf-intake's Next (testid next-btn) is disabled on /review only until the
+ * uploads land, and then SELF-ENABLES — so a walk that failed to recognize the
+ * page would find a live Next waiting for it. Anchored on the /pdf-intake/
+ * segment so a guided form's mid-walk page can never trip it.
+ */
+const PDF_INTAKE_TERMINAL_PATH = /\/pdf-intake\/.+\/review(\/|$)/i;
+
 /** True when a control must never be clicked by the walk (Submit/Pay/e-sign). */
 export function isForbiddenAdvanceControl(el: Element | null): boolean {
   if (!el) return false;
@@ -896,7 +934,7 @@ export function onTerminalPath(url: string): boolean {
   } catch {
     path = url;
   }
-  return TERMINAL_PATH.test(path);
+  return TERMINAL_PATH.test(path) || PDF_INTAKE_TERMINAL_PATH.test(path);
 }
 
 /**
@@ -972,6 +1010,21 @@ export function findSaveButton(
  * of three of them. A label that does not match returns null and the walk simply
  * tries Next, which is what it did before.
  */
+/**
+ * A confirmation myUSCIS shows INSTEAD of navigating — "Your client has been
+ * successfully added", dismissed with Okay.
+ *
+ * Exact match only. "Okay" is a dismissal everywhere on this site, while
+ * "Continue" is a Next by another name and must not be clicked from here.
+ */
+export function findConfirmationButton(doc: Document = document): HTMLElement | null {
+  for (const b of Array.from(doc.querySelectorAll<HTMLElement>('button, [role="button"]'))) {
+    const text = (b.textContent || "").trim().toLowerCase();
+    if ((text === "ok" || text === "okay") && !isForbiddenAdvanceControl(b)) return b;
+  }
+  return null;
+}
+
 export function findRowCommitButton(
   label: string | undefined,
   doc: Document = document,
@@ -1248,9 +1301,11 @@ export async function fillAll(
       `payload has ${Object.keys(fieldValues).length} field values`,
   );
   const visited = new Set<string>();
-  const maxSteps = config.pages.length + 10; // safety cap (room to skip unknown pages)
-  let consecutiveUnknown = 0;
-  const MAX_CONSECUTIVE_UNKNOWN = 4; // bail if we've clearly walked off the form
+  const undeclared: string[] = [];
+  // Bound the walk. Undeclared pages spend steps too, and the I-129 shows four
+  // in a row before its evidence uploads, so the cap has to clear the pages the
+  // descriptor does NOT know about as well as the ones it does.
+  const maxSteps = config.pages.length * 2 + 10;
 
   for (let step = 0; step < maxSteps; step++) {
     if (onLoginPage()) {
@@ -1276,20 +1331,15 @@ export async function fillAll(
     // What this page typed into, for the re-check below.
     let typedHere: TypedBox[] = [];
     if (!page) {
-      // Page not in the descriptor — e.g. a preparer detail sub-page, or an
-      // uncaptured conditional. Don't stop the whole run; skip past it via Next.
-      // Bail only if several unknown pages stack up, which means we've left the
-      // form entirely.
-      if (++consecutiveUnknown > MAX_CONSECUTIVE_UNKNOWN) {
-        dbg(
-          `fillAll: ${MAX_CONSECUTIVE_UNKNOWN} unrecognized pages in a row — ` +
-            `left the ${config.formType} form, stopping`,
-        );
-        break;
-      }
+      // Page not in the descriptor — e.g. a preparer detail sub-page, an
+      // uncaptured conditional, or an evidence page we deliberately do not
+      // handle. Skip past it via Next and keep walking: a page we have not
+      // declared is not the same as having left the form, and the declared
+      // pages that follow it are still ours to fill. Leaving the form is caught
+      // by the hostPath check at the foot of this loop, on the URL itself.
+      undeclared.push(window.location.pathname);
       dbg(`fillAll: page not in descriptor (${window.location.pathname}) — skipping past it`);
     } else {
-      consecutiveUnknown = 0;
       if (page.kind === "review") {
         dbg("fillAll: reached Review — stopping before Submit/Pay (never automate those)");
         break;
@@ -1391,31 +1441,39 @@ export async function fillAll(
       // exactly what a second Fill all was doing by hand.
       advanced = false;
       // With NOTHING attached there is no server-side processing to wait for, so
-      // the retry loop would spend a minute insisting myUSCIS was busy. One click.
-      const attempts = attachedHere === 0 ? 1 : UPLOAD_ADVANCE_ATTEMPTS;
-      if (attachedHere === 0) {
-        dbg("fillAll: nothing attached here — advancing once instead of retrying");
+      // the upload retry budget would spend a minute insisting myUSCIS was busy.
+      // But one click is not enough either: pdf-intake answers the first click on
+      // an empty evidence page with a "Missing Evidence" warning and only moves on
+      // the second. So: two quick clicks here, the full budget when files went up.
+      const empty = attachedHere === 0;
+      const attempts = empty ? EMPTY_UPLOAD_ADVANCE_ATTEMPTS : UPLOAD_ADVANCE_ATTEMPTS;
+      const waitMs = empty ? EMPTY_UPLOAD_ADVANCE_WAIT_MS : UPLOAD_ADVANCE_WAIT_MS;
+      const retryMs = empty ? EMPTY_UPLOAD_ADVANCE_RETRY_MS : UPLOAD_ADVANCE_RETRY_MS;
+      if (empty) {
+        dbg("fillAll: nothing attached here — clicking past the missing-evidence warning");
       }
       for (let attempt = 1; attempt <= attempts; attempt++) {
         const btn = findNextButton() ?? next;
         btn.click();
-        if (await waitForPageChange(prevUrl, UPLOAD_ADVANCE_WAIT_MS)) {
+        if (await waitForPageChange(prevUrl, waitMs)) {
           advanced = true;
           break;
         }
         if (attempt < attempts) {
           dbg(
             `fillAll: Next did not move the page (attempt ${attempt}/${attempts}) — ` +
-              `myUSCIS is still processing the upload; waiting and clicking again`,
+              (empty
+                ? "clicking again past the missing-evidence warning"
+                : "myUSCIS is still processing the upload; waiting and clicking again"),
           );
-          await sleep(UPLOAD_ADVANCE_RETRY_MS);
+          await sleep(retryMs);
         }
       }
       if (!advanced) {
         dbg(
           `fillAll: Next would not advance past ${page?.slug ?? "this upload page"} after ` +
-            `${attempts} attempt${attempts === 1 ? "" : "s"}. ` +
-            (attachedHere === 0
+            `${attempts} attempts. ` +
+            (empty
               ? "Nothing was attached here, so this is a page myUSCIS will not let " +
                 "us leave empty — attach the document in ParaLeagle and re-run."
               : "The upload is taking longer than expected — let it finish and re-run."),
@@ -1441,6 +1499,42 @@ export async function fillAll(
       // and AFTER it, because the re-render can empty a box that is still on the
       // page. The second pass therefore looks at single-instance boxes only.
       if (typedHere.length) await recheckBeforeLeaving(typedHere);
+      // A page whose Next never enables advances with its own button instead.
+      let clickedOwnButton = false;
+      if (page?.advanceButtonText) {
+        const own = findRowCommitButton(page.advanceButtonText);
+        if (own && !isForbiddenAdvanceControl(own)) {
+          dbg(`fillAll: ${page.slug} advances with its own "${page.advanceButtonText}" button`);
+          own.click();
+          clickedOwnButton = true;
+        } else {
+          dbg(`fillAll: "${page.advanceButtonText}" is not on ${page.slug} — trying Next instead`);
+        }
+      }
+      if (clickedOwnButton) {
+        // The button may answer with a confirmation rather than a navigation.
+        // Dismissing it is both the right click and the proof it worked, so there
+        // is nothing left to wait for afterwards.
+        let confirmed = false;
+        for (let waited = 0; waited < CONFIRM_DIALOG_TIMEOUT_MS; waited += 300) {
+          if (window.location.href !== prevUrl) break;
+          const okay = findConfirmationButton();
+          if (okay) {
+            dbg(`fillAll: myUSCIS confirmed "${page?.advanceButtonText}" — dismissing its notice`);
+            okay.click();
+            confirmed = true;
+            break;
+          }
+          await sleep(300);
+        }
+        if (!confirmed && !(await waitForPageChange(prevUrl, ADVANCE_BUTTON_TIMEOUT_MS))) {
+          dbg(
+            `fillAll: "${page?.advanceButtonText}" did not move the page` +
+              pageErrorSummary() +
+              " — trying Next instead",
+          );
+        }
+      }
       if (page?.repeater?.rowCommitButtonText) {
         const commit = findRowCommitButton(page.repeater.rowCommitButtonText);
         if (commit) {
@@ -1522,7 +1616,7 @@ export async function fillAll(
     await sleep(600); // let the new page settle before re-detecting
   }
 
-  logRunSummary(config, summaries, uploadsSeen);
+  logRunSummary(config, summaries, uploadsSeen, undeclared);
   return summaries;
 }
 
@@ -1538,6 +1632,7 @@ function logRunSummary(
   config: FormConfig,
   summaries: PageFillResult[],
   uploadsSeen: string[],
+  undeclared: string[] = [],
 ): void {
   const filled = summaries.reduce((n, s) => n + s.filled, 0);
   const total = summaries.reduce((n, s) => n + s.total, 0);
@@ -1548,6 +1643,10 @@ function logRunSummary(
   dbg(`  fields filled:  ${filled}/${total}`);
   dbg(`  correctly skipped (not shown, or read-only and the form's own): ${skipped}`);
   dbg(`  upload pages visited: ${uploadsSeen.length ? uploadsSeen.join(", ") : "none"}`);
+  if (undeclared.length) {
+    dbg(`  walked past ${undeclared.length} page(s) the descriptor does not declare:`);
+    for (const p of undeclared) dbg(`    ${p}`);
+  }
 
   const failures: string[] = [];
   for (const s of summaries) {

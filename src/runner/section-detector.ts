@@ -8,14 +8,15 @@
 import { FormPage } from "./types";
 
 /**
- * The route myUSCIS serves once a page gains a sibling: the bare page becomes a
- * `-page-1` CHILD of itself, beside the `-page-2` that appeared next to it. So
- * `/a/good-moral-character` also has to answer to
- * `/a/good-moral-character/good-moral-character-page-1`.
+ * The routes myUSCIS serves once a page gains a sibling: the bare page becomes a
+ * CHILD of itself, beside the sibling that appeared next to it. Two suffixes are
+ * in use — `-page-1` on the I-130 and the N-400, plain `-1` on the I-129 — so
+ * `/a/work-location` has to answer to both
+ * `/a/work-location/work-location-page-1` and `/a/work-location/work-location-1`.
  */
-export function pageOneAlias(slug: string): string {
+export function pageOneAliases(slug: string): string[] {
   const lastSegment = slug.slice(slug.lastIndexOf("/") + 1);
-  return `${slug}/${lastSegment}-page-1`;
+  return [`${slug}/${lastSegment}-page-1`, `${slug}/${lastSegment}-1`];
 }
 
 /** Find the descriptor page whose slug the URL path ends with. */
@@ -35,7 +36,7 @@ export function pageForUrl(pages: FormPage[], url: string): FormPage | null {
     if (path.endsWith(page.slug)) return page;
   }
   for (const page of byLength) {
-    if (path.endsWith(pageOneAlias(page.slug))) return page;
+    if (pageOneAliases(page.slug).some((alias) => path.endsWith(alias))) return page;
   }
   return null;
 }

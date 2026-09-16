@@ -108,6 +108,24 @@ export function locateElement(spec: FieldSpec): HTMLElement | null {
   const locate = spec.locate;
   if (!locate) return null;
 
+  // A RADIO resolves as a GROUP, and only locateRadios knows how to find one
+  // (nameContains, or the smallest container carrying the question text). The
+  // generic strategies below find ONE element by ITS OWN label — for a radio
+  // that is the option text ("Yes"), which every yes/no group on the page
+  // shares, so falling through would anchor on the wrong question. This is what
+  // lets waitForRevealed and the conditional probe SEE a question-anchored
+  // radio (the pdf-intake I-765's colliding `controlled-radio-buttons-group`
+  // pair): setRadio could already click it, but locateElement said "absent".
+  if (spec.kind === "radio") {
+    const group = locateRadios(locate);
+    if (group.length === 0) return null;
+    if (spec.optionValue !== undefined) {
+      const match = group.find((r) => r.value === spec.optionValue);
+      if (match) return match;
+    }
+    return group[0];
+  }
+
   // An id identifies exactly one element, so it goes before the anchor walk and
   // the label match — both of which can land on a neighbour.
   if (locate.id) {
@@ -158,6 +176,10 @@ async function setText(el: HTMLInputElement | HTMLTextAreaElement, value: string
   el.focus();
   el.dispatchEvent(new FocusEvent("focus", { bubbles: true }));
 
+  // Strategy 0: a masked box (the I-485 A-number's "A-") gets keystrokes, before
+  // anything below clears the mask's own prefix out of it.
+  if (maskPrefix(el, value) && (await typeKeystrokes(el, value))) return true;
+
   // Strategy 1: char-by-char execCommand (best for React-controlled inputs).
   el.select();
   safeExec("delete");
@@ -176,7 +198,7 @@ async function setText(el: HTMLInputElement | HTMLTextAreaElement, value: string
   el.focus();
   el.dispatchEvent(new FocusEvent("focus", { bubbles: true }));
   el.select();
-  if (safeExec("insertText", value) && el.value === value) {
+  if (safeExec("insertText", value) && matchesValue(el, value)) {
     commitText(el);
     setViaFormik(el, value);
     return true;
@@ -189,23 +211,76 @@ async function setText(el: HTMLInputElement | HTMLTextAreaElement, value: string
   }
 
   // Strategy 4: native value setter + change (reset React's _valueTracker).
-  const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement : HTMLInputElement;
-  const nativeSetter = Object.getOwnPropertyDescriptor(proto.prototype, "value")?.set;
-  if (nativeSetter) {
-    const tracker = (el as unknown as { _valueTracker?: { setValue(v: string): void } })._valueTracker;
-    if (tracker) tracker.setValue("");
-    nativeSetter.call(el, value);
-    el.dispatchEvent(new Event("input", { bubbles: true }));
-    el.dispatchEvent(new Event("change", { bubbles: true }));
-    if (el.value === value) {
-      el.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
-      return true;
-    }
+  setNativeValue(el, value);
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+  if (matchesValue(el, value)) {
+    el.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+    return true;
   }
+
+  // Strategy 5: keystrokes, for a mask that only showed itself once something
+  // was written into the box.
+  if (await typeKeystrokes(el, value)) return true;
 
   dbg(`value-setter: all text strategies failed for "${el.getAttribute("name")}"`);
   el.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
   return false;
+}
+
+/**
+ * The fixed prefix a masked box is already showing, or "".
+ *
+ * myUSCIS masks the I-485 A-number with a literal "A-" that lives IN the input.
+ * The mask reads what the box holds on every input event and throws away
+ * anything that does not start with its prefix, so select-all-and-type (which
+ * deletes the "A-" first) leaves the field empty and the page refusing Next.
+ *
+ * Deliberately narrow: short, no digits, and not a head of the value we are
+ * about to write — a box holding a real stale value must still be overwritten.
+ */
+function maskPrefix(el: HTMLInputElement | HTMLTextAreaElement, value: string): string {
+  const current = el.value;
+  if (!current || value.startsWith(current)) return "";
+  const bare = current.replace(/[\u200B-\u200D\uFEFF]/g, "");
+  return bare.length <= 3 && !/\d/.test(bare) ? current : "";
+}
+
+/**
+ * Type `value` one character at a time, the way a person does: each keystroke
+ * appends to whatever the box currently holds, so a mask reformats as it goes
+ * and its own prefix is never deleted. The last resort for inputs that refuse a
+ * value written in one go.
+ */
+async function typeKeystrokes(
+  el: HTMLInputElement | HTMLTextAreaElement,
+  value: string,
+): Promise<boolean> {
+  el.focus();
+  el.dispatchEvent(new FocusEvent("focus", { bubbles: true }));
+  if (el.value && !maskPrefix(el, value)) {
+    setNativeValue(el, "");
+    el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "deleteContentBackward" }));
+  }
+  for (const char of value) {
+    const before = el.value;
+    el.dispatchEvent(new KeyboardEvent("keydown", { key: char, bubbles: true }));
+    setNativeValue(el, before + char);
+    try {
+      el.setSelectionRange(el.value.length, el.value.length);
+    } catch {
+      // not every input type carries a selection
+    }
+    el.dispatchEvent(
+      new InputEvent("input", { bubbles: true, data: char, inputType: "insertText" }),
+    );
+    el.dispatchEvent(new KeyboardEvent("keyup", { key: char, bubbles: true }));
+    await sleep(30);
+  }
+  await sleep(120);
+  if (!matchesValue(el, value)) return false;
+  commitText(el);
+  return true;
 }
 
 /** True when the input shows the value, OR shows the same digits (masked
@@ -435,10 +510,11 @@ const OPTION_SELECTORS = [
  * The prototype setter is what React's `_valueTracker` watches, and the tracker
  * is cleared first so an assignment it thinks it already has is not swallowed.
  */
-function setNativeValue(el: HTMLInputElement, value: string): void {
+function setNativeValue(el: HTMLInputElement | HTMLTextAreaElement, value: string): void {
   const tracker = (el as unknown as { _valueTracker?: { setValue(v: string): void } })._valueTracker;
   if (tracker) tracker.setValue("");
-  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+  const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement : HTMLInputElement;
+  const setter = Object.getOwnPropertyDescriptor(proto.prototype, "value")?.set;
   if (setter) setter.call(el, value);
   else el.value = value;
 }
@@ -509,6 +585,49 @@ export function labelKey(s: string): string {
 const MAX_LOGGED_OPTIONS = 25;
 
 /**
+ * Dump an option list next to the value that missed it, and say WHICH of the
+ * three verdicts applies (timing miss / punctuation-only difference in our
+ * value / genuinely absent). Shared by the autocomplete diagnostic and the MUI
+ * Select diagnostic — the evidence a miss must leave behind is the same for
+ * both, only how the list gets on screen differs.
+ */
+function reportOptionsVerdict(value: string, options: string[], label: string): void {
+  if (options.length === 0) return;
+  dbg(`  ${label} (${options.length}):`);
+  for (const o of options.slice(0, MAX_LOGGED_OPTIONS)) dbg(`    ${JSON.stringify(o)}`);
+  if (options.length > MAX_LOGGED_OPTIONS) {
+    dbg(`    ...and ${options.length - MAX_LOGGED_OPTIONS} more`);
+  }
+  // The punctuation/spacing verdict — the whole point of the exercise.
+  const key = labelKey(value);
+  const twin = options.find((o) => labelKey(o) === key);
+  if (twin === value) {
+    // The label and the value are the same string, so nothing about the value
+    // is wrong and there is no captured table to go and fix. The only thing
+    // that differed between the read that missed and this one is TIME.
+    dbg(`  VERDICT: the option is there and IDENTICAL to our value.`);
+    dbg(`    live and ours: ${JSON.stringify(value)}`);
+    dbg(`    So the list had not rendered when we read it - a timing miss, not a bad value.`);
+  } else if (twin) {
+    dbg(`  VERDICT: the option IS there but the text differs.`);
+    dbg(`    live:  ${JSON.stringify(twin)}`);
+    dbg(`    ours:  ${JSON.stringify(value)}`);
+    dbg(`    Same letters+digits, different punctuation/spacing -> OUR VALUE IS WRONG.`);
+  } else {
+    const near = options.filter((o) => {
+      const k = labelKey(o);
+      return k.includes(key.slice(0, 12)) || key.includes(k.slice(0, 12));
+    });
+    if (near.length) {
+      dbg(`  VERDICT: no exact twin. Closest live label(s):`);
+      for (const o of near.slice(0, 5)) dbg(`    ${JSON.stringify(o)}`);
+    } else {
+      dbg(`  VERDICT: nothing resembling this value is in the list at all.`);
+    }
+  }
+}
+
+/**
  * Explain an autocomplete miss in the log, in enough detail to fix it without a
  * second live run. READ-ONLY: it never selects an option, and it leaves the
  * input holding exactly the text it held on failure.
@@ -532,45 +651,9 @@ async function diagnoseAutocompleteMiss(el: HTMLInputElement, value: string): Pr
   dbg(`  we typed: ${JSON.stringify(value)} (${value.length} chars)`);
   dbg(`  options rendered after typing that: ${shown.length}`);
 
-  const report = (options: string[], label: string): void => {
-    if (options.length === 0) return;
-    dbg(`  ${label} (${options.length}):`);
-    for (const o of options.slice(0, MAX_LOGGED_OPTIONS)) dbg(`    ${JSON.stringify(o)}`);
-    if (options.length > MAX_LOGGED_OPTIONS) {
-      dbg(`    ...and ${options.length - MAX_LOGGED_OPTIONS} more`);
-    }
-    // The punctuation/spacing verdict — the whole point of the exercise.
-    const key = labelKey(value);
-    const twin = options.find((o) => labelKey(o) === key);
-    if (twin === value) {
-      // The label and the value are the same string, so nothing about the value
-      // is wrong and there is no captured table to go and fix. The only thing
-      // that differed between the read that missed and this one is TIME.
-      dbg(`  VERDICT: the option is there and IDENTICAL to our value.`);
-      dbg(`    live and ours: ${JSON.stringify(value)}`);
-      dbg(`    So the list had not rendered when we read it - a timing miss, not a bad value.`);
-    } else if (twin) {
-      dbg(`  VERDICT: the option IS there but the text differs.`);
-      dbg(`    live:  ${JSON.stringify(twin)}`);
-      dbg(`    ours:  ${JSON.stringify(value)}`);
-      dbg(`    Same letters+digits, different punctuation/spacing -> OUR VALUE IS WRONG.`);
-    } else {
-      const near = options.filter((o) => {
-        const k = labelKey(o);
-        return k.includes(key.slice(0, 12)) || key.includes(k.slice(0, 12));
-      });
-      if (near.length) {
-        dbg(`  VERDICT: no exact twin. Closest live label(s):`);
-        for (const o of near.slice(0, 5)) dbg(`    ${JSON.stringify(o)}`);
-      } else {
-        dbg(`  VERDICT: nothing resembling this value is in the list at all.`);
-      }
-    }
-  };
-
   if (shown.length > 0) {
     dbg(`  So the list was NOT empty — the matcher rejected every option.`);
-    report(shown, "options on screen");
+    reportOptionsVerdict(value, shown, "options on screen");
     return;
   }
 
@@ -581,7 +664,7 @@ async function diagnoseAutocompleteMiss(el: HTMLInputElement, value: string): Pr
   dbg(`  Re-typing just ${JSON.stringify(firstWord)} to read the real labels (selects nothing):`);
   await typeInto(el, firstWord);
   await sleep(1500);
-  report(renderedOptions(), `options for ${JSON.stringify(firstWord)}`);
+  reportOptionsVerdict(value, renderedOptions(), `options for ${JSON.stringify(firstWord)}`);
   // Restore the input to exactly what it held on failure, so this diagnostic
   // leaves no trace in the form state.
   await typeInto(el, value);
@@ -600,8 +683,12 @@ function withoutCodePrefix(label: string): string {
  * Try to select `wanted` from whatever the listbox is currently showing.
  * Ordered widest-confidence first; every pass compares against the FULL wanted
  * value even when we typed only a fragment to get the list to render.
+ *
+ * Returns the option element it clicked (truthy), or null on no match — the
+ * MUI Select path needs the ELEMENT (its data-value is the fallback commit
+ * check), and every boolean caller reads truthiness unchanged.
  */
-async function selectRenderedOption(wanted: string): Promise<boolean> {
+async function selectRenderedOption(wanted: string): Promise<HTMLElement | null> {
   const want = wanted.trim().toLowerCase();
   const wantKey = labelKey(wanted);
   for (const sel of OPTION_SELECTORS) {
@@ -640,7 +727,7 @@ async function selectRenderedOption(wanted: string): Promise<boolean> {
     const wordRe = new RegExp(`(?:^|[^a-z0-9])${escapeRegExp(want)}(?:[^a-z0-9]|$)`, "i");
     for (const o of options) if (wordRe.test(text(o))) return click(o);
   }
-  return false;
+  return null;
 }
 
 /**
@@ -675,10 +762,10 @@ function noListboxMounted(): boolean {
   return document.querySelector(LISTBOX_SELECTORS) === null;
 }
 
-async function click(opt: HTMLElement): Promise<boolean> {
+async function click(opt: HTMLElement): Promise<HTMLElement> {
   opt.click();
   await sleep(150);
-  return true;
+  return opt;
 }
 
 /**
@@ -751,6 +838,211 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+// ── MUI Select (combobox display + hidden native input) ──────────────────────
+//
+// LIVE FAILURE, pdf-intake I-765 /select-eligibility (2026-09-12): the
+// eligibility control is NOT an Autocomplete. The named element is MUI Select's
+// hidden native input (class MuiSelect-nativeInput, aria-hidden, carries the
+// committed CODE — "C9"/"A12"), and the visible element is a sibling
+// div[role="combobox"] showing the current option's label. Typing into the
+// hidden input does nothing: the popup opens on MOUSEDOWN (or Enter/Space/
+// ArrowDown on the combobox), never filters, and portals its [role="option"]
+// items to document.body. The type-to-filter path therefore rendered 0 options
+// and its "re-type less" recovery recovered nothing.
+//
+// Detection is STRUCTURAL, not a descriptor flag: pdf-intake presented this
+// same name as a plain text input in the original capture, so which widget is
+// on the page is the DOM's fact, not the descriptor's. An Autocomplete can
+// never be mistaken for a Select — its typeable input carries role="combobox"
+// ITSELF, while a Select's named input is hidden beside a separate combobox.
+
+/** How long the popup gets to render its options after being opened. */
+const MUISELECT_OPEN_TIMEOUT_MS = 3000;
+/** How long a clicked option gets to commit into the hidden input. React
+ * re-renders the display text asynchronously, so the hidden input's value is
+ * polled — it is the ground truth, and it can land late. */
+const MUISELECT_COMMIT_TIMEOUT_MS = 4000;
+const MUISELECT_POLL_MS = 100;
+/** How many times to pick an option before giving up. A click that lands while
+ * the popup is still settling leaves the hidden input empty with no error —
+ * seen once on the I-485's Family-based category in six live runs. */
+const MUISELECT_ATTEMPTS = 2;
+/** Let the popup finish closing before picking again. */
+const MUISELECT_RETRY_WAIT_MS = 400;
+
+/**
+ * The combobox DISPLAY element when `el` is a MUI Select's hidden native
+ * input, else null (drive it as the autocomplete/text it is).
+ */
+function muiSelectComboboxFor(el: HTMLElement): HTMLElement | null {
+  // An Autocomplete's typeable input IS the combobox — never select-style.
+  if (el.getAttribute("role") === "combobox") return null;
+  const input = el as HTMLInputElement;
+  const hiddenish =
+    el.classList.contains("MuiSelect-nativeInput") ||
+    el.getAttribute("aria-hidden") === "true" ||
+    input.readOnly === true ||
+    input.type === "hidden";
+  if (!hiddenish) return null;
+  const scope = el.closest(".MuiFormControl-root, .MuiInputBase-root") ?? el.parentElement;
+  const combo = scope?.querySelector<HTMLElement>('[role="combobox"]');
+  return combo && combo !== el ? combo : null;
+}
+
+/**
+ * Open the Select's popup and wait for its options to render. True once at
+ * least one [role="option"] is on the document (they portal to body).
+ *
+ * mousedown first — that is the event MUI Select actually opens on (click alone
+ * does nothing). If nothing renders in a beat, the keyboard route (Enter /
+ * ArrowDown / Space on the combobox) is tried too before giving up.
+ */
+async function openMuiSelectPopup(combo: HTMLElement): Promise<boolean> {
+  const anyOption = (): boolean => document.querySelector('[role="option"]') !== null;
+  if (anyOption()) return true; // already open
+
+  combo.focus();
+  combo.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }));
+  combo.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, button: 0 }));
+  combo.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
+
+  let keyed = false;
+  for (let waited = 0; waited < MUISELECT_OPEN_TIMEOUT_MS; waited += MUISELECT_POLL_MS) {
+    if (anyOption()) return true;
+    if (!keyed && waited >= 1000) {
+      // The mouse route did nothing — try the keys MUI Select also opens on.
+      for (const key of ["Enter", "ArrowDown", " "]) {
+        combo.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+      }
+      keyed = true;
+    }
+    await sleep(MUISELECT_POLL_MS);
+  }
+  return anyOption();
+}
+
+/** Best-effort close, so a failed attempt does not leave a modal popup (and its
+ * backdrop) over the rest of the page. */
+function closeMuiSelectPopup(combo: HTMLElement): void {
+  combo.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+  const backdrop = document.querySelector<HTMLElement>(".MuiBackdrop-root");
+  backdrop?.click();
+}
+
+/**
+ * Explain a Select miss in the log. The autocomplete diagnostic's "re-type less"
+ * recovery is meaningless here — typing never opens a Select, which is exactly
+ * why the live diagnostic printed an empty list twice. For a Select the only way
+ * to read the real labels is to OPEN the popup, so that is what this does, then
+ * hands the list to the shared verdict reporter.
+ */
+async function diagnoseMuiSelectMiss(
+  el: HTMLInputElement,
+  combo: HTMLElement,
+  value: string,
+): Promise<void> {
+  const name = el.getAttribute("name") ?? "(unnamed)";
+  dbg(`value-setter: DIAGNOSTIC for "${name}" (MUI Select)`);
+  dbg(`  we wanted to click: ${JSON.stringify(value)} (${value.length} chars)`);
+  let shown = renderedOptions();
+  if (shown.length === 0) {
+    dbg(`  no options on screen — opening the popup to read the labels (typing cannot open a Select):`);
+    await openMuiSelectPopup(combo);
+    shown = renderedOptions();
+  }
+  if (shown.length === 0) {
+    dbg(`  the popup rendered NOTHING even after mouse + keyboard opens — the control may be disabled`);
+    return;
+  }
+  reportOptionsVerdict(value, shown, "options in the popup");
+}
+
+/**
+ * Drive a MUI Select: open the popup, click the option whose label matches
+ * `value`, then verify the HIDDEN INPUT committed. `commitValue` is the payload
+ * code the descriptor promised the input commits ("C9"); without one, the
+ * clicked option's data-value (MUI mirrors the MenuItem value there) stands in,
+ * and with neither the check degrades to "the value changed at all".
+ */
+async function setMuiSelect(
+  el: HTMLInputElement,
+  combo: HTMLElement,
+  value: string,
+  commitValue?: string,
+): Promise<boolean> {
+  const name = el.getAttribute("name") ?? "(unnamed)";
+  dbg(
+    `value-setter: "${name}" is a MUI Select (hidden native input + combobox display) — ` +
+      `opening the popup instead of typing`,
+  );
+  for (let attempt = 1; attempt <= MUISELECT_ATTEMPTS; attempt += 1) {
+    const outcome = await pickMuiSelectOption(el, combo, value, name, commitValue);
+    if (outcome !== "no-commit") return outcome === "ok";
+    if (attempt < MUISELECT_ATTEMPTS) {
+      dbg(`value-setter: picking "${value}" again on "${name}" — the first click did not stick`);
+      closeMuiSelectPopup(combo);
+      await sleep(MUISELECT_RETRY_WAIT_MS);
+    }
+  }
+  return false;
+}
+
+/** One open-pick-verify pass. "no-commit" is the retryable outcome: the option
+ * was clicked but the hidden input never took the value. */
+async function pickMuiSelectOption(
+  el: HTMLInputElement,
+  combo: HTMLElement,
+  value: string,
+  name: string,
+  commitValue?: string,
+): Promise<"ok" | "no-commit" | "fail"> {
+  const before = el.value;
+
+  if (!(await openMuiSelectPopup(combo))) {
+    dbg(`value-setter: the "${name}" popup never rendered any [role="option"] items`);
+    await diagnoseMuiSelectMiss(el, combo, value);
+    closeMuiSelectPopup(combo);
+    return "fail";
+  }
+
+  const picked = await selectRenderedOption(value);
+  if (!picked) {
+    dbg(`value-setter: no select option matched "${value}" for "${name}"`);
+    await diagnoseMuiSelectMiss(el, combo, value);
+    closeMuiSelectPopup(combo);
+    return "fail";
+  }
+
+  const want = commitValue ?? picked.getAttribute("data-value") ?? undefined;
+  const deadline = Date.now() + MUISELECT_COMMIT_TIMEOUT_MS;
+  for (;;) {
+    const committed = want !== undefined ? el.value === want : el.value !== before;
+    if (committed) {
+      dbg(`value-setter: "${name}" committed ${JSON.stringify(el.value)} for ${JSON.stringify(value)}`);
+      return "ok";
+    }
+    if (Date.now() >= deadline) break;
+    await sleep(MUISELECT_POLL_MS);
+  }
+  if (want === undefined && el.value === before && before !== "") {
+    // No expected code to check against and no change observed — the control may
+    // simply already have held the right answer. Say so rather than failing a
+    // click that landed on the right label.
+    dbg(
+      `value-setter: clicked ${JSON.stringify(value)} on "${name}" but no expected code is ` +
+        `declared and the hidden input still holds ${JSON.stringify(before)} — treating as set`,
+    );
+    return "ok";
+  }
+  dbg(
+    `value-setter: clicked ${JSON.stringify(value)} but the hidden "${name}" input holds ` +
+      `${JSON.stringify(el.value)}` +
+      (want !== undefined ? ` (expected ${JSON.stringify(want)})` : "") +
+      ` — the selection did NOT commit`,
+  );
+  return "no-commit";
+}
+
 // ── Public entry point ─────────────────────────────────────────────────────
 
 /**
@@ -790,7 +1082,14 @@ export async function setValue(spec: FieldSpec, value: string): Promise<SetResul
       }
       case "search": {
         if (!(el instanceof HTMLInputElement)) return result(name, false, "not an input");
-        const ok = await setSearch(el, value);
+        // Same descriptor kind, two live widgets. When the named input turns
+        // out to be MUI Select's hidden native input (the pdf-intake I-765
+        // eligibility control), typing filters nothing — the popup must be
+        // clicked open and the option clicked by label.
+        const combo = muiSelectComboboxFor(el);
+        const ok = combo
+          ? await setMuiSelect(el, combo, value, spec.commitValue)
+          : await setSearch(el, value);
         return result(name, ok, ok ? "set search" : "no match");
       }
       case "text":
