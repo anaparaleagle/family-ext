@@ -19,8 +19,9 @@
 
 import { dbg } from "../engine/logger";
 import { setValue } from "../engine/value-setter";
+import { auditUnmappedFields, normalizeName } from "../engine/telemetry";
 import { goToSection, sectionIsRendered } from "./nav";
-import { FlagField, FlagFormConfig, FlagSection, ForbiddenControl } from "./types";
+import { FlagField, FlagFormConfig, FlagSection, ForbiddenControl, flagFieldNames } from "./types";
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -111,6 +112,9 @@ export async function fillSection(
   section: FlagSection,
   values: Record<string, string>,
   forbidden: ForbiddenControl[],
+  // When passed, health telemetry records rendered questions on this section
+  // whose name isn't in the descriptor's coverage set.
+  coverage?: Set<string>,
 ): Promise<FieldOutcome[]> {
   const outcomes: FieldOutcome[] = [];
 
@@ -174,6 +178,9 @@ export async function fillSection(
     });
   }
 
+  // Health telemetry: which questions on this section does the descriptor not cover?
+  if (coverage) auditUnmappedFields(coverage, section.title);
+
   return outcomes;
 }
 
@@ -190,6 +197,7 @@ export async function fillAll(
   values: Record<string, string>,
 ): Promise<WalkReport> {
   const sections: SectionOutcome[] = [];
+  const coverage = new Set(flagFieldNames(config.sections).map(normalizeName));
 
   for (const section of config.sections) {
     dbg(`section: ${section.title}`);
@@ -201,7 +209,7 @@ export async function fillAll(
     sections.push({
       title: section.title,
       reached: true,
-      fields: await fillSection(section, values, config.forbidden),
+      fields: await fillSection(section, values, config.forbidden, coverage),
     });
   }
 
@@ -225,9 +233,10 @@ export async function fillCurrentSection(
 ): Promise<SectionOutcome | null> {
   const section = config.sections.find((s) => sectionIsRendered(s));
   if (!section) return null;
+  const coverage = new Set(flagFieldNames(config.sections).map(normalizeName));
   return {
     title: section.title,
     reached: true,
-    fields: await fillSection(section, values, config.forbidden),
+    fields: await fillSection(section, values, config.forbidden, coverage),
   };
 }
