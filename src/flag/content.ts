@@ -15,6 +15,7 @@ import { dbg, resetDebugLog } from "../engine/logger";
 import { apiGet } from "../runner/api-transport";
 import { ETA9141_CONFIG, ETA9141_NOT_AUTOFILLED } from "./eta9141-descriptor";
 import { fillAll, fillCurrentSection, WalkReport } from "./fill-chain";
+import { flushUnmappedFields } from "../engine/telemetry";
 import { FlagFormConfig } from "./types";
 
 const FLAG_CONFIGS: FlagFormConfig[] = [ETA9141_CONFIG];
@@ -38,6 +39,8 @@ function currentConfig(): FlagFormConfig | null {
 interface Loaded {
   fieldValues: Record<string, string>;
   report: Record<string, unknown>;
+  /** Case id (for health telemetry). Empty when loaded from cache without one. */
+  caseId: string;
 }
 
 /**
@@ -96,7 +99,7 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
       );
       return null;
     }
-    return { fieldValues: cached, report: {} };
+    return { fieldValues: cached, report: {}, caseId: (stored[KEYS.caseId] as string) ?? "" };
   }
 
   const caseId = stored[KEYS.caseId] as string | undefined;
@@ -125,7 +128,7 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
     [KEYS.fieldValues]: fieldValues,
     [KEYS.formType]: config.formType,
   });
-  return { fieldValues, report: res.data.autofill_report ?? {} };
+  return { fieldValues, report: res.data.autofill_report ?? {}, caseId };
 }
 
 // ── toolbar ─────────────────────────────────────────────────────────────────
@@ -232,6 +235,7 @@ async function onFillSection(config: FlagFormConfig): Promise<void> {
       setStatus("This is not a section the ETA-9141 descriptor knows.");
       return;
     }
+    void flushUnmappedFields(config.formType, loaded.caseId);
     const filled = outcome.fields.filter((f) => f.status === "filled").length;
     const failed = outcome.fields.filter((f) => f.status === "failed");
     setStatus(
@@ -249,6 +253,7 @@ async function onFillAll(config: FlagFormConfig): Promise<void> {
     if (!loaded) return;
     setStatus("Filling…");
     const report = await fillAll(config, loaded.fieldValues);
+    void flushUnmappedFields(config.formType, loaded.caseId);
     setStatus(
       summarise(report) +
         " Nothing has been saved — press FLAG's own Continue on each section, and " +
