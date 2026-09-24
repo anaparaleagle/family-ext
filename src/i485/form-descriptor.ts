@@ -173,6 +173,7 @@ export const I485_PAGES: FormPage[] = [
       title: EVIDENCE_TITLES[slug],
       kind: "upload",
       fields: [],
+      ...(slug === "additional-evidence" ? { catchAll: true } : {}),
     }),
   ),
 

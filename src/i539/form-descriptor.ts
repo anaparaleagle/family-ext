@@ -715,6 +715,7 @@ export const I539_PAGES: FormPage[] = [
     title: "Additional evidence",
     kind: "upload",
     fields: [],
+    catchAll: true,
   },
 
   // ── Additional Information ───────────────────────────────────────────────

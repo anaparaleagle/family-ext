@@ -45,6 +45,10 @@ interface DocRow {
   party?: string | null;
   file_url?: string | null;
   filename?: string | null;
+  /** front / back / both for a two-sided document (the serializer's `part`). */
+  part?: string | null;
+  /** ISO creation time; orders same-type rows so their names stay put. */
+  created?: string | null;
   /** Stored size, when the backend sends it. Absent on older backends. */
   size_bytes?: number | null;
   /** The backend's own verdict against the USCIS per-file limit. */
@@ -304,19 +308,9 @@ async function resolveFilesFor(
     const files: File[] = [];
     const errors: string[] = [];
     let alreadyAttached = 0;
-    // When the backend sends no filename we fall back to the doc_type — but a slot
-    // can hold SEVERAL documents of one type (FAM-0100 has two bank statements),
-    // and naming them both "bank_statement.pdf" is not cosmetic: the de-dupe
-    // matches on a 12-character stem, so on a re-run the first row makes the second
-    // look already-attached and it is silently dropped from the filing. Suffix with
-    // the document id — stable across runs, so the de-dupe still works, unlike a
-    // positional index which shifts when a document is deleted.
-    const needsSuffix = matches.filter((d) => !d.filename).length > 1;
+    const firstOfType = earliest(matches);
     for (const m of matches) {
-      const fallback = needsSuffix
-        ? `${m.doc_type}-${String(m.id).slice(0, 8)}.pdf`
-        : `${m.doc_type}.pdf`;
-      const name = m.filename || fallback;
+      const name = m.filename || fallbackFilename(m, m === firstOfType);
       // SOF-1005: skip BEFORE downloading. The filename is known from the
       // listing, so the wasteful half (the proxy fetch of the bytes) is avoided.
       if (isFilenameAttached(name, rowTexts)) {
@@ -398,6 +392,41 @@ async function resolveFilesFor(
   }
 
   return { files: [], errors: [], alreadyAttached: 0 };
+}
+
+/**
+ * The name a document row goes up under when the backend sends none.
+ *
+ * It has to be decided per DOCUMENT and stay the same from one run to the next,
+ * because the de-dupe that keeps a re-run from attaching a file twice compares
+ * the first 12 characters of the name (myUSCIS truncates long names in its file
+ * list, so the full name is not matchable — see doc-uploader.isFilenameAttached).
+ * The old scheme, "<doc_type>-<id>", put the id where that window could not see
+ * it: "divorce_decree-a111…" and "divorce_decree-b222…" share their first 12
+ * characters, so once one decree was on the page every other decree of the case
+ * read as already attached and was silently left out of the filing. The same
+ * collision took a green card's back for its front whenever the two ids began
+ * with the same character.
+ *
+ *   - a two-sided document is named by its side: green_card-front, green_card-back;
+ *   - the earliest document of a type keeps the clean name, so the common
+ *     single-document case stays readable and a document added later cannot
+ *     rename the one already on the page;
+ *   - every later document carries its id UP FRONT, inside the 12-character window.
+ */
+function fallbackFilename(row: DocRow, isEarliestOfType: boolean): string {
+  if (row.part) return `${row.doc_type}-${row.part}.pdf`;
+  if (isEarliestOfType) return `${row.doc_type}.pdf`;
+  return `${String(row.id).slice(0, 8)}-${row.doc_type}.pdf`;
+}
+
+/** The earliest-created row; a missing timestamp or a tie falls back to id order. */
+function earliest(rows: DocRow[]): DocRow | undefined {
+  return [...rows].sort(
+    (a, b) =>
+      (a.created ?? "").localeCompare(b.created ?? "") ||
+      String(a.id).localeCompare(String(b.id)),
+  )[0];
 }
 
 /**
@@ -647,6 +676,50 @@ export function descriptorsForPage(
     if (Math.min(declared.length, live.length) < MIN_HEADING_MATCH) return declared === live;
     return live.includes(declared) || declared.includes(live);
   });
+}
+
+/**
+ * The upload_pages entries whose OWN page this walk will never fill, to be
+ * attached on the catch-all page instead.
+ *
+ * Two shapes qualify. A slot whose page is declared but was never reached:
+ * myUSCIS did not render it for this case (the N-400's support page for an
+ * unmarried applicant), so the document has no other way onto the filing. And a
+ * slot whose page_path no descriptor page declares at all: the walk skips an
+ * undeclared page without uploading ("page not in descriptor"), so the document
+ * would otherwise go nowhere. A heading-only slot (no page_path — the I-129
+ * style) is neither: it is matched by heading when its page renders and cannot
+ * be "unvisited" by path.
+ *
+ * The catch-all's own entries are left out; the caller already holds them from
+ * descriptorsForPage. Pages declared AFTER the catch-all are not in
+ * `unvisitedUploadSlugs` (see fill-chain.unvisitedUploadSlugsBefore) — they may
+ * still render, and a file attached twice is a defect of its own.
+ */
+export function strayDescriptors(
+  uploadPages: UploadPageDescriptor[],
+  currentSlug: string,
+  walk: { unvisitedUploadSlugs: string[]; declaredUploadSlugs: string[] },
+): UploadPageDescriptor[] {
+  const samePage = (slug: string, pagePath: string): boolean =>
+    slug.endsWith(pagePath) || pagePath.endsWith(slug);
+  const out: UploadPageDescriptor[] = [];
+  for (const d of uploadPages) {
+    const pagePath = (d.page_path ?? "").replace(/\/$/, "");
+    if (!pagePath) continue;
+    if (samePage(currentSlug, pagePath)) continue;
+    const unvisited = walk.unvisitedUploadSlugs.some((s) => samePage(s, pagePath));
+    const declared = walk.declaredUploadSlugs.some((s) => samePage(s, pagePath));
+    if (!unvisited && declared) continue;
+    dbg(
+      `doc-flow: ${pagePath} (${d.doc_type ?? d.form_type ?? "?"}) ` +
+        (unvisited
+          ? "was never shown for this case — attaching its document on the catch-all instead"
+          : "is not a page this form declares — attaching its document on the catch-all instead"),
+    );
+    out.push(d);
+  }
+  return out;
 }
 
 /** First descriptor for a path, or null. Kept for callers that want just one. */

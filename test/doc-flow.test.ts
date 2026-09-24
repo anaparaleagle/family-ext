@@ -5,8 +5,11 @@ import {
   descriptorsForPath,
   descriptorsForPage,
   splitByAccept,
+  strayDescriptors,
 } from "../src/runner/doc-flow";
+import { unvisitedUploadSlugsBefore } from "../src/runner/fill-chain";
 import type { UploadPageDescriptor } from "../src/runner/payload";
+import type { FormPage } from "../src/runner/types";
 
 const CTX = {
   apiBaseUrl: "http://localhost:8001/api/v1",
@@ -911,5 +914,210 @@ describe("doc-flow: an evidence page myUSCIS only identifies by heading", () => 
   it("still matches on page_path when the page has no heading at all", () => {
     const all = descriptorsForPage("/forms/x/13359458/evidence/form-i-94", "", PAGES);
     expect(all.map((d) => d.doc_type)).toEqual(["i94"]);
+  });
+});
+
+// ===========================================================================
+// FALLBACK FILENAMES THAT SURVIVE A RE-RUN
+//
+// The backend sends no filename, so a row is named after its doc_type. The
+// de-dupe that keeps a re-run from attaching a file twice compares the first 12
+// characters of the name (myUSCIS truncates long names in its file list). With
+// the old suffix scheme, "divorce_decree-<id>" and "divorce_decree-<other id>"
+// share those 12 characters — so once ONE decree was on the page, every other
+// decree of the case read as "already attached" and was silently left out of
+// the filing. The same collision took a green card's back for its front
+// whenever the two ids happened to start with the same character.
+//
+// The name has to be decided per DOCUMENT, not per listing: the earliest
+// document keeps the clean name, any later one carries its id up front where
+// the 12-character window can see it, and a two-sided card is named by side.
+// ===========================================================================
+describe("doc-flow: fallback filenames that survive a re-run", () => {
+  const MARRIAGE_SLOT: UploadPageDescriptor = {
+    page_path: "/evidence/current-marriage-certificate-and-previous-marriage-documents",
+    kind: "document",
+    doc_type: "divorce_decree",
+  };
+  const DECREE_A = {
+    id: "a1111111-0000-4000-8000-000000000001",
+    doc_type: "divorce_decree",
+    file_url: "http://localhost:8001/m/decree-a.pdf",
+    created: "2026-08-01T10:00:00Z",
+  };
+  const DECREE_B = {
+    id: "b2222222-0000-4000-8000-000000000002",
+    doc_type: "divorce_decree",
+    file_url: "http://localhost:8001/m/decree-b.pdf",
+    created: "2026-08-02T10:00:00Z",
+  };
+  const rowNames = (): string[] =>
+    [...document.querySelectorAll(".uploaded-file")].map((r) => r.textContent ?? "");
+
+  it("uploads a decree added after the first went up, instead of taking it for the first", async () => {
+    installProxy({ apiResponder: () => apiOk([DECREE_A]) });
+    expect((await fillUploadPage(MARRIAGE_SLOT, CTX)).attached).toBe(1);
+
+    // The client uploads a second decree in ParaLeagle; the caseworker re-runs.
+    installProxy({ apiResponder: () => apiOk([DECREE_A, DECREE_B]) });
+    const again = await fillUploadPage(MARRIAGE_SLOT, CTX);
+    expect(again.attached, "the second decree was mistaken for the first").toBe(1);
+    expect(again.alreadyAttached).toBe(1);
+    expect(rowNames().length).toBe(2);
+    // The first keeps its clean name; the newcomer carries its id where the
+    // 12-character window can see it.
+    expect(rowNames().some((n) => n.includes("divorce_decree.pdf"))).toBe(true);
+    expect(rowNames().some((n) => n.includes("b2222222-divorce_decree.pdf"))).toBe(true);
+  });
+
+  it("finishes a slot that a failed run left half done", async () => {
+    installProxy({ apiResponder: () => apiOk([DECREE_A, DECREE_B]) });
+    expect((await fillUploadPage(MARRIAGE_SLOT, CTX)).attached).toBe(2);
+    // myUSCIS refused the second file: its row is gone, the first's stays.
+    const rows = [...document.querySelectorAll(".uploaded-file")];
+    const second = rows.find((r) => r.textContent?.includes("b2222222"));
+    expect(second).toBeDefined();
+    second!.remove();
+
+    const again = await fillUploadPage(MARRIAGE_SLOT, CTX);
+    expect(again.attached, "the missing decree was not retried").toBe(1);
+    expect(again.alreadyAttached).toBe(1);
+  });
+
+  it("names the two sides of a card by side, so the back is never taken for the front", async () => {
+    // Both ids start with "a": under the old scheme both names began
+    // "green_card-a", so the back read as already attached once the front was.
+    installProxy({
+      apiResponder: () =>
+        apiOk([
+          { id: "a1111111-0000-4000-8000-000000000001", doc_type: "green_card", part: "front", file_url: "http://localhost:8001/m/gc-front.pdf" },
+          { id: "a3333333-0000-4000-8000-000000000003", doc_type: "green_card", part: "back", file_url: "http://localhost:8001/m/gc-back.pdf" },
+        ]),
+    });
+    const slot: UploadPageDescriptor = {
+      page_path: "/evidence/your-permanent-resident-card",
+      kind: "document",
+      doc_type: "green_card",
+    };
+    const first = await fillUploadPage(slot, CTX);
+    expect(first.attached).toBe(2);
+    expect(rowNames().some((n) => n.includes("green_card-front.pdf"))).toBe(true);
+    expect(rowNames().some((n) => n.includes("green_card-back.pdf"))).toBe(true);
+
+    // A partial re-run: the back's row is gone, the front's stays.
+    [...document.querySelectorAll(".uploaded-file")]
+      .find((r) => r.textContent?.includes("back"))!
+      .remove();
+    const again = await fillUploadPage(slot, CTX);
+    expect(again.attached, "the back was taken for the front").toBe(1);
+    expect(again.alreadyAttached).toBe(1);
+  });
+});
+
+// ===========================================================================
+// DOCUMENTS WHOSE OWN EVIDENCE PAGE myUSCIS NEVER SHOWED
+//
+// A document routed to a dedicated evidence page leaves the Additional-evidence
+// catch-all (the backend expands the catch-all into every doc_type WITHOUT a
+// dedicated slot). But myUSCIS renders some evidence pages only for some
+// answers: the N-400's child-and-spousal-support page appears only for a
+// Married applicant, and its crime pages only once an arrest is answered. A
+// divorced applicant's support order is therefore routed to a page the walk
+// never lands on, and reaches USCIS nowhere — silently, because "not visited"
+// looks exactly like "nothing to do".
+//
+// The catch-all page is the one place that can still take it, and it is the
+// last evidence page of the walk, so by the time the walk gets there it KNOWS
+// which earlier upload pages never rendered.
+// ===========================================================================
+describe("doc-flow: documents whose own evidence page myUSCIS never showed", () => {
+  const upload = (slug: string, extra: Partial<FormPage> = {}): FormPage => ({
+    slug,
+    title: slug,
+    kind: "upload",
+    fields: [],
+    ...extra,
+  });
+  const PAGES: FormPage[] = [
+    { slug: "/about-you/your-name", title: "Your name", kind: "form", fields: [] },
+    upload("/evidence/your-permanent-resident-card"),
+    upload("/evidence/child-and-spousal-support", { conditional: true }),
+    upload("/evidence/additional-evidence", { catchAll: true }),
+    upload("/evidence/declared-after-the-catch-all"),
+  ];
+  const DECLARED = PAGES.filter((p) => p.kind === "upload").map((p) => p.slug);
+  const UPLOADS: UploadPageDescriptor[] = [
+    { page_path: "/evidence/your-permanent-resident-card", kind: "document", doc_type: "green_card" },
+    { page_path: "/evidence/child-and-spousal-support", kind: "document", doc_type: "child_support_order" },
+    { page_path: "/evidence/child-and-spousal-support", kind: "document", doc_type: "child_birth_certificate" },
+    { page_path: "/evidence/additional-evidence", kind: "document", doc_type: "tax_transcript" },
+    // A slot the backend routes but no descriptor page declares (an undeclared
+    // slug never matches, so its document would otherwise go nowhere).
+    { page_path: "/evidence/ds-2019", kind: "document", doc_type: "form_ds2019" },
+    // Heading-only (I-129 style): no path to be "unvisited" by.
+    { page_path: "", heading: "Basis of wage level", kind: "document", doc_type: "oflc_printout" },
+  ];
+
+  it("lists the upload pages declared before this one that the walk never reached", () => {
+    const visited = new Set(["/about-you/your-name", "/evidence/your-permanent-resident-card"]);
+    expect(unvisitedUploadSlugsBefore(PAGES, "/evidence/additional-evidence", visited)).toEqual([
+      "/evidence/child-and-spousal-support",
+    ]);
+  });
+
+  it("does not count a page declared after this one — it may still render", () => {
+    const none = unvisitedUploadSlugsBefore(PAGES, "/evidence/additional-evidence", new Set(DECLARED));
+    expect(none).toEqual([]);
+    const all = unvisitedUploadSlugsBefore(PAGES, "/evidence/additional-evidence", new Set());
+    expect(all).not.toContain("/evidence/declared-after-the-catch-all");
+    expect(all).not.toContain("/about-you/your-name");
+  });
+
+  it("picks up the documents of an unrendered page on the catch-all", () => {
+    const strays = strayDescriptors(UPLOADS, "/evidence/additional-evidence", {
+      unvisitedUploadSlugs: ["/evidence/child-and-spousal-support"],
+      declaredUploadSlugs: DECLARED,
+    });
+    expect(strays.map((d) => d.doc_type)).toEqual([
+      "child_support_order",
+      "child_birth_certificate",
+      "form_ds2019",
+    ]);
+  });
+
+  it("leaves alone a page the walk did fill", () => {
+    const strays = strayDescriptors(UPLOADS, "/evidence/additional-evidence", {
+      unvisitedUploadSlugs: [],
+      declaredUploadSlugs: DECLARED,
+    });
+    // Only the slot no page declares is left over; the support documents went
+    // up on their own page.
+    expect(strays.map((d) => d.doc_type)).toEqual(["form_ds2019"]);
+  });
+
+  it("never treats the catch-all's own slot, or a heading-only slot, as a stray", () => {
+    const strays = strayDescriptors(UPLOADS, "/evidence/additional-evidence", {
+      unvisitedUploadSlugs: DECLARED.filter((s) => s !== "/evidence/additional-evidence"),
+      declaredUploadSlugs: DECLARED,
+    });
+    expect(strays.map((d) => d.doc_type)).not.toContain("tax_transcript");
+    expect(strays.map((d) => d.doc_type)).not.toContain("oflc_printout");
+  });
+
+  it("attaches the strays alongside the catch-all's own documents", async () => {
+    installProxy({
+      apiResponder: () =>
+        apiOk([
+          { id: "d1", doc_type: "tax_transcript", file_url: "http://localhost:8001/m/tax.pdf" },
+          { id: "d2", doc_type: "child_support_order", file_url: "http://localhost:8001/m/support.pdf" },
+        ]),
+    });
+    const own = descriptorsForPath("/evidence/additional-evidence", UPLOADS);
+    const strays = strayDescriptors(UPLOADS, "/evidence/additional-evidence", {
+      unvisitedUploadSlugs: ["/evidence/child-and-spousal-support"],
+      declaredUploadSlugs: DECLARED,
+    });
+    const res = await fillUploadPageAll([...own, ...strays], CTX);
+    expect(res.attached).toBe(2);
   });
 });

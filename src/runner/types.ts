@@ -179,6 +179,12 @@ export interface FormPage {
    * these being absent.
    */
   conditional?: boolean;
+  /**
+   * The form's Additional-evidence catch-all — the one upload page that takes
+   * ANY document. A document routed to an evidence page myUSCIS never rendered
+   * for this case is attached here instead (see doc-flow.strayDescriptors).
+   */
+  catchAll?: boolean;
 }
 
 /**

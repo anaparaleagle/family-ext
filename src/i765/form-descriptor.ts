@@ -184,6 +184,7 @@ export const I765_PAGES: FormPage[] = [
     title: "Additional Evidence",
     kind: "upload",
     fields: [], // catch-all, max 5 docs, jpg/tiff/png/pdf; translations required
+    catchAll: true,
   },
 
   // ── Review ───────────────────────────────────────────────────────────────
