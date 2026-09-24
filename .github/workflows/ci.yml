@@ -48,6 +48,23 @@ jobs:
           token: ${{ env.FAMILY_BACKEND_TOKEN }}
           path: paraleagle-family-backend
 
+      # The three drift guards (test/coverage.test.ts, test/i539-coverage.test.ts,
+      # test/n400-coverage.test.ts) self-skip when that checkout is absent, so a
+      # green run without the secret says nothing about descriptor drift. Say so
+      # on the PR's checks page rather than leaving it to be noticed in the log.
+      # Note this also fires on every PR from a fork: GitHub withholds repository
+      # secrets from fork-sourced pull_request runs, whatever is configured.
+      - name: Warn that the backend drift guards will self-skip
+        if: ${{ env.FAMILY_BACKEND_TOKEN == '' }}
+        run: >-
+          echo "::warning title=Backend drift guards skipped::FAMILY_BACKEND_TOKEN
+          is not available to this run, so the family backend was not checked out
+          and test/coverage.test.ts, test/i539-coverage.test.ts and
+          test/n400-coverage.test.ts self-skipped. A green check here does not
+          prove the descriptors match form_myuscis_definitions.json. A repo admin
+          adds the secret under Settings -> Secrets and variables -> Actions; it
+          still cannot reach runs triggered from a fork."
+
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
