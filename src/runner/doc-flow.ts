@@ -701,8 +701,17 @@ export function strayDescriptors(
   currentSlug: string,
   walk: { unvisitedUploadSlugs: string[]; declaredUploadSlugs: string[] },
 ): UploadPageDescriptor[] {
-  const samePage = (slug: string, pagePath: string): boolean =>
-    slug.endsWith(pagePath) || pagePath.endsWith(slug);
+  const samePage = (slug: string, pagePath: string): boolean => {
+    const a = slug.replace(/^\/+|\/+$/g, "");
+    const b = pagePath.replace(/^\/+|\/+$/g, "");
+    if (!a || !b) return false;
+    if (a === b) return true;
+    // A relative page_path (one stored without its leading directory) matches a
+    // full slug only on a path-SEGMENT boundary, so a page whose slug merely ends
+    // with the same word — ".../child-and-spousal-support" vs a bare "support" —
+    // is not mistaken for the same page and its document silently dropped.
+    return a.endsWith("/" + b) || b.endsWith("/" + a);
+  };
   const out: UploadPageDescriptor[] = [];
   for (const d of uploadPages) {
     const pagePath = (d.page_path ?? "").replace(/\/$/, "");

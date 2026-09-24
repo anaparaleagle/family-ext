@@ -1121,3 +1121,49 @@ describe("doc-flow: documents whose own evidence page myUSCIS never showed", () 
     expect(res.attached).toBe(2);
   });
 });
+
+// ===========================================================================
+// A STRAY IS MATCHED BY PATH SEGMENT, NOT A SHARED TRAILING WORD
+//
+// samePage compares a declared/visited slug against a descriptor's page_path.
+// A bare-suffix compare (`a.endsWith(b) || b.endsWith(a)`) treats a page whose
+// slug merely ENDS with the same word as "the same page": a visited
+// ".../child-and-spousal-support" swallows a distinct, undeclared slot whose
+// page_path is "support", and its document is silently dropped — exactly the
+// failure this catch-all rescue exists to prevent. The match must align on a
+// path-segment boundary.
+// ===========================================================================
+describe("doc-flow: a stray is matched by path segment, not a shared word", () => {
+  const UPLOADS: UploadPageDescriptor[] = [
+    { page_path: "/evidence/child-and-spousal-support", kind: "document", doc_type: "child_support_order" },
+    // A different slot no page declares; its bare page_path only shares the
+    // trailing word "support" with the visited page above.
+    { page_path: "support", kind: "document", doc_type: "affidavit_of_support" },
+  ];
+  const DECLARED = ["/evidence/child-and-spousal-support", "/evidence/additional-evidence"];
+
+  it("does not drop an undeclared slot that only shares a trailing word with a visited page", () => {
+    const strays = strayDescriptors(UPLOADS, "/evidence/additional-evidence", {
+      unvisitedUploadSlugs: [],
+      declaredUploadSlugs: DECLARED,
+    });
+    // The undeclared "support" slot has no page of its own — it belongs on the
+    // catch-all. The visited child-and-spousal-support slot does not.
+    expect(strays.map((d) => d.doc_type)).toContain("affidavit_of_support");
+    expect(strays.map((d) => d.doc_type)).not.toContain("child_support_order");
+  });
+
+  it("still treats a relative page_path as the same page when it aligns on a boundary", () => {
+    // The legitimate use of the loose match: a page_path stored without its
+    // leading directory ("evidence/marriage") is the same page as the full
+    // visited slug ("/n400/evidence/marriage"), so its slot is NOT a stray.
+    const uploads: UploadPageDescriptor[] = [
+      { page_path: "evidence/marriage", kind: "document", doc_type: "marriage_certificate" },
+    ];
+    const strays = strayDescriptors(uploads, "/n400/evidence/additional-evidence", {
+      unvisitedUploadSlugs: [],
+      declaredUploadSlugs: ["/n400/evidence/marriage", "/n400/evidence/additional-evidence"],
+    });
+    expect(strays.map((d) => d.doc_type)).not.toContain("marriage_certificate");
+  });
+});
