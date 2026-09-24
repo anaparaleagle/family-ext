@@ -798,7 +798,7 @@ export const N400_PAGES: FormPage[] = [
   { slug: "/evidence/arrests-or-convictions-removed-from-your-records", title: "Arrests or convictions removed from your records", kind: "upload", fields: [], conditional: true },
   { slug: "/evidence/traffic-incidents", title: "Traffic incidents", kind: "upload", fields: [], conditional: true },
   { slug: "/evidence/fine-restitutions-and-wage-garnishments", title: "Fine, restitutions, and wage garnishments", kind: "upload", fields: [], conditional: true },
-  { slug: "/evidence/additional-evidence", title: "Additional evidence you want to provide", kind: "upload", fields: [] },
+  { slug: "/evidence/additional-evidence", title: "Additional evidence you want to provide", kind: "upload", fields: [], catchAll: true },
 
   // ── Additional information ──────────────────────────────────────────────
   {
