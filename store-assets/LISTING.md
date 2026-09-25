@@ -171,7 +171,11 @@ All three certifications are true and can be checked:
 
 **Privacy policy URL**
 
-    https://www.paraleagle.ai/privacy
+    https://paraleagle.ai/privacy
+
+No `www.` — the www host only answers with a 308 redirect, and the dashboard's
+link checker fails it ("Privacy policy link is not reachable. Timeout while
+connecting.", seen 2026-09-25). The bare domain answers 200 directly.
 
 That page exists and already describes immigration and petition data. Note the
 marketing site's own footer links to `paraleagle.com/privacy`, and that domain
