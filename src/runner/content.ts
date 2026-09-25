@@ -12,8 +12,9 @@ import { resolveApiBaseUrl } from "../engine/api-config";
 import { flushUnmappedFields, normalizeName } from "../engine/telemetry";
 import { detectCurrentPage, liveHeading } from "./section-detector";
 import { fillAll, fillPage, onLoginPage } from "./fill-chain";
+import type { UploadWalkContext } from "./fill-chain";
 import { auditPage, summarizeAudit } from "./audit";
-import { descriptorsForPage, fillUploadPageAll } from "./doc-flow";
+import { descriptorsForPage, fillUploadPageAll, strayDescriptors } from "./doc-flow";
 import { STORAGE_KEYS } from "./payload";
 import { configForPath } from "./registry";
 import { FormConfig, FormPage, fieldNamesOf } from "./types";
@@ -98,14 +99,24 @@ async function loadPayloadFor(config: FormConfig): Promise<LoadedPayload | null>
  * processing to wait for, so the advance logic can click Next once instead of
  * spending a minute insisting myUSCIS is still busy.
  */
-async function handleUploadPage(page: FormPage, payload: LoadedPayload): Promise<number> {
+async function handleUploadPage(
+  page: FormPage,
+  payload: LoadedPayload,
+  walk?: UploadWalkContext,
+): Promise<number> {
   // ALL descriptors for this page, not just the first — one evidence slot can be
   // fed by several document types (see fillUploadPageAll).
   //
   // Matched by slug OR by heading: most of the I-129's evidence pages have no
   // slug we can rely on, and are identified by their heading alone.
   const heading = liveHeading();
-  const descriptors = descriptorsForPage(page.slug, heading, payload.uploadPages);
+  const own = descriptorsForPage(page.slug, heading, payload.uploadPages);
+  // The catch-all also takes every document whose own evidence page myUSCIS
+  // never showed for this case, or that no page declares — otherwise those
+  // documents reach USCIS nowhere, silently (see doc-flow.strayDescriptors).
+  const strays =
+    page.catchAll && walk ? strayDescriptors(payload.uploadPages, page.slug, walk) : [];
+  const descriptors = [...own, ...strays];
   if (descriptors.length === 0) {
     dbg(`upload: no descriptor for ${page.slug} / "${heading}", skipping`);
     return 0;
@@ -653,8 +664,8 @@ async function fillAllBody(): Promise<void> {
   if (!payload) return;
   logRunHeader(config, payload);
   setStatus("Filling all pages…");
-  const summaries = await fillAll(config, payload.fieldValues, (page) =>
-    handleUploadPage(page, payload),
+  const summaries = await fillAll(config, payload.fieldValues, (page, walk) =>
+    handleUploadPage(page, payload, walk),
   );
   void flushUnmappedFields(config.formType, payload.caseId);
   const filled = summaries.reduce((n, s) => n + s.filled, 0);

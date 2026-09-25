@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   planPageFill,
   repeaterRowCount,
@@ -8,11 +8,12 @@ import {
   findRowCommitButton,
   findConfirmationButton,
   isForbiddenAdvanceControl,
+  fillAll,
 } from "../src/runner/fill-chain";
 import { I130_PAGES } from "../src/i130/form-descriptor";
 import { findByName } from "../src/engine/value-setter";
 import { setBody, textInput, radioGroup, addButton } from "./fixtures/dom";
-import { cond, radio, t, FormPage } from "../src/runner/types";
+import { cond, radio, t, FormPage, FormConfig } from "../src/runner/types";
 
 function page(slug: string) {
   const p = I130_PAGES.find((x) => x.slug === slug);
@@ -344,4 +345,51 @@ describe("fillPage — conditional fields", () => {
     expect(res.failed).toBe(1); // the revealed field, loudly
     expect(res.skipped).toBe(0); // NOT swept under the carpet
   }, 20000);
+});
+
+// ===========================================================================
+// THE WALK TELLS THE UPLOAD STEP WHICH EVIDENCE PAGES IT NEVER REACHED
+//
+// myUSCIS renders some evidence pages only for some answers. A document routed
+// to such a page has no other way onto the filing than the Additional-evidence
+// catch-all — and only the walk knows which earlier upload pages it never landed
+// on. So every upload callback receives that list; the catch-all page is the one
+// that acts on it (see doc-flow.strayDescriptors).
+// ===========================================================================
+describe("fillAll — tells the upload step which evidence pages it never reached", () => {
+  const BASE = "https://my.uscis.gov/forms/application-for-naturalization/13375119";
+  function goTo(slug: string): void {
+    const w = window as unknown as { happyDOM?: { setURL?: (u: string) => void } };
+    w.happyDOM?.setURL?.(BASE + slug);
+  }
+  const upload = (slug: string, extra: Partial<FormPage> = {}): FormPage => ({
+    slug,
+    title: slug,
+    kind: "upload",
+    fields: [],
+    ...extra,
+  });
+
+  it("names the unvisited earlier upload pages when it reaches the catch-all", async () => {
+    const greenCard = upload("/evidence/your-permanent-resident-card");
+    const support = upload("/evidence/child-and-spousal-support", { conditional: true });
+    const catchAll = upload("/evidence/additional-evidence", { catchAll: true });
+    goTo(catchAll.slug);
+    setBody(`<button data-testid="next-button">Next</button>`);
+    const config: FormConfig = {
+      formType: "N-400",
+      hostPath: "/forms/application-for-naturalization/",
+      label: "N-400",
+      pages: [greenCard, support, catchAll],
+    };
+    const onUpload = vi.fn(async () => 0);
+
+    await fillAll(config, {}, onUpload);
+
+    expect(onUpload).toHaveBeenCalledOnce();
+    expect(onUpload).toHaveBeenCalledWith(catchAll, {
+      unvisitedUploadSlugs: [greenCard.slug, support.slug],
+      declaredUploadSlugs: [greenCard.slug, support.slug, catchAll.slug],
+    });
+  }, 30000);
 });

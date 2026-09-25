@@ -319,11 +319,13 @@ export const I539_PAGES: FormPage[] = [
       //
       // These five read 5 FAILED on the 2026-07-28 run ("element not on page"),
       // and NOT because of ordering — the radio was never in the payload at all,
-      // so nothing opened the block. See the backend map note: the entry for
-      // isMailingEqualToPhysical is checkbox-shaped and can only emit "true" or
-      // blank, never "false". Declaring the reveal here means that case now reads
-      // as "not attempted, nothing answered the question" instead of five
-      // failures with no cause attached.
+      // so nothing opened the block: the backend entry for isMailingEqualToPhysical
+      // was then checkbox-shaped and could only emit "true" or blank. Since
+      // backend f0432cf3 (2026-07-29) it reads applicant.mailing_same_as_physical
+      // through i539_yesno — "false" when the client answered no, "" when the
+      // question is unanswered — so the block opens, and the reveal declared here
+      // turns an unanswered case into "not attempted, nothing answered the
+      // question" instead of five failures with no cause attached.
       ...[
         t("applicant.yourContactInformation.physicalAddresses.addressLineOne"),
         t("applicant.yourContactInformation.physicalAddresses.addressLineTwo"),
@@ -624,8 +626,13 @@ export const I539_PAGES: FormPage[] = [
   },
 
   // ── Evidence (uploads — a dropzone file input, nothing to type) ───────────
-  // Each needs a backend upload_pages descriptor to resolve to bytes; until the
-  // I-539 backend map exists the doc-flow finds none and logs a skip.
+  // Each needs a backend upload_pages entry to resolve to bytes
+  // (form_myuscis_definitions.json I-539-STUDENT, shared by every I-539 type via
+  // definitions_from); test/i539-coverage.test.ts guards that every backend
+  // page_path is a slug declared here. A declared page the backend does not feed
+  // logs "no descriptor" and is walked past; a page the walk lands on that is NOT
+  // declared logs "page not in descriptor" — that line is the capture signal for
+  // a slot nobody has wired yet, never a reason to guess a slug.
   {
     // REQUIRED. accept=jpg/jpeg/pdf/tif/tiff, max 12MB/file.
     slug: "/evidence/form-i-94",
@@ -715,6 +722,7 @@ export const I539_PAGES: FormPage[] = [
     title: "Additional evidence",
     kind: "upload",
     fields: [],
+    catchAll: true,
   },
 
   // ── Additional Information ───────────────────────────────────────────────

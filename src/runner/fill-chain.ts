@@ -1278,6 +1278,45 @@ export function onLoginPage(doc: Document = document): boolean {
 }
 
 /**
+ * What the walk knows when it hands an upload page to the upload step.
+ *
+ * myUSCIS renders some evidence pages only for some answers: the N-400's
+ * child-and-spousal-support page only for a Married applicant, its crime pages
+ * only once an arrest is answered. A document routed to such a page never gets
+ * a page to land on, and the only place that can still take it is the
+ * Additional-evidence catch-all — which comes last in the walk, so by then the
+ * walk knows which earlier upload pages it never reached. Only the walk knows
+ * that, so it says so on every upload callback; doc-flow.strayDescriptors acts
+ * on it for the page flagged `catchAll`.
+ */
+export interface UploadWalkContext {
+  /** Upload pages declared BEFORE the current one that the walk never landed on. */
+  unvisitedUploadSlugs: string[];
+  /** Every upload page the descriptor declares, in walk order. */
+  declaredUploadSlugs: string[];
+}
+
+/**
+ * The upload pages declared before `currentSlug` that `visited` does not hold.
+ *
+ * Pages declared AFTER the current one are left out on purpose: they may still
+ * render later in the walk, and a document attached on the catch-all AND on its
+ * own page would be filed twice.
+ */
+export function unvisitedUploadSlugsBefore(
+  pages: FormPage[],
+  currentSlug: string,
+  visited: ReadonlySet<string>,
+): string[] {
+  const out: string[] = [];
+  for (const p of pages) {
+    if (p.slug === currentSlug) break;
+    if (p.kind === "upload" && !visited.has(p.slug)) out.push(p.slug);
+  }
+  return out;
+}
+
+/**
  * Fill-All: from the current page, fill it, click Next, wait, repeat — walking
  * the descriptor order for the given form. NEVER URL-hops (respects the
  * anti-deep-linking guard); NEVER advances past the review page and NEVER
@@ -1289,7 +1328,7 @@ export async function fillAll(
   fieldValues: Record<string, string>,
   // Reports how many files it attached, so the advance logic can tell "myUSCIS is
   // still processing an upload" from "there was no upload".
-  onUploadPage: (page: FormPage) => Promise<number | void>,
+  onUploadPage: (page: FormPage, walk: UploadWalkContext) => Promise<number | void>,
 ): Promise<PageFillResult[]> {
   const summaries: PageFillResult[] = [];
   const uploadsSeen: string[] = [];
@@ -1357,7 +1396,13 @@ export async function fillAll(
           // the exact failure that hid the doc-upload CORS bug.
           try {
             uploadsSeen.push(page.slug);
-            attachedHere = (await onUploadPage(page)) ?? null;
+            const walk: UploadWalkContext = {
+              unvisitedUploadSlugs: unvisitedUploadSlugsBefore(config.pages, page.slug, visited),
+              declaredUploadSlugs: config.pages
+                .filter((p) => p.kind === "upload")
+                .map((p) => p.slug),
+            };
+            attachedHere = (await onUploadPage(page, walk)) ?? null;
           } catch (err) {
             dbg(
               `fillAll: No file attached to ${page.slug} — upload step errored ` +

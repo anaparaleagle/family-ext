@@ -119,6 +119,7 @@ export const I131_PAGES: FormPage[] = [
     title: "Additional Evidence",
     kind: "upload",
     fields: [],
+    catchAll: true,
   },
 
   {

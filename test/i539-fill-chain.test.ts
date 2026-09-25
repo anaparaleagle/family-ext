@@ -456,9 +456,10 @@ describe("I-539 conditional reveals", () => {
     expect(plan).toEqual([]);
   });
 
-  // Cluster A as it actually happened: five address values held, and the radio
-  // that opens the block absent from the payload entirely (the backend map can
-  // only emit "true" or blank for it, never "false").
+  // Cluster A as it actually happened on 2026-07-28: five address values held,
+  // and the radio that opens the block absent from the payload entirely. (The
+  // backend has emitted "false" for a "no" since f0432cf3; it still sends "" when
+  // the mailing question is unanswered, which is the case this pins.)
   it("plans nothing from the physical-address block when the mailing question is unanswered", () => {
     const plan = planPageFill(page("/about-you/your-contact-information"), {
       "applicant.yourContactInformation.physicalAddresses.addressLineOne": "12 Oak St",

@@ -304,7 +304,9 @@ describe("I-539 descriptor <-> the live myUSCIS route table", () => {
   it("declares the two H-dependent evidence pages as upload-only", () => {
     // Same shape as the /evidence/form-I-20 bug (SOF-1009): an evidence page the
     // descriptor does not know is a document that never reaches USCIS. These two
-    // are the H-4/L-2 slots and they appear on every worker-dependent draft.
+    // are the H-4 slots: the backend scopes both to H-4 (both paths name the "H
+    // temporary worker"), and an L-2 draft's equivalents have never been
+    // captured — an L-2 case keeps its proof in Additional evidence until they are.
     const uploads = new Set(
       I539_PAGES.filter((p) => p.kind === "upload").map((p) => p.slug),
     );
