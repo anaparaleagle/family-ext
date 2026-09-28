@@ -28,6 +28,12 @@ import { pageForUrl } from "../src/runner/section-detector";
 import { fieldNamesOf, FormPage } from "../src/runner/types";
 import { onTerminalPath, planPageFill } from "../src/runner/fill-chain";
 import { descriptorsForPage } from "../src/runner/doc-flow";
+import { debugLog } from "../src/engine/logger";
+import {
+  I485J_BASE,
+  I485J_ELIGIBILITY_LABELS,
+  I485J_SLUGS,
+} from "./fixtures/i485j-inferred";
 
 const DUMP_DIR = resolve(__dirname, "fixtures/i485-online-field-dump");
 const PAGE_DUMPS = readdirSync(DUMP_DIR)
@@ -451,5 +457,127 @@ describe.skipIf(!BACKEND_I485)("I-485 descriptor <-> backend value map", () => {
     const uploadSlugs = new Set(I485_PAGES.filter((p) => p.kind === "upload").map((p) => p.slug));
     const undeclared = BACKEND_I485!.uploadPaths.filter((p) => !uploadSlugs.has(p));
     expect(undeclared, `backend routes to undeclared pages: ${undeclared.join(", ")}`).toEqual([]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The standalone I-485 Supplement J. No live capture exists yet, so every slug
+// and label comes from ./fixtures/i485j-inferred.
+
+function i485jPages(): FormPage[] {
+  const config = configForFormType("I-485J");
+  expect(config, "no I-485J config registered").not.toBeNull();
+  return config!.pages;
+}
+
+function i485jPage(slug: string): FormPage {
+  const page = i485jPages().find((p) => p.slug === slug);
+  expect(page, `the I-485J descriptor does not declare ${slug}`).toBeDefined();
+  return page!;
+}
+
+describe("I-485J descriptor shape", () => {
+  it("declares the Supplement J walk in the order myUSCIS shows it", () => {
+    const slugs = i485jPages().map((p) => p.slug);
+    const expected = [
+      I485J_SLUGS.eligibility,
+      I485J_SLUGS.form,
+      I485J_SLUGS.g28,
+      I485J_SLUGS.i817,
+      I485J_SLUGS.additionalEvidence,
+      I485J_SLUGS.review,
+    ];
+    for (const slug of expected) expect(slugs, slug).toContain(slug);
+    const positions = expected.map((slug) => slugs.indexOf(slug));
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+  });
+
+  it("uploads the Supplement J, the G-28 and the additional evidence", () => {
+    for (const slug of [I485J_SLUGS.form, I485J_SLUGS.g28, I485J_SLUGS.additionalEvidence]) {
+      const page = i485jPage(slug);
+      expect(page.kind, slug).toBe("upload");
+      expect(page.fields, slug).toEqual([]);
+    }
+    expect(i485jPage(I485J_SLUGS.additionalEvidence).catchAll ?? false).toBe(false);
+  });
+
+  it("adds a client missing from the attorney's list the same way the I-485 does", () => {
+    const i485 = I485_PAGES.find((p) => p.slug === "/client-information/0")!;
+    const page = i485jPage(I485J_SLUGS.clientInformation);
+    expect(page).toMatchObject({ title: "About Your New Client", kind: "form", advanceButtonText: "Add Client" });
+    expect(page.fields).toEqual(i485.fields);
+  });
+
+  it("ends on a review page that fills nothing", () => {
+    const pages = i485jPages();
+    expect(pages[pages.length - 1]).toMatchObject({ slug: I485J_SLUGS.review, kind: "review" });
+    expect(pages[pages.length - 1].fields).toEqual([]);
+  });
+});
+
+describe("I-485J eligibility selection", () => {
+  function eligibilityField(): string {
+    const page = i485jPage(I485J_SLUGS.eligibility);
+    expect(page.fields.length, "the eligibility page drives no control").toBeGreaterThan(0);
+    return page.fields[0].name;
+  }
+
+  it.each(Object.entries(I485J_ELIGIBILITY_LABELS))(
+    'selects the option for supplement_j_reason "%s"',
+    (reason, label) => {
+      const name = eligibilityField();
+      const plan = planPageFill(i485jPage(I485J_SLUGS.eligibility), { [name]: reason });
+      expect(plan.find((p) => p.spec.name === name)?.value).toBe(label);
+    },
+  );
+
+  it.each([
+    ["ConfirmationOfValidJobOffer", "Confirmation of valid job offer"],
+    ["RequestForJobPortability", "Request for job portability"],
+  ])("selects the option whose portal code is %s", (code, label) => {
+    const name = eligibilityField();
+    const plan = planPageFill(i485jPage(I485J_SLUGS.eligibility), { [name]: code });
+    expect(plan.find((p) => p.spec.name === name)?.value).toBe(label);
+  });
+
+  it.each([
+    ["blank", ""],
+    ["unknown", "some_other_reason"],
+    ["the raw fact value", "confirm_job_offer"],
+  ])("selects nothing and warns when the reason is %s", (_kind, reason) => {
+    const name = eligibilityField();
+    const from = debugLog.length;
+    const plan = planPageFill(i485jPage(I485J_SLUGS.eligibility), { [name]: reason });
+    expect(plan.find((p) => p.spec.name === name)).toBeUndefined();
+    const warned = debugLog.slice(from).filter((l) => l.includes(name));
+    expect(warned, "nothing in the run log says the eligibility was left unselected").not.toEqual(
+      [],
+    );
+    if (reason) expect(warned.join("\n")).toContain(reason);
+  });
+
+  it("selects nothing and warns when the backend sent no reason at all", () => {
+    const name = eligibilityField();
+    const from = debugLog.length;
+    expect(planPageFill(i485jPage(I485J_SLUGS.eligibility), {})).toEqual([]);
+    expect(debugLog.slice(from).some((l) => l.includes(name))).toBe(true);
+  });
+});
+
+describe("I-485J upload pages <-> doc-flow path matching", () => {
+  const slugs = [I485J_SLUGS.form, I485J_SLUGS.g28, I485J_SLUGS.additionalEvidence];
+  const uploadPages = slugs.map((slug) => ({
+    page_path: slug,
+    kind: "document" as const,
+    doc_type: `doc-for${slug}`,
+  }));
+
+  it("routes each live upload URL to exactly its own slot", () => {
+    for (const slug of slugs) {
+      i485jPage(slug);
+      const livePath = new URL(`${I485J_BASE}${slug}`).pathname;
+      expect(descriptorsForPage(livePath, "", uploadPages).map((d) => d.page_path), livePath)
+        .toEqual([slug]);
+    }
   });
 });

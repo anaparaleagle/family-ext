@@ -603,6 +603,7 @@ async function fillSectionBody(): Promise<void> {
     return;
   }
   if (page.kind === "review") return setStatus("Review page — nothing to fill.");
+  if (page.kind === "skip") return setStatus(`${page.title}: not part of this filing.`);
   const coverage = new Set(fieldNamesOf(config.pages).map(normalizeName));
   const res = await fillPage(page, payload.fieldValues, coverage);
   void flushUnmappedFields(config.formType, payload.caseId);

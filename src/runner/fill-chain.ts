@@ -228,6 +228,14 @@ export function planPageFill(
     let name = field.name.replace(/\{i\}/g, String(rowIndex));
     if (opts.nestedIndex !== undefined) name = name.replace(/\{j\}/g, String(opts.nestedIndex));
     const sent = fieldValues[name];
+    if (field.strictValueMap && !(sent && field.valueMap?.[sent] !== undefined)) {
+      dbg(
+        sent
+          ? `fill: "${sent}" is not a known option for ${name} — selecting nothing`
+          : `fill: no value for ${name} — selecting nothing`,
+      );
+      return;
+    }
     if (sent === undefined) return;
     // Empty string fills nothing except a checkbox (where "" => leave unchecked,
     // which is the default — so we skip it too; checkboxes only act when truthy).
@@ -1384,7 +1392,9 @@ export async function fillAll(
         break;
       }
       isUploadPage = page.kind === "upload";
-      if (visited.has(page.slug)) {
+      if (page.kind === "skip") {
+        dbg(`fillAll: ${page.slug} is not part of this filing — walking past it`);
+      } else if (visited.has(page.slug)) {
         dbg(`fillAll: already visited ${page.slug}, advancing without refilling`);
       } else {
         visited.add(page.slug);
