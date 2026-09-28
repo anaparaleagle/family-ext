@@ -9,7 +9,12 @@ import {
   findConfirmationButton,
   isForbiddenAdvanceControl,
   fillAll,
+  onTerminalPath,
+  type UploadWalkContext,
 } from "../src/runner/fill-chain";
+import { configForFormType } from "../src/runner/registry";
+import { debugLog, resetDebugLog } from "../src/engine/logger";
+import { I485J_BASE, I485J_SLUGS } from "./fixtures/i485j-inferred";
 import { I130_PAGES } from "../src/i130/form-descriptor";
 import { findByName } from "../src/engine/value-setter";
 import { setBody, textInput, radioGroup, addButton } from "./fixtures/dom";
@@ -391,5 +396,84 @@ describe("fillAll — tells the upload step which evidence pages it never reache
       unvisitedUploadSlugs: [greenCard.slug, support.slug],
       declaredUploadSlugs: [greenCard.slug, support.slug, catchAll.slug],
     });
+  }, 30000);
+});
+
+// ===========================================================================
+// THE STANDALONE I-485J WALK
+//
+// Form I-817 is not part of a Supplement J filing, so its page is walked past
+// with nothing attached. The walk ends on review and clicks nothing there.
+// Slugs are inferred, not captured: see ./fixtures/i485j-inferred.
+// ===========================================================================
+describe("fillAll — the standalone I-485J", () => {
+  function i485jConfig(): FormConfig {
+    const config = configForFormType("I-485J");
+    expect(config, "no I-485J config registered").not.toBeNull();
+    return config!;
+  }
+
+  function goToUrl(url: string): void {
+    (window.location as unknown as { href: string }).href = url;
+  }
+
+  /** Each page's Next navigates to the one after it; returns the review page's click counts. */
+  function driveChain(slugs: string[]): { next: number; submit: number } {
+    const clicks = { next: 0, submit: 0 };
+    let i = 0;
+    const mount = (): void => {
+      goToUrl(`${I485J_BASE}${slugs[i]}`);
+      const last = i === slugs.length - 1;
+      setBody(
+        `<h1>Step ${i + 1}</h1><button data-testid="next-btn">Next</button>` +
+          (last ? `<button id="submit">Submit</button>` : ""),
+      );
+      const next = document.querySelector<HTMLButtonElement>('[data-testid="next-btn"]')!;
+      next.addEventListener("click", () => {
+        if (last) {
+          clicks.next += 1;
+          return;
+        }
+        i += 1;
+        mount();
+      });
+      document.getElementById("submit")?.addEventListener("click", () => {
+        clicks.submit += 1;
+      });
+    };
+    mount();
+    return clicks;
+  }
+
+  beforeEach(() => resetDebugLog());
+
+  it("walks past the Form I-817 page without uploading anything to it", async () => {
+    const config = i485jConfig();
+    expect(
+      config.pages.some((p) => p.slug === I485J_SLUGS.i817),
+      "the I-817 page must be declared, not walked past as an unknown page",
+    ).toBe(true);
+    driveChain([I485J_SLUGS.i817, I485J_SLUGS.additionalEvidence, I485J_SLUGS.review]);
+    const onUpload = vi.fn(async (_page: FormPage, _walk: UploadWalkContext) => 0);
+
+    await fillAll(config, {}, onUpload);
+
+    expect(onUpload.mock.calls.map((c) => c[0].slug)).toEqual([I485J_SLUGS.additionalEvidence]);
+    expect(debugLog.join("\n")).not.toMatch(/page not in descriptor/);
+    expect(window.location.pathname.endsWith(I485J_SLUGS.review)).toBe(true);
+  }, 30000);
+
+  it("stops on the I-485J review page and never clicks Next or Submit there", async () => {
+    const config = i485jConfig();
+    const last = config.pages[config.pages.length - 1];
+    expect(last).toMatchObject({ slug: I485J_SLUGS.review, kind: "review" });
+    expect(onTerminalPath(`${I485J_BASE}${I485J_SLUGS.review}`)).toBe(true);
+    const clicks = driveChain([I485J_SLUGS.additionalEvidence, I485J_SLUGS.review]);
+
+    await fillAll(config, {}, async () => 0);
+
+    expect(window.location.pathname.endsWith(I485J_SLUGS.review)).toBe(true);
+    expect(clicks).toEqual({ next: 0, submit: 0 });
+    expect(debugLog.join("\n")).toMatch(/review/i);
   }, 30000);
 });

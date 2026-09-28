@@ -277,3 +277,28 @@ describe("download-proxy: byte transfer is compact enough for a real document", 
     expect(res.dataBase64.length).toBeLessThan(12_000_000);
   }, 30000);
 });
+
+describe("download-proxy: the prepared file's name", () => {
+  it("hands back Content-Disposition so the page gets the backend's USCIS-safe name", async () => {
+    const headers: Record<string, string> = {
+      "content-type": "application/pdf",
+      "content-disposition": 'attachment; filename="Form I-485J (signed).pdf"',
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        headers: { get: (name: string) => headers[name.toLowerCase()] ?? null },
+        blob: async () => ({ size: 3, arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer }),
+      })),
+    );
+    const res = await send({
+      type: "DOWNLOAD_FILE",
+      url: "https://family-api.paraleagle.io/api/v1/forms/generated/g2/uscis-file/",
+      accessToken: "tok",
+    });
+    expect(res.success).toBe(true);
+    expect(res.contentDisposition).toBe('attachment; filename="Form I-485J (signed).pdf"');
+  });
+});

@@ -16,12 +16,11 @@
 //                              proxy with the bearer token.
 //
 // Form-agnostic: it acts on whatever upload_pages the backend sent for whatever
-// form was loaded. Both file URLs come from the same backend contract:
-//   - documents:        DocumentSerializer.file_url        (GET /documents/?case=)
-//   - generated forms:  GeneratedFormSerializer.file_url   (GET /forms/generated/?case=)
-// On prod both are PRESIGNED S3 URLs (config/settings/s3.py), not paths on the
-// API host — the download-proxy allowlists S3 and deliberately withholds the
-// bearer token there, since a presigned URL is already self-authenticating.
+// form was loaded. The listings only pick the row; the BYTES always come from the
+// staff endpoint that prepares a file for USCIS (under 12 MB, a USCIS-safe name
+// in Content-Disposition, signed when it is a generated form):
+//   - documents:        GET /documents/<id>/uscis-file/
+//   - generated forms:  GET /forms/generated/<id>/uscis-file/
 //
 // EVERY request in here goes through the service worker (engine/download-proxy)
 // via runner/api-transport. A content script runs at my.uscis.gov's origin and
@@ -149,14 +148,6 @@ async function fetchGeneratedForm(
 }
 
 /**
- * Download a file_url through the background proxy and wrap it as a File.
- *
- * Returns the reason on failure instead of only logging it. A blocked origin
- * ("not in the extension's allowlist") is a CONFIGURATION bug, not a missing
- * document, and telling the user to "upload it in ParaLeagle" would send them
- * chasing a file that is already there.
- */
-/**
  * The largest single file the myUSCIS evidence dropzone accepts.
  *
  * Read off the live page, which rejects anything bigger with "This file is too
@@ -177,10 +168,75 @@ function fromBase64(b64: string): Uint8Array<ArrayBuffer> {
   return out;
 }
 
+/** The upload-ready copy of a listed row, on the family API. */
+function uscisFileUrl(ctx: ResolveContext, kind: "documents" | "forms/generated", id: string): string {
+  return `${ctx.apiBaseUrl.replace(/\/+$/, "")}/${kind}/${encodeURIComponent(id)}/uscis-file/`;
+}
+
+/** USCIS takes these types only; the value is the extension a fallback name gets. */
+const USCIS_TYPES: Record<string, string> = {
+  "application/pdf": ".pdf",
+  "image/jpeg": ".jpg",
+  "image/jpg": ".jpg",
+  "image/png": ".png",
+  "image/tiff": ".tif",
+};
+const USCIS_EXTENSIONS = new Set([".pdf", ".jpg", ".jpeg", ".png", ".tif", ".tiff"]);
+
+function baseMime(contentType: string | undefined): string {
+  return (contentType ?? "").split(";")[0].trim().toLowerCase();
+}
+
+function extensionOf(name: string): string {
+  const dot = name.lastIndexOf(".");
+  return dot === -1 ? "" : name.slice(dot).toLowerCase();
+}
+
+/** Letters, digits, space, period, hyphen, underscore and parentheses only. */
+export function uscisFilename(name: string): string {
+  const cleaned = name
+    .replace(/[^A-Za-z0-9 ._()-]+/g, "_")
+    .replace(/_+/g, "_")
+    .trim();
+  return cleaned.replace(/\.[^.]*$/, "") ? cleaned : `document${cleaned}`;
+}
+
+/** The name in a Content-Disposition header: `filename*` (RFC 5987) first, then `filename`. */
+export function filenameFromContentDisposition(header: string | null | undefined): string | null {
+  if (!header) return null;
+  const star = /filename\*\s*=\s*([^;]+)/i.exec(header);
+  if (star) {
+    const value = star[1].trim().replace(/^"|"$/g, "");
+    const encoded = /^[^']*'[^']*'(.*)$/.exec(value)?.[1] ?? value;
+    try {
+      return decodeURIComponent(encoded);
+    } catch {
+      /* malformed encoding: fall through to the plain parameter */
+    }
+  }
+  const plain = /filename\s*=\s*(?:"([^"]*)"|([^;]+))/i.exec(header);
+  const name = (plain?.[1] ?? plain?.[2] ?? "").trim();
+  return name || null;
+}
+
+/**
+ * Download a row's upload-ready copy and wrap it as a File.
+ *
+ * The File is named after the backend's Content-Disposition when it sends one.
+ * Otherwise `filename` is used as-is, or, when `typedFallback`, it is a bare stem
+ * that gets the extension of the type actually downloaded. Either way the name is
+ * reduced to the characters USCIS allows.
+ *
+ * Returns the reason on failure instead of only logging it. A blocked origin
+ * ("not in the extension's allowlist") is a CONFIGURATION bug, not a missing
+ * document, and telling the user to "upload it in ParaLeagle" would send them
+ * chasing a file that is already there.
+ */
 async function downloadAsFile(
   url: string,
   accessToken: string,
   filename: string,
+  typedFallback = false,
 ): Promise<{ file: File | null; error?: string }> {
   let response:
     | {
@@ -194,6 +250,7 @@ async function downloadAsFile(
          * attaching an empty file. */
         data?: number[];
         contentType?: string;
+        contentDisposition?: string;
       }
     | undefined;
   try {
@@ -227,6 +284,18 @@ async function downloadAsFile(
     // An empty file attaches "successfully" and USCIS holds a 0-byte document.
     // Better to name it than to let a silent zero pass as an upload.
     const message = `Download of ${filename} returned 0 bytes — nothing attached.`;
+    dbg(`doc-flow: ${message}`);
+    return { file: null, error: message };
+  }
+  const type = baseMime(response.contentType);
+  const prepared = filenameFromContentDisposition(response.contentDisposition);
+  filename = uscisFilename(
+    prepared ?? (typedFallback ? `${filename}${USCIS_TYPES[type] ?? ""}` : filename),
+  );
+  if (type ? !USCIS_TYPES[type] : !USCIS_EXTENSIONS.has(extensionOf(filename))) {
+    const message =
+      `${filename} is a ${type || "file of unknown type"} — USCIS accepts PDF, JPG, PNG ` +
+      `and TIF only. NOT attached; replace it in ParaLeagle with an accepted format.`;
     dbg(`doc-flow: ${message}`);
     return { file: null, error: message };
   }
@@ -311,32 +380,28 @@ async function resolveFilesFor(
     const firstOfType = earliest(matches);
     for (const m of matches) {
       const name = m.filename || fallbackFilename(m, m === firstOfType);
-      // SOF-1005: skip BEFORE downloading. The filename is known from the
-      // listing, so the wasteful half (the proxy fetch of the bytes) is avoided.
+      // SOF-1005: skip BEFORE downloading when the listing name is already on the
+      // page. The prepared name is only known after the download, so it is
+      // checked again below.
       if (isFilenameAttached(name, rowTexts)) {
         dbg(`doc-flow: "${name}" is already attached to ${descriptor.page_path} — skipping`);
         alreadyAttached += 1;
         continue;
       }
-      // Same idea for a file USCIS would refuse: the LISTING knows the size, so
-      // decide here instead of transferring 34.6 MB to throw it away. The
-      // post-download check in downloadAsFile stays as the backstop for an older
-      // backend that sends no size.
-      const tooBig =
-        m.too_big_for_uscis === true ||
-        (typeof m.size_bytes === "number" && m.size_bytes > USCIS_MAX_FILE_BYTES);
-      if (tooBig) {
-        const size = typeof m.size_bytes === "number" ? `${(m.size_bytes / 1024 / 1024).toFixed(1)} MB` : "too large";
-        const message =
-          `${name} is ${size} — USCIS accepts 12 MB per file. ` +
-          `Replace it with a smaller scan in ParaLeagle, then re-run.`;
-        dbg(`doc-flow: ${message} (not downloaded)`);
-        errors.push(message);
-        continue;
-      }
+      // A listing that reports the original as too big is NOT a refusal: the
+      // uscis-file endpoint compresses it. downloadAsFile still refuses anything
+      // that arrives over the limit.
       dbg(`doc-flow: downloading ${name}…`);
-      const { file, error } = await downloadAsFile(m.file_url as string, ctx.accessToken, name);
-      if (file) files.push(file);
+      const { file, error } = await downloadAsFile(
+        uscisFileUrl(ctx, "documents", m.id),
+        ctx.accessToken,
+        name,
+        !m.filename,
+      );
+      if (file && isFilenameAttached(file.name, rowTexts)) {
+        dbg(`doc-flow: "${file.name}" is already attached to ${descriptor.page_path} — skipping`);
+        alreadyAttached += 1;
+      } else if (file) files.push(file);
       else if (error) errors.push(error);
     }
     return { files, errors, alreadyAttached };
@@ -370,10 +435,15 @@ async function resolveFilesFor(
       return { files: [], errors: [], alreadyAttached: 0 };
     }
     const { file, error: downloadError } = await downloadAsFile(
-      row.file_url,
+      uscisFileUrl(ctx, "forms/generated", row.id),
       ctx.accessToken,
-      name,
+      formType,
+      true,
     );
+    if (file && isFilenameAttached(file.name, rowTexts)) {
+      dbg(`doc-flow: "${file.name}" is already attached to ${descriptor.page_path} — skipping`);
+      return { files: [], errors: [], alreadyAttached: 1 };
+    }
     if (downloadError && /\b404\b/.test(downloadError)) {
       // The listing said this form exists, so a 404 is a missing FILE behind a
       // live record — not "generate it", which is what the caseworker would
@@ -413,11 +483,14 @@ async function resolveFilesFor(
  *     single-document case stays readable and a document added later cannot
  *     rename the one already on the page;
  *   - every later document carries its id UP FRONT, inside the 12-character window.
+ *
+ * It is a bare STEM: the extension comes from the type actually downloaded, so a
+ * JPEG is never uploaded as ".pdf".
  */
 function fallbackFilename(row: DocRow, isEarliestOfType: boolean): string {
-  if (row.part) return `${row.doc_type}-${row.part}.pdf`;
-  if (isEarliestOfType) return `${row.doc_type}.pdf`;
-  return `${String(row.id).slice(0, 8)}-${row.doc_type}.pdf`;
+  if (row.part) return `${row.doc_type}-${row.part}`;
+  if (isEarliestOfType) return row.doc_type;
+  return `${String(row.id).slice(0, 8)}-${row.doc_type}`;
 }
 
 /** The earliest-created row; a missing timestamp or a tie falls back to id order. */
