@@ -1,10 +1,11 @@
 // I-485 Supplement J, filed standalone on USCIS "PDF Intake".
 // Host: https://my.uscis.gov/pdf-intake/I-485J/<draftUuid>/<slug>
 
+import { I485_PAGES } from "../i485/form-descriptor";
 import { FormPage, search } from "../runner/types";
 
-// NOT CAPTURED LIVE. Every slug and label in this block is inferred from the
-// I-485 pdf-intake capture; replace it from a real dump. Mirrored by
+// Eligibility and client-information captured live; the upload, I-817 and
+// review slugs are still inferred from the I-485. Mirrored by
 // test/fixtures/i485j-inferred.ts.
 export const I485J_HOST_PATH = "/pdf-intake/I-485J/";
 
@@ -20,12 +21,11 @@ export const I485J_SLUGS = {
 
 export const I485J_ELIGIBILITY_FIELD = "eligibility-choice";
 
-/** case.supplement_j_reason -> the option label the eligibility control shows. */
+/** eligibility-choice: payload code -> the label the select shows. */
 export const I485J_ELIGIBILITY_LABELS: Record<string, string> = {
-  confirm_job_offer: "Confirmation of valid job offer",
-  job_portability_204j: "Request for job portability",
+  ConfirmationOfValidJobOffer: "Confirmation of valid job offer",
+  RequestForJobPortability: "Request for job portability",
 };
-// END NOT CAPTURED LIVE.
 
 export const I485J_PAGES: FormPage[] = [
   {
@@ -41,11 +41,12 @@ export const I485J_PAGES: FormPage[] = [
     ],
   },
   {
-    // Prefilled by USCIS.
+    // Only asked when the client is not already in the attorney's list.
     slug: I485J_SLUGS.clientInformation,
-    title: "About Your Client",
+    title: "About Your New Client",
     kind: "form",
-    fields: [],
+    advanceButtonText: "Add Client",
+    fields: I485_PAGES.find((p) => p.slug === "/client-information/0")!.fields,
   },
   { slug: I485J_SLUGS.form, title: "PDF Form Upload", kind: "upload", fields: [] },
   { slug: I485J_SLUGS.g28, title: "G-28 PDF Form Upload", kind: "upload", fields: [] },
