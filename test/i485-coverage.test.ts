@@ -501,10 +501,11 @@ describe("I-485J descriptor shape", () => {
     expect(i485jPage(I485J_SLUGS.additionalEvidence).catchAll ?? false).toBe(false);
   });
 
-  it("types nothing into the client information USCIS prefills", () => {
-    for (const page of i485jPages().filter((p) => p.slug.includes("client-information"))) {
-      expect(page.fields, page.slug).toEqual([]);
-    }
+  it("adds a client missing from the attorney's list the same way the I-485 does", () => {
+    const i485 = I485_PAGES.find((p) => p.slug === "/client-information/0")!;
+    const page = i485jPage(I485J_SLUGS.clientInformation);
+    expect(page).toMatchObject({ title: "About Your New Client", kind: "form", advanceButtonText: "Add Client" });
+    expect(page.fields).toEqual(i485.fields);
   });
 
   it("ends on a review page that fills nothing", () => {
@@ -531,8 +532,18 @@ describe("I-485J eligibility selection", () => {
   );
 
   it.each([
+    ["ConfirmationOfValidJobOffer", "Confirmation of valid job offer"],
+    ["RequestForJobPortability", "Request for job portability"],
+  ])("selects the option whose portal code is %s", (code, label) => {
+    const name = eligibilityField();
+    const plan = planPageFill(i485jPage(I485J_SLUGS.eligibility), { [name]: code });
+    expect(plan.find((p) => p.spec.name === name)?.value).toBe(label);
+  });
+
+  it.each([
     ["blank", ""],
     ["unknown", "some_other_reason"],
+    ["the raw fact value", "confirm_job_offer"],
   ])("selects nothing and warns when the reason is %s", (_kind, reason) => {
     const name = eligibilityField();
     const from = debugLog.length;

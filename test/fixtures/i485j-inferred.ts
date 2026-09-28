@@ -1,6 +1,6 @@
-// The standalone I-485 Supplement J on pdf-intake has NOT been captured live.
-// Every path and label here is inferred from the I-485 pdf-intake capture
-// (test/fixtures/i485-online-field-dump/). Swap them here once a real dump exists.
+// The standalone I-485 Supplement J on pdf-intake. The host path, eligibility and
+// client-information pages are captured live; the upload, I-817 and review slugs
+// are still inferred from the I-485 capture (test/fixtures/i485-online-field-dump/).
 
 export const I485J_HOST_PATH = "/pdf-intake/I-485J/";
 
@@ -17,10 +17,10 @@ export const I485J_SLUGS = {
   review: "/review",
 } as const;
 
-/** case.supplement_j_reason -> the option label the eligibility control shows. */
+/** eligibility-choice: the portal's option code -> the label it shows. */
 export const I485J_ELIGIBILITY_LABELS: Record<string, string> = {
-  confirm_job_offer: "Confirmation of valid job offer",
-  job_portability_204j: "Request for job portability",
+  ConfirmationOfValidJobOffer: "Confirmation of valid job offer",
+  RequestForJobPortability: "Request for job portability",
 };
 
 export const I485J_CASE_TYPES = ["EB-1B-1C", "EB-1B", "EB-1C", "EB-2-PERM", "EB-3"];
