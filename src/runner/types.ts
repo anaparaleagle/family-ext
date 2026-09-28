@@ -79,6 +79,11 @@ export interface DescriptorField {
    * unchanged, so a map never blocks a value it does not know.
    */
   valueMap?: Record<string, string>;
+  /**
+   * Only a value in `valueMap` is driven. A blank, missing or unknown value
+   * selects nothing and is logged, rather than typed as-is.
+   */
+  strictValueMap?: boolean;
 }
 
 /**
@@ -156,7 +161,8 @@ export interface RepeaterSpec {
   variants?: RowVariantSpec;
 }
 
-export type PageKind = "form" | "upload" | "review";
+/** "skip": a page the form shows that this filing never uses; walked past untouched. */
+export type PageKind = "form" | "upload" | "review" | "skip";
 
 export interface FormPage {
   /** URL slug under the form base path. */

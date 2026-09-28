@@ -7,9 +7,16 @@ import {
   splitByAccept,
   strayDescriptors,
 } from "../src/runner/doc-flow";
-import { unvisitedUploadSlugsBefore } from "../src/runner/fill-chain";
+import { fillAll, unvisitedUploadSlugsBefore, type UploadWalkContext } from "../src/runner/fill-chain";
+import { configForFormType } from "../src/runner/registry";
 import type { UploadPageDescriptor } from "../src/runner/payload";
-import type { FormPage } from "../src/runner/types";
+import type { FormConfig, FormPage } from "../src/runner/types";
+import {
+  I485J_BASE,
+  I485J_SLUGS,
+  I485J_UPLOAD_PAGES,
+  USCIS_FILENAME,
+} from "./fixtures/i485j-inferred";
 
 const CTX = {
   apiBaseUrl: "http://localhost:8001/api/v1",
@@ -252,7 +259,7 @@ describe("doc-flow: generated_form (I-130A) resolution", () => {
     expect(downloads).toHaveLength(1);
     expect(downloads[0]).toMatchObject({
       type: "DOWNLOAD_FILE",
-      url: "http://localhost:8001/media/i130a_v2.pdf",
+      url: "http://localhost:8001/api/v1/forms/generated/g2/uscis-file/",
     });
   });
 
@@ -311,7 +318,7 @@ describe("doc-flow: document resolution", () => {
     const downloads = sendMessage.mock.calls
       .map((c: any) => c[0])
       .filter((m: any) => m.type === "DOWNLOAD_FILE");
-    expect(downloads[0].url).toBe("http://localhost:8001/media/marriage.pdf");
+    expect(downloads[0].url).toBe("http://localhost:8001/api/v1/documents/d1/uscis-file/");
   });
 
   it("warns the user to upload in ParaLeagle when no document matches", async () => {
@@ -352,7 +359,7 @@ describe("doc-flow: document resolution", () => {
     const downloads = sendMessage.mock.calls
       .map((c: any) => c[0])
       .filter((m: any) => m.type === "DOWNLOAD_FILE");
-    expect(downloads[0].url).toBe("http://localhost:8001/media/app.jpg");
+    expect(downloads[0].url).toBe("http://localhost:8001/api/v1/documents/p2/uscis-file/");
   });
 
   it("attaches what resolved and still reports the file that failed", async () => {
@@ -363,7 +370,7 @@ describe("doc-flow: document resolution", () => {
           { id: "p2", doc_type: "photos", file_url: "http://localhost:8001/media/bad.jpg", filename: "bad.jpg" },
         ]),
       downloadResponder: (url) =>
-        url.endsWith("bad.jpg")
+        url.endsWith("bad.jpg") || url.includes("/p2/")
           ? { success: false, error: "HTTP 500" }
           : { success: true, dataBase64: PDF_BASE64, contentType: "image/jpeg" },
     });
@@ -623,36 +630,6 @@ describe("doc-flow: a document larger than USCIS accepts", () => {
     expect(warning).not.toMatch(/upload it in ParaLeagle first/i);
   }, 30000);
 
-  it("does not download at all when the listing already says it is too big", async () => {
-    // The backend now sends size_bytes / too_big_for_uscis, so the decision moves
-    // to the LISTING. Transferring 34.6 MB through the message channel only to
-    // discard it is pure waste, and the run is slow enough already.
-    const sendMessage = installProxy({
-      apiResponder: () =>
-        apiOk([
-          {
-            id: "d1",
-            doc_type: "form_i20",
-            file_url: "http://localhost:8001/media/form_i20.pdf",
-            filename: "form_i20.pdf",
-            size_bytes: 36_278_893,
-            too_big_for_uscis: true,
-          },
-        ]),
-    });
-    const res = await fillUploadPage(
-      { page_path: "/evidence/form-I-20", kind: "document", doc_type: "form_i20" },
-      CTX,
-    );
-    expect(res.attached).toBe(0);
-    expect(res.warnings.join(" ")).toContain("34.6 MB");
-    // The whole point: no bytes were ever asked for.
-    const downloads = sendMessage.mock.calls.filter(
-      (c: any[]) => c[0]?.type === "DOWNLOAD_FILE",
-    );
-    expect(downloads.length).toBe(0);
-  });
-
   it("still attaches a file the listing reports as a legal size", async () => {
     installProxy({
       apiResponder: () =>
@@ -824,7 +801,7 @@ describe("doc-flow: a document the slot will not accept", () => {
       downloadResponder: (url: string) => ({
         success: true,
         dataBase64: btoa("bytes"),
-        contentType: url.endsWith(".jpg") ? "image/jpeg" : "application/pdf",
+        contentType: url.endsWith(".jpg") || url.includes("/d2/") ? "image/jpeg" : "application/pdf",
       }),
     });
     const res = await fillUploadPageAll(
@@ -1166,4 +1143,384 @@ describe("doc-flow: a stray is matched by path segment, not a shared word", () =
     });
     expect(strays.map((d) => d.doc_type)).not.toContain("marriage_certificate");
   });
+});
+
+// ===========================================================================
+// UPLOAD-READY FILES FROM THE USCIS-FILE ENDPOINTS
+//
+// The backend prepares every file for USCIS: compressed under 12 MB, a name made
+// of the characters USCIS allows (in Content-Disposition), and signed when it is
+// a generated form. The raw file_url is the ORIGINAL, which may be none of those.
+// ===========================================================================
+
+const API = "http://localhost:8001/api/v1";
+
+const rowNames = (): string[] =>
+  [...document.querySelectorAll(".uploaded-file span")].map((r) => r.textContent ?? "");
+
+const downloadUrls = (sendMessage: any): string[] =>
+  sendMessage.mock.calls
+    .map((c: any[]) => c[0])
+    .filter((m: any) => m.type === "DOWNLOAD_FILE")
+    .map((m: any) => m.url);
+
+/** A proxy answer carrying the backend's prepared name. */
+const prepared = (filename: string, contentType = "application/pdf"): unknown => ({
+  success: true,
+  dataBase64: PDF_BASE64,
+  contentType,
+  contentDisposition: `attachment; filename="${filename}"`,
+});
+
+describe("doc-flow: files come from the uscis-file endpoints", () => {
+  const OFFER = {
+    id: "d1",
+    doc_type: "offer_letter",
+    file_url: "http://localhost:8001/media/raw-offer.pdf",
+    filename: "raw-offer.pdf",
+  };
+  const OFFER_SLOT: UploadPageDescriptor = {
+    page_path: "/additional-evidence/I-485J/evidence",
+    kind: "document",
+    doc_type: "offer_letter",
+  };
+
+  it("downloads a document from /documents/<id>/uscis-file/, not its file_url", async () => {
+    const sendMessage = installProxy({
+      apiResponder: () => apiOk([OFFER]),
+      downloadResponder: () => prepared("Offer Letter (Acme).pdf"),
+    });
+    const res = await fillUploadPage(OFFER_SLOT, CTX);
+    expect(res.attached).toBe(1);
+    expect(downloadUrls(sendMessage)).toEqual([`${API}/documents/d1/uscis-file/`]);
+  });
+
+  it("downloads a generated form from /forms/generated/<id>/uscis-file/", async () => {
+    const sendMessage = installProxy({
+      apiResponder: () =>
+        apiOk([
+          { id: "g1", form_type: "I-485J", version: 1, file_url: "http://localhost:8001/media/j1.pdf" },
+          { id: "g2", form_type: "I-485J", version: 2, file_url: "http://localhost:8001/media/j2.pdf" },
+        ]),
+      downloadResponder: () => prepared("Form I-485J (signed).pdf"),
+    });
+    const res = await fillUploadPage(
+      { page_path: "/form", kind: "generated_form", form_type: "I-485J" },
+      CTX,
+    );
+    expect(res.attached).toBe(1);
+    expect(downloadUrls(sendMessage)).toEqual([`${API}/forms/generated/g2/uscis-file/`]);
+  });
+
+  it("names a document after its Content-Disposition, not the listing", async () => {
+    installProxy({
+      apiResponder: () => apiOk([OFFER]),
+      downloadResponder: () => prepared("Offer Letter (Acme).pdf"),
+    });
+    await fillUploadPage(OFFER_SLOT, CTX);
+    expect(rowNames()).toEqual(["Offer Letter (Acme).pdf"]);
+  });
+
+  it("names a generated form after its Content-Disposition", async () => {
+    installProxy({
+      apiResponder: () =>
+        apiOk([{ id: "g2", form_type: "G-28-BEN", version: 1, file_url: "http://localhost:8001/media/g28.pdf" }]),
+      downloadResponder: () => prepared("G-28 applicant (signed).pdf"),
+    });
+    await fillUploadPage({ page_path: "/form-g28", kind: "generated_form", form_type: "G-28-BEN" }, CTX);
+    expect(rowNames()).toEqual(["G-28 applicant (signed).pdf"]);
+  });
+
+  it("decodes an RFC 5987 filename* parameter", async () => {
+    installProxy({
+      apiResponder: () => apiOk([OFFER]),
+      downloadResponder: () => ({
+        success: true,
+        dataBase64: PDF_BASE64,
+        contentType: "application/pdf",
+        contentDisposition: "attachment; filename*=UTF-8''Offer%20Letter%20%28Acme%29.pdf",
+      }),
+    });
+    await fillUploadPage(OFFER_SLOT, CTX);
+    expect(rowNames()).toEqual(["Offer Letter (Acme).pdf"]);
+  });
+
+  it("attaches the prepared name once, however many times the page is filled", async () => {
+    installProxy({
+      apiResponder: () => apiOk([OFFER]),
+      downloadResponder: () => prepared("Offer Letter (Acme).pdf"),
+    });
+    await fillUploadPage(OFFER_SLOT, CTX);
+    const again = await fillUploadPage(OFFER_SLOT, CTX);
+    expect(again.attached).toBe(0);
+    expect(rowNames()).toEqual(["Offer Letter (Acme).pdf"]);
+  });
+
+  it("still fetches a document the listing says is too big, since the endpoint compresses it", async () => {
+    const sendMessage = installProxy({
+      apiResponder: () =>
+        apiOk([{ ...OFFER, size_bytes: 36_278_893, too_big_for_uscis: true }]),
+      downloadResponder: () => prepared("Offer Letter (Acme).pdf"),
+    });
+    const res = await fillUploadPage(OFFER_SLOT, CTX);
+    expect(downloadUrls(sendMessage)).toEqual([`${API}/documents/d1/uscis-file/`]);
+    expect(res.attached).toBe(1);
+    expect(res.warnings).toEqual([]);
+  });
+});
+
+// ===========================================================================
+// A NAME FOR A FILE THE BACKEND DID NOT NAME
+//
+// USCIS takes PDF, JPG, PNG and TIF, and names made of letters, digits, space,
+// period, hyphen, underscore and parentheses. The extension must follow the
+// file's real type: a JPEG uploaded as "<doc_type>.pdf" is a mislabelled file.
+// ===========================================================================
+
+describe("doc-flow: fallback names follow the file's type and USCIS's character set", () => {
+  const SLOT: UploadPageDescriptor = {
+    page_path: "/additional-evidence/I-485J/evidence",
+    kind: "document",
+    doc_type: "offer_letter",
+  };
+  const unnamed = (extra: Record<string, unknown> = {}) => ({
+    id: "a1111111-0000-4000-8000-000000000001",
+    doc_type: "offer_letter",
+    file_url: "http://localhost:8001/m/offer",
+    created: "2026-08-01T10:00:00Z",
+    ...extra,
+  });
+
+  it.each([
+    ["image/jpeg", "offer_letter.jpg"],
+    ["image/png", "offer_letter.png"],
+    ["image/tiff", "offer_letter.tif"],
+  ])("names a %s document %s", async (contentType, expected) => {
+    installProxy({
+      apiResponder: () => apiOk([unnamed()]),
+      downloadResponder: () => ({ success: true, dataBase64: PDF_BASE64, contentType }),
+    });
+    const res = await fillUploadPage(SLOT, CTX);
+    expect(res.attached).toBe(1);
+    expect(rowNames()).toEqual([expected]);
+  });
+
+  it("keeps the side and the id prefix, and still follows the type", async () => {
+    installProxy({
+      apiResponder: () =>
+        apiOk([
+          unnamed({ part: "front" }),
+          unnamed({ id: "b2222222-0000-4000-8000-000000000002", created: "2026-08-02T10:00:00Z" }),
+        ]),
+      downloadResponder: () => ({ success: true, dataBase64: PDF_BASE64, contentType: "image/png" }),
+    });
+    await fillUploadPage(SLOT, CTX);
+    expect(rowNames()).toEqual(["offer_letter-front.png", "b2222222-offer_letter.png"]);
+  });
+
+  it("never attaches a type USCIS does not take, and never calls it a .pdf", async () => {
+    installProxy({
+      apiResponder: () => apiOk([unnamed()]),
+      downloadResponder: () => ({
+        success: true,
+        dataBase64: PDF_BASE64,
+        contentType: "application/msword",
+      }),
+    });
+    const res = await fillUploadPage(SLOT, CTX);
+    expect(res.attached).toBe(0);
+    expect(rowNames()).toEqual([]);
+    expect(res.warnings.join(" ")).toContain("application/msword");
+    expect(res.warnings.join(" ")).not.toMatch(/offer_letter\.pdf/);
+  });
+
+  it("reduces a listing name and a Content-Disposition name to the characters USCIS allows", async () => {
+    installProxy({
+      apiResponder: () =>
+        apiOk([
+          unnamed({ filename: "Offer letter: Acme/Inc #2 [final].pdf" }),
+          unnamed({ id: "c3333333", doc_type: "i485j_cover_letter", file_url: "http://localhost:8001/m/cover" }),
+        ]),
+      downloadResponder: (url: string) =>
+        url.includes("c3333333") || url.endsWith("/m/cover")
+          ? prepared("Cover*Letter?<J>.pdf")
+          : { success: true, dataBase64: PDF_BASE64, contentType: "application/pdf" },
+    });
+    const res = await fillUploadPageAll([SLOT, { ...SLOT, doc_type: "i485j_cover_letter" }], CTX);
+    expect(res.attached).toBe(2);
+    const names = rowNames();
+    expect(names).toHaveLength(2);
+    for (const name of names) {
+      expect(name, name).toMatch(USCIS_FILENAME);
+      expect(name.endsWith(".pdf"), name).toBe(true);
+    }
+  });
+});
+
+// ===========================================================================
+// I-485J ADDITIONAL EVIDENCE
+//
+// The order is the backend's decision: cover letter, I-485 receipt, I-140,
+// offer letter, PERM, transfer or prior Supplement J receipt. The extension
+// keeps it, across generated and document entries and across the 5-file batch,
+// and steps over any slot the case has nothing for. The page is NOT a catch-all,
+// so the Supplement J and the G-28 can never stray onto it.
+// ===========================================================================
+
+const AE_LIVE = new URL(`${I485J_BASE}${I485J_SLUGS.additionalEvidence}`).pathname;
+
+// Listed out of the backend's slot order, so following the listing shows. Each
+// listing filename differs from the prepared name, so a de-dupe on the listing
+// name cannot pass for one on the Content-Disposition name.
+const I485J_DOCS = [
+  { id: "d-xfer1", doc_type: "i485_transfer_or_prior_supj_receipt", created: "2026-09-02T00:00:00Z" },
+  { id: "d-i140", doc_type: "i140", created: "2026-09-03T00:00:00Z" },
+  { id: "d-sj", doc_type: "i485j_signed", created: "2026-09-03T00:00:00Z" },
+  { id: "d-xfer2", doc_type: "i485_transfer_or_prior_supj_receipt", created: "2026-09-04T00:00:00Z" },
+  { id: "d-g28", doc_type: "g28_applicant_signed", created: "2026-09-03T00:00:00Z" },
+  { id: "d-rcpt", doc_type: "i485_receipt_notice", created: "2026-09-01T00:00:00Z" },
+  { id: "d-xfer3", doc_type: "i485_transfer_or_prior_supj_receipt", created: "2026-09-05T00:00:00Z" },
+].map((d) => ({ ...d, file_url: `http://localhost:8001/m/${d.id}`, filename: `scan-${d.id}.pdf` }));
+
+const I485J_GENERATED = [
+  { id: "g-cover", form_type: "COVER_LETTER_I-485J" },
+  { id: "g-j", form_type: "I-485J" },
+  { id: "g-g28", form_type: "G-28-BEN" },
+].map((g) => ({ ...g, version: 1, file_url: `http://localhost:8001/m/${g.id}` }));
+
+const I485J_PREPARED: Record<string, string> = {
+  "g-cover": "Cover letter.pdf",
+  "d-rcpt": "I-485 receipt.pdf",
+  "d-i140": "I-140 approval.pdf",
+  "d-xfer1": "Transfer notice 1.pdf",
+  "d-xfer2": "Transfer notice 2.pdf",
+  "d-xfer3": "Prior Supplement J receipt.pdf",
+  "d-sj": "Supplement J signed.pdf",
+  "d-g28": "G-28 applicant signed.pdf",
+  "g-j": "Form I-485J.pdf",
+  "g-g28": "Form G-28.pdf",
+};
+
+const EVIDENCE_IN_ORDER = [
+  "Cover letter.pdf",
+  "I-485 receipt.pdf",
+  "I-140 approval.pdf",
+  "Transfer notice 1.pdf",
+  "Transfer notice 2.pdf",
+  "Prior Supplement J receipt.pdf",
+];
+
+function installI485jCase(): any {
+  return installProxy({
+    apiResponder: (path) => {
+      if (!path.startsWith("/forms/generated/")) return apiOk(I485J_DOCS);
+      const formType = new URLSearchParams(path.split("?")[1]).get("form_type");
+      return apiOk(I485J_GENERATED.filter((g) => g.form_type === formType));
+    },
+    downloadResponder: (url) => {
+      const id = Object.keys(I485J_PREPARED).find((k) => url.includes(`/${k}/`));
+      return id ? prepared(I485J_PREPARED[id]) : { success: false, error: `unexpected download ${url}` };
+    },
+  });
+}
+
+describe("doc-flow: I-485J additional evidence keeps the backend's order", () => {
+  it("downloads and attaches in the backend's order, across the 5-file batch", async () => {
+    const sendMessage = installI485jCase();
+    const own = descriptorsForPage(AE_LIVE, "", I485J_UPLOAD_PAGES);
+    expect(own.map((d) => d.doc_type ?? d.form_type)).toEqual([
+      "COVER_LETTER_I-485J",
+      "i485_receipt_notice",
+      "i140",
+      "offer_letter",
+      "perm_labor_certification",
+      "i485_transfer_or_prior_supj_receipt",
+    ]);
+    const res = await fillUploadPageAll(own, CTX);
+    expect(res.attached).toBe(6);
+    expect(downloadUrls(sendMessage)).toEqual([
+      `${API}/forms/generated/g-cover/uscis-file/`,
+      `${API}/documents/d-rcpt/uscis-file/`,
+      `${API}/documents/d-i140/uscis-file/`,
+      `${API}/documents/d-xfer1/uscis-file/`,
+      `${API}/documents/d-xfer2/uscis-file/`,
+      `${API}/documents/d-xfer3/uscis-file/`,
+    ]);
+    expect(rowNames()).toEqual(EVIDENCE_IN_ORDER);
+  }, 30000);
+
+  it("steps over the slots the case has nothing for, without a warning", async () => {
+    installI485jCase();
+    const res = await fillUploadPageAll(descriptorsForPage(AE_LIVE, "", I485J_UPLOAD_PAGES), CTX);
+    expect(res.attached).toBe(6);
+    expect(res.warnings).toEqual([]);
+  }, 30000);
+});
+
+describe("fillAll + doc-flow: an I-485J Fill all started on Additional Evidence", () => {
+  function i485jConfig(): FormConfig {
+    const config = configForFormType("I-485J");
+    expect(config, "no I-485J config registered").not.toBeNull();
+    return config!;
+  }
+
+  function goToUrl(url: string): void {
+    (window.location as unknown as { href: string }).href = url;
+  }
+
+  /** The dropzone plus a Next that moves to review and leaves the rows in place. */
+  function mountAdditionalEvidence(): void {
+    goToUrl(`${I485J_BASE}${I485J_SLUGS.additionalEvidence}`);
+    mountDropzone();
+    const next = document.createElement("button");
+    next.setAttribute("data-testid", "next-btn");
+    next.textContent = "Next";
+    next.addEventListener("click", () => goToUrl(`${I485J_BASE}${I485J_SLUGS.review}`));
+    document.body.appendChild(next);
+  }
+
+  /** The content script's upload step, composed from the same exported pieces. */
+  function uploadStep(results: { attached: number; alreadyAttached: number }[]) {
+    return async (page: FormPage, walk: UploadWalkContext): Promise<number> => {
+      const own = descriptorsForPage(page.slug, "", I485J_UPLOAD_PAGES);
+      const strays = page.catchAll ? strayDescriptors(I485J_UPLOAD_PAGES, page.slug, walk) : [];
+      const res = await fillUploadPageAll([...own, ...strays], CTX);
+      results.push(res);
+      return res.attached + res.alreadyAttached;
+    };
+  }
+
+  it("does not make Additional Evidence a catch-all", () => {
+    const page = i485jConfig().pages.find((p) => p.slug === I485J_SLUGS.additionalEvidence);
+    expect(page, "Additional Evidence is not declared").toBeDefined();
+    expect(page!.catchAll ?? false).toBe(false);
+  });
+
+  it("attaches only the six evidence entries, never the Supplement J or the G-28", async () => {
+    const config = i485jConfig();
+    const sendMessage = installI485jCase();
+    mountAdditionalEvidence();
+
+    await fillAll(config, {}, uploadStep([]));
+
+    expect(rowNames()).toEqual(EVIDENCE_IN_ORDER);
+    const urls = downloadUrls(sendMessage).join(" ");
+    for (const id of ["d-sj", "d-g28", "g-j", "g-g28"]) expect(urls, id).not.toContain(`/${id}/`);
+  }, 60000);
+
+  it("attaches nothing new on a second Fill all, matching on the prepared name", async () => {
+    const config = i485jConfig();
+    installI485jCase();
+    mountAdditionalEvidence();
+    const first: { attached: number; alreadyAttached: number }[] = [];
+    await fillAll(config, {}, uploadStep(first));
+    expect(first.map((r) => r.attached)).toEqual([6]);
+
+    goToUrl(`${I485J_BASE}${I485J_SLUGS.additionalEvidence}`);
+    const second: { attached: number; alreadyAttached: number }[] = [];
+    await fillAll(config, {}, uploadStep(second));
+
+    expect(second).toMatchObject([{ attached: 0, alreadyAttached: 6 }]);
+    expect(rowNames()).toEqual(EVIDENCE_IN_ORDER);
+  }, 60000);
 });

@@ -195,14 +195,17 @@ function handleDownloadFile(
     .then((res) => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const contentType = res.headers.get("Content-Type") || "application/pdf";
-      return res.blob().then((blob) => ({ blob, contentType }));
+      // The uscis-file endpoints name the prepared file here.
+      const contentDisposition = res.headers.get("Content-Disposition") || undefined;
+      return res.blob().then((blob) => ({ blob, contentType, contentDisposition }));
     })
-    .then(({ blob, contentType }) =>
+    .then(({ blob, contentType, contentDisposition }) =>
       blob.arrayBuffer().then((buffer) => ({
         success: true as const,
         dataBase64: toBase64(buffer),
         byteLength: buffer.byteLength,
         contentType,
+        contentDisposition,
       })),
     )
     .then((result) => sendResponse(result))

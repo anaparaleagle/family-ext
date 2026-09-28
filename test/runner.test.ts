@@ -14,6 +14,11 @@ import { I130_PAGES } from "../src/i130/form-descriptor";
 import { I539_PAGES } from "../src/i539/form-descriptor";
 import { FormPage } from "../src/runner/types";
 import { setBody, textInput, radioGroup } from "./fixtures/dom";
+import {
+  EB_CASE_TYPES_WITHOUT_I485J,
+  I485J_BASE,
+  I485J_CASE_TYPES,
+} from "./fixtures/i485j-inferred";
 
 describe("form config registry", () => {
   it("routes an I-130 form URL to the I-130 config", () => {
@@ -115,6 +120,31 @@ describe("form config registry", () => {
         if (a !== b) expect(a.includes(b)).toBe(false);
       }
     }
+  });
+});
+
+describe("form config registry: the standalone I-485 Supplement J", () => {
+  it("files the five EB types that take an I-485J on the I-485J", () => {
+    const config = configForFormType("I-485J");
+    expect(config, "no I-485J config registered").not.toBeNull();
+    expect([...(config!.caseTypes ?? [])].sort()).toEqual([...I485J_CASE_TYPES].sort());
+    for (const code of I485J_CASE_TYPES) expect(formTypeForCaseType(code), code).toBe("I-485J");
+  });
+
+  it("leaves the EB types that never file an I-485J on no online form", () => {
+    const config = configForFormType("I-485J");
+    expect(config, "no I-485J config registered").not.toBeNull();
+    for (const code of EB_CASE_TYPES_WITHOUT_I485J) {
+      expect(config!.caseTypes, code).not.toContain(code);
+      expect(formTypeForCaseType(code), code).toBeNull();
+    }
+  });
+
+  it("routes a pdf-intake I-485J URL to the I-485J and never to the I-485", () => {
+    expect(configForPath(new URL(`${I485J_BASE}/select-eligibility`).pathname)?.formType).toBe(
+      "I-485J",
+    );
+    expect(configForPath("/pdf-intake/I-485/5ab9035c/select-eligibility")?.formType).toBe("I-485");
   });
 });
 

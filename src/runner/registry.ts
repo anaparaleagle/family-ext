@@ -8,6 +8,7 @@ import { I129_PAGES } from "../i129/form-descriptor";
 import { I130_PAGES } from "../i130/form-descriptor";
 import { I131_PAGES } from "../i131/form-descriptor";
 import { I485_PAGES } from "../i485/form-descriptor";
+import { I485J_HOST_PATH, I485J_PAGES } from "../i485j/form-descriptor";
 import { I539_PAGES } from "../i539/form-descriptor";
 import { I765_PAGES } from "../i765/form-descriptor";
 import { N400_PAGES } from "../n400/form-descriptor";
@@ -99,6 +100,16 @@ export const I131_CONFIG: FormConfig = {
   caseTypes: ["IR-1", "IR-2", "IR-5"],
 };
 
+export const I485J_CONFIG: FormConfig = {
+  formType: "I-485J",
+  hostPath: I485J_HOST_PATH,
+  label: "ParaLeagle I-485J",
+  pages: I485J_PAGES,
+  // The EB types that file a standalone Supplement J. EB-1A, EB-2-NIW, EB-4 and
+  // EB-5 do not; the backend refuses them.
+  caseTypes: ["EB-1B-1C", "EB-1B", "EB-1C", "EB-2-PERM", "EB-3"],
+};
+
 export const FORM_CONFIGS: FormConfig[] = [
   I130_CONFIG,
   I539_CONFIG,
@@ -107,6 +118,7 @@ export const FORM_CONFIGS: FormConfig[] = [
   I765_CONFIG,
   I485_CONFIG,
   I131_CONFIG,
+  I485J_CONFIG,
 ];
 
 /**
@@ -126,7 +138,7 @@ export function configForFormType(formType: string): FormConfig | null {
 /**
  * The form a case type is filed on, or null when no online form covers it.
  *
- * Null is "leave the picker alone", not "pick the first one": an EB or PERM case
+ * Null is "leave the picker alone", not "pick the first one": a PERM or EB-1A case
  * has no myUSCIS form here, and swapping the caseworker's choice out from under
  * them would be worse than leaving it.
  */
