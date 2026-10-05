@@ -22,7 +22,7 @@
 
 // The descriptor types + authoring helpers are shared with every other guided
 // online form (see src/runner/types.ts); only the page table below is I-130.
-import { FormPage, area, check, fieldNamesOf, phone, radio, search, t } from "../runner/types";
+import { FormPage, area, check, fieldNamesOf, orElse, phone, radio, search, t } from "../runner/types";
 
 export type { DescriptorField, FormPage, PageKind, RepeaterSpec } from "../runner/types";
 
@@ -128,6 +128,7 @@ export const I130_PAGES: FormPage[] = [
     repeater: {
       namePrefix: "applicant.yourAddressHistory",
       addButtonText: "add address",
+      rowCommitButtonText: "Save entry",
     },
     fields: [
       search("applicant.yourAddressHistory.{i}.address.country"),
@@ -146,14 +147,20 @@ export const I130_PAGES: FormPage[] = [
     kind: "form",
     fields: [
       radio("applicant.i130DescribeYourself.gender", ["3", "1"]),
-      // Ethnicity is a single coded checkbox/radio (hispanic=1); race boxes
-      // ("5","2","3","6","1") are unmapped by the backend (in `skip`).
-      check("applicant.i130DescribeYourself.ethnicity"),
-      t("applicant.i130DescribeYourself.height.feet"),
-      t("applicant.i130DescribeYourself.height.inches"),
+      // Shapes below are read off the N-400's describe-yourself page; the I-130's
+      // own capture recorded only the first option, so each keeps a fallback.
+      orElse(radio("applicant.i130DescribeYourself.ethnicity", ["1", "2"]), "checkbox"),
+      // Race boxes have bare numeric names and no code 4.
+      check("1"),
+      check("2"),
+      check("3"),
+      check("5"),
+      check("6"),
+      orElse(search("applicant.i130DescribeYourself.height.feet"), "text"),
+      orElse(search("applicant.i130DescribeYourself.height.inches"), "text"),
       t("applicant.i130DescribeYourself.weight"),
-      t("applicant.i130DescribeYourself.eyeColor"),
-      t("applicant.i130DescribeYourself.hairColor"),
+      orElse(search("applicant.i130DescribeYourself.eyeColor"), "text"),
+      orElse(search("applicant.i130DescribeYourself.hairColor"), "text"),
     ],
   },
   {
@@ -163,6 +170,7 @@ export const I130_PAGES: FormPage[] = [
     repeater: {
       namePrefix: "applicant.employmentHistory",
       addButtonText: "add employer",
+      rowCommitButtonText: "Save entry",
     },
     fields: [
       t("applicant.employmentHistory.{i}.name"),

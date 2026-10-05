@@ -17,7 +17,7 @@ import { debugLog, resetDebugLog } from "../src/engine/logger";
 import { I485J_BASE, I485J_SLUGS } from "./fixtures/i485j-inferred";
 import { I130_PAGES } from "../src/i130/form-descriptor";
 import { findByName } from "../src/engine/value-setter";
-import { setBody, textInput, radioGroup, addButton } from "./fixtures/dom";
+import { setBody, textInput, radioGroup, addButton, checkbox } from "./fixtures/dom";
 import { cond, radio, t, FormPage, FormConfig } from "../src/runner/types";
 
 function page(slug: string) {
@@ -476,4 +476,199 @@ describe("fillAll — the standalone I-485J", () => {
     expect(clicks).toEqual({ next: 0, submit: 0 });
     expect(debugLog.join("\n")).toMatch(/review/i);
   }, 30000);
+});
+
+describe("I-130 address history - a list of several addresses", () => {
+  const BASE = "https://my.uscis.gov/forms/petition-for-a-relative/13700001";
+  const H = "applicant.yourAddressHistory";
+  function goTo(slug: string): void {
+    const w = window as unknown as { happyDOM?: { setURL?: (u: string) => void } };
+    w.happyDOM?.setURL?.(BASE + slug);
+  }
+  const row = (i: number) =>
+    ["addressLineOne", "addressLineTwo", "city", "zipCode"]
+      .map((f) => textInput(`${H}.${i}.address.${f}`))
+      .join("") +
+    textInput(`${H}.${i}.dates.fromDate`) +
+    textInput(`${H}.${i}.dates.toDate`);
+  const ADDRESSES = [
+    ["500 Lake Shore Dr", "Apt 12B", "Chicago", "60611", "05/01/2023", ""],
+    ["22 Elm St", "Unit 4", "Naperville", "60540", "02/01/2021", "04/30/2023"],
+    ["9 Birch Rd", "", "Aurora", "60505", "07/01/2019", "01/31/2021"],
+    ["Flat 3, 14 MG Road", "", "Bengaluru", "560001", "01/01/2017", "06/30/2019"],
+  ];
+  const payload = (): Record<string, string> => {
+    const out: Record<string, string> = {};
+    ADDRESSES.forEach(([l1, l2, city, zip, from, to], i) => {
+      out[`${H}.${i}.address.addressLineOne`] = l1;
+      out[`${H}.${i}.address.addressLineTwo`] = l2;
+      out[`${H}.${i}.address.city`] = city;
+      out[`${H}.${i}.address.zipCode`] = zip;
+      out[`${H}.${i}.dates.fromDate`] = from;
+      out[`${H}.${i}.dates.toDate`] = to;
+    });
+    return out;
+  };
+
+  it("commits each row before opening the next, so every address is entered", async () => {
+    goTo("/about-you/your-address-history");
+    setBody(`<button id="add">Add address</button><button id="save">Save entry</button>`);
+    let rowOpen = false;
+    let nextIndex = 0;
+    const clicks: string[] = [];
+    document.getElementById("add")!.addEventListener("click", () => {
+      clicks.push("add");
+      if (rowOpen) return;
+      document.body.insertAdjacentHTML("beforeend", row(nextIndex++));
+      rowOpen = true;
+    });
+    document.getElementById("save")!.addEventListener("click", () => {
+      clicks.push("save");
+      rowOpen = false;
+    });
+
+    const res = await fillPage(page("/about-you/your-address-history"), payload());
+
+    expect(res.failed, "a row after the first never rendered").toBe(0);
+    const value = (n: string) => document.querySelector<HTMLInputElement>(`[name="${n}"]`)?.value;
+    ADDRESSES.forEach(([l1, l2], i) => {
+      expect(value(`${H}.${i}.address.addressLineOne`), `row ${i} street`).toBe(l1);
+      if (l2) expect(value(`${H}.${i}.address.addressLineTwo`), `row ${i} unit`).toBe(l2);
+    });
+    expect(clicks.slice(0, 3)).toEqual(["add", "save", "add"]);
+  }, 60000);
+
+  it("still saves row 0 and opens the next when the current address has no from-date", async () => {
+    goTo("/about-you/your-address-history");
+    setBody(`<button id="add">Add address</button><button id="save">Save Entry</button>`);
+    let rowOpen = false;
+    let nextIndex = 0;
+    document.getElementById("add")!.addEventListener("click", () => {
+      if (rowOpen) return;
+      document.body.insertAdjacentHTML("beforeend", row(nextIndex++));
+      rowOpen = true;
+    });
+    document.getElementById("save")!.addEventListener("click", () => (rowOpen = false));
+    const values = payload();
+    values[`${H}.0.dates.fromDate`] = "";
+
+    const res = await fillPage(page("/about-you/your-address-history"), values);
+
+    expect(res.failed).toBe(0);
+    const value = (n: string) => document.querySelector<HTMLInputElement>(`[name="${n}"]`)?.value;
+    expect(value(`${H}.0.dates.fromDate`)).toBe("");
+    expect(value(`${H}.3.address.addressLineOne`)).toBe(ADDRESSES[3][0]);
+  }, 60000);
+
+  it("commits the open row before Next, so the walk reaches Your Family", async () => {
+    goTo("/about-you/your-address-history");
+    setBody(row(0) + `<button id="save">Save entry</button><button data-testid="next-button">Next</button>`);
+    let rowOpen = true;
+    const order: string[] = [];
+    document.getElementById("save")!.addEventListener("click", () => {
+      order.push("save");
+      rowOpen = false;
+    });
+    document.querySelector<HTMLElement>('[data-testid="next-button"]')!.addEventListener("click", () => {
+      order.push("next");
+      if (rowOpen) return;
+      goTo("/your-family/your-marital-status");
+      setBody(
+        radioGroup("applicant.maritalStatus.maritalStatus", [
+          { value: "1", label: "Single, never married" },
+          { value: "2", label: "Married" },
+        ]) + `<button data-testid="next-button">Next</button>`,
+      );
+      document.querySelector<HTMLElement>('[data-testid="next-button"]')!.addEventListener("click", () =>
+        goTo("/review-and-submit/review-your-petition"),
+      );
+    });
+    const config: FormConfig = {
+      formType: "I-130",
+      hostPath: "/forms/petition-for-a-relative/",
+      label: "I-130",
+      pages: I130_PAGES,
+    };
+
+    const summaries = await fillAll(
+      config,
+      { ...payload(), "applicant.maritalStatus.maritalStatus": "2" },
+      async () => 0,
+    );
+
+    expect(order[0], "Next was clicked with the address row still open").toBe("save");
+    expect(summaries.map((s) => s.slug)).toContain("/your-family/your-marital-status");
+    const married = document.querySelector<HTMLInputElement>(
+      'input[name="applicant.maritalStatus.maritalStatus"][value="2"]',
+    );
+    expect(married?.checked, "the walk stopped before Your Family").toBe(true);
+  }, 60000);
+});
+
+describe("I-130 describe yourself", () => {
+  const D = "applicant.i130DescribeYourself";
+  const describePage = () => page("/about-you/describe-yourself");
+  const RACE = ["5", "2", "3", "6", "1"];
+
+  it("ticks the race boxes the backend sends", async () => {
+    setBody(RACE.map((n) => checkbox(n)).join(""));
+    await fillPage(describePage(), { "1": "true", "2": "true" });
+    const box = (n: string) => document.querySelector<HTMLInputElement>(`input[name="${n}"]`)!;
+    expect(box("1").checked, "White").toBe(true);
+    expect(box("2").checked, "Asian").toBe(true);
+    expect(box("3").checked).toBe(false);
+  });
+
+  it("selects Not Hispanic or Latino on the ethnicity radio", async () => {
+    setBody(
+      radioGroup(`${D}.ethnicity`, [
+        { value: "1", label: "Hispanic or Latino" },
+        { value: "2", label: "Not Hispanic or Latino" },
+      ]),
+    );
+    await fillPage(describePage(), { [`${D}.ethnicity`]: "2" });
+    const no = document.querySelector<HTMLInputElement>(`input[name="${D}.ethnicity"][value="2"]`);
+    expect(no?.checked).toBe(true);
+  });
+
+  it("drives height, eye and hair colour as autocompletes", () => {
+    const plan = planPageFill(describePage(), {
+      [`${D}.height.feet`]: "5",
+      [`${D}.height.inches`]: "9",
+      [`${D}.eyeColor`]: "Brown",
+      [`${D}.hairColor`]: "Blonde",
+    });
+    const kind = (n: string) => plan.find((p) => p.spec.name === `${D}.${n}`)?.spec.kind;
+    expect(kind("height.feet")).toBe("search");
+    expect(kind("height.inches")).toBe("search");
+    expect(kind("eyeColor")).toBe("search");
+    expect(kind("hairColor")).toBe("search");
+  });
+
+  it("picks the eye colour option instead of only typing the text", async () => {
+    setBody(
+      `<input type="text" name="${D}.eyeColor" id="${D}.eyeColor" />` +
+        `<ul role="listbox">${["Black", "Blue", "Brown", "Gray"].map((o) => `<li role="option">${o}</li>`).join("")}</ul>`,
+    );
+    let clicked = "";
+    document.querySelectorAll('[role="option"]').forEach((o) =>
+      o.addEventListener("click", () => (clicked = o.textContent || "")),
+    );
+    await fillPage(describePage(), { [`${D}.eyeColor`]: "Brown" });
+    expect(clicked).toBe("Brown");
+  }, 20000);
+
+  it("ticks an ethnicity checkbox when the page has no ethnicity radio", async () => {
+    setBody(checkbox(`${D}.ethnicity`));
+    const res = await fillPage(describePage(), { [`${D}.ethnicity`]: "1" });
+    expect(res.failed).toBe(0);
+    expect(document.querySelector<HTMLInputElement>(`input[name="${D}.ethnicity"]`)!.checked).toBe(true);
+  });
+
+  it("types the eye colour when the box is plain text rather than an autocomplete", async () => {
+    setBody(textInput(`${D}.eyeColor`));
+    const res = await fillPage(describePage(), { [`${D}.eyeColor`]: "Brown" });
+    expect(res.failed).toBe(0);
+    expect((findByName(`${D}.eyeColor`) as HTMLInputElement).value).toBe("Brown");
+  }, 40000);
 });

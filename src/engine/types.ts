@@ -94,6 +94,8 @@ export interface FieldSpec {
    * back races React.
    */
   commitValue?: string;
+  /** Tried when `kind` fails on a widget whose live shape is unconfirmed. */
+  fallbackKind?: FieldKind;
 }
 
 export interface SetResult {
