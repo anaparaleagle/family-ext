@@ -16,7 +16,7 @@
 // ===========================================================================
 
 import { dbg } from "./logger";
-import { FieldSpec, LocateSpec, SetResult } from "./types";
+import { FieldKind, FieldSpec, LocateSpec, SetResult } from "./types";
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -1051,6 +1051,21 @@ async function pickMuiSelectOption(
  * success for everything except checkboxes (where "" means "leave unchecked").
  */
 export async function setValue(spec: FieldSpec, value: string): Promise<SetResult> {
+  const res = await setValueAs(spec, value);
+  const fallback = spec.fallbackKind;
+  if (res.success || !fallback || !fallbackFits(spec, fallback)) return res;
+  dbg(`value-setter: ${spec.name} did not take as ${spec.kind} (${res.message}) — trying it as ${fallback}`);
+  return setValueAs({ ...spec, kind: fallback, fallbackKind: undefined }, value);
+}
+
+function fallbackFits(spec: FieldSpec, kind: FieldKind): boolean {
+  const el = locateElement(spec);
+  if (!(el instanceof HTMLInputElement)) return false;
+  if (kind === "checkbox") return el.type === "checkbox";
+  return el.type !== "checkbox" && el.type !== "radio";
+}
+
+async function setValueAs(spec: FieldSpec, value: string): Promise<SetResult> {
   const { name, kind } = spec;
   try {
     if (kind === "radio") {

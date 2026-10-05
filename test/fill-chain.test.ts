@@ -657,4 +657,18 @@ describe("I-130 describe yourself", () => {
     await fillPage(describePage(), { [`${D}.eyeColor`]: "Brown" });
     expect(clicked).toBe("Brown");
   }, 20000);
+
+  it("ticks an ethnicity checkbox when the page has no ethnicity radio", async () => {
+    setBody(checkbox(`${D}.ethnicity`));
+    const res = await fillPage(describePage(), { [`${D}.ethnicity`]: "1" });
+    expect(res.failed).toBe(0);
+    expect(document.querySelector<HTMLInputElement>(`input[name="${D}.ethnicity"]`)!.checked).toBe(true);
+  });
+
+  it("types the eye colour when the box is plain text rather than an autocomplete", async () => {
+    setBody(textInput(`${D}.eyeColor`));
+    const res = await fillPage(describePage(), { [`${D}.eyeColor`]: "Brown" });
+    expect(res.failed).toBe(0);
+    expect((findByName(`${D}.eyeColor`) as HTMLInputElement).value).toBe("Brown");
+  }, 40000);
 });
