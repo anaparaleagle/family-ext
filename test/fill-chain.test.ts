@@ -537,6 +537,50 @@ describe("I-130 address history - a list of several addresses", () => {
     });
     expect(clicks.slice(0, 3)).toEqual(["add", "save", "add"]);
   }, 60000);
+
+  it("commits the open row before Next, so the walk reaches Your Family", async () => {
+    goTo("/about-you/your-address-history");
+    setBody(row(0) + `<button id="save">Save entry</button><button data-testid="next-button">Next</button>`);
+    let rowOpen = true;
+    const order: string[] = [];
+    document.getElementById("save")!.addEventListener("click", () => {
+      order.push("save");
+      rowOpen = false;
+    });
+    document.querySelector<HTMLElement>('[data-testid="next-button"]')!.addEventListener("click", () => {
+      order.push("next");
+      if (rowOpen) return;
+      goTo("/your-family/your-marital-status");
+      setBody(
+        radioGroup("applicant.maritalStatus.maritalStatus", [
+          { value: "1", label: "Single, never married" },
+          { value: "2", label: "Married" },
+        ]) + `<button data-testid="next-button">Next</button>`,
+      );
+      document.querySelector<HTMLElement>('[data-testid="next-button"]')!.addEventListener("click", () =>
+        goTo("/review-and-submit/review-your-petition"),
+      );
+    });
+    const config: FormConfig = {
+      formType: "I-130",
+      hostPath: "/forms/petition-for-a-relative/",
+      label: "I-130",
+      pages: I130_PAGES,
+    };
+
+    const summaries = await fillAll(
+      config,
+      { ...payload(), "applicant.maritalStatus.maritalStatus": "2" },
+      async () => 0,
+    );
+
+    expect(order[0], "Next was clicked with the address row still open").toBe("save");
+    expect(summaries.map((s) => s.slug)).toContain("/your-family/your-marital-status");
+    const married = document.querySelector<HTMLInputElement>(
+      'input[name="applicant.maritalStatus.maritalStatus"][value="2"]',
+    );
+    expect(married?.checked, "the walk stopped before Your Family").toBe(true);
+  }, 60000);
 });
 
 describe("I-130 describe yourself", () => {

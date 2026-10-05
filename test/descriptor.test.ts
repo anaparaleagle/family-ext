@@ -58,6 +58,11 @@ describe("section-detector", () => {
     expect(p?.slug).toBe("/your-family/your-parents/your-parents-page-2");
   });
 
+  it("detects Your parents page 1 from the -page-1 sibling of its -page-2 route", () => {
+    const p = pageForUrl(I130_PAGES, `${BASE}/your-family/your-parents/your-parents-page-1`);
+    expect(p?.slug).toBe("/your-family/your-parents/your-parents");
+  });
+
   it("lets an exact match on ANY page beat a -page-1 alias on a longer slug", () => {
     // Two full passes, exact first — not one pass that considers both forms per
     // page. A slug declared as it is served must win even when some other page's
