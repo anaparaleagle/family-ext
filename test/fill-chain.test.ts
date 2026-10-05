@@ -477,3 +477,64 @@ describe("fillAll — the standalone I-485J", () => {
     expect(debugLog.join("\n")).toMatch(/review/i);
   }, 30000);
 });
+
+describe("I-130 address history - a list of several addresses", () => {
+  const BASE = "https://my.uscis.gov/forms/petition-for-a-relative/13700001";
+  const H = "applicant.yourAddressHistory";
+  function goTo(slug: string): void {
+    const w = window as unknown as { happyDOM?: { setURL?: (u: string) => void } };
+    w.happyDOM?.setURL?.(BASE + slug);
+  }
+  const row = (i: number) =>
+    ["addressLineOne", "addressLineTwo", "city", "zipCode"]
+      .map((f) => textInput(`${H}.${i}.address.${f}`))
+      .join("") +
+    textInput(`${H}.${i}.dates.fromDate`) +
+    textInput(`${H}.${i}.dates.toDate`);
+  const ADDRESSES = [
+    ["500 Lake Shore Dr", "Apt 12B", "Chicago", "60611", "05/01/2023", ""],
+    ["22 Elm St", "Unit 4", "Naperville", "60540", "02/01/2021", "04/30/2023"],
+    ["9 Birch Rd", "", "Aurora", "60505", "07/01/2019", "01/31/2021"],
+    ["Flat 3, 14 MG Road", "", "Bengaluru", "560001", "01/01/2017", "06/30/2019"],
+  ];
+  const payload = (): Record<string, string> => {
+    const out: Record<string, string> = {};
+    ADDRESSES.forEach(([l1, l2, city, zip, from, to], i) => {
+      out[`${H}.${i}.address.addressLineOne`] = l1;
+      out[`${H}.${i}.address.addressLineTwo`] = l2;
+      out[`${H}.${i}.address.city`] = city;
+      out[`${H}.${i}.address.zipCode`] = zip;
+      out[`${H}.${i}.dates.fromDate`] = from;
+      out[`${H}.${i}.dates.toDate`] = to;
+    });
+    return out;
+  };
+
+  it("commits each row before opening the next, so every address is entered", async () => {
+    goTo("/about-you/your-address-history");
+    setBody(`<button id="add">Add address</button><button id="save">Save entry</button>`);
+    let rowOpen = false;
+    let nextIndex = 0;
+    const clicks: string[] = [];
+    document.getElementById("add")!.addEventListener("click", () => {
+      clicks.push("add");
+      if (rowOpen) return;
+      document.body.insertAdjacentHTML("beforeend", row(nextIndex++));
+      rowOpen = true;
+    });
+    document.getElementById("save")!.addEventListener("click", () => {
+      clicks.push("save");
+      rowOpen = false;
+    });
+
+    const res = await fillPage(page("/about-you/your-address-history"), payload());
+
+    expect(res.failed, "a row after the first never rendered").toBe(0);
+    const value = (n: string) => document.querySelector<HTMLInputElement>(`[name="${n}"]`)?.value;
+    ADDRESSES.forEach(([l1, l2], i) => {
+      expect(value(`${H}.${i}.address.addressLineOne`), `row ${i} street`).toBe(l1);
+      if (l2) expect(value(`${H}.${i}.address.addressLineTwo`), `row ${i} unit`).toBe(l2);
+    });
+    expect(clicks.slice(0, 3)).toEqual(["add", "save", "add"]);
+  }, 60000);
+});
