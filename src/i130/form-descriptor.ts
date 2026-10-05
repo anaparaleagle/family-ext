@@ -128,6 +128,7 @@ export const I130_PAGES: FormPage[] = [
     repeater: {
       namePrefix: "applicant.yourAddressHistory",
       addButtonText: "add address",
+      rowCommitButtonText: "Save entry",
     },
     fields: [
       search("applicant.yourAddressHistory.{i}.address.country"),

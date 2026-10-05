@@ -538,6 +538,28 @@ describe("I-130 address history - a list of several addresses", () => {
     expect(clicks.slice(0, 3)).toEqual(["add", "save", "add"]);
   }, 60000);
 
+  it("still saves row 0 and opens the next when the current address has no from-date", async () => {
+    goTo("/about-you/your-address-history");
+    setBody(`<button id="add">Add address</button><button id="save">Save Entry</button>`);
+    let rowOpen = false;
+    let nextIndex = 0;
+    document.getElementById("add")!.addEventListener("click", () => {
+      if (rowOpen) return;
+      document.body.insertAdjacentHTML("beforeend", row(nextIndex++));
+      rowOpen = true;
+    });
+    document.getElementById("save")!.addEventListener("click", () => (rowOpen = false));
+    const values = payload();
+    values[`${H}.0.dates.fromDate`] = "";
+
+    const res = await fillPage(page("/about-you/your-address-history"), values);
+
+    expect(res.failed).toBe(0);
+    const value = (n: string) => document.querySelector<HTMLInputElement>(`[name="${n}"]`)?.value;
+    expect(value(`${H}.0.dates.fromDate`)).toBe("");
+    expect(value(`${H}.3.address.addressLineOne`)).toBe(ADDRESSES[3][0]);
+  }, 60000);
+
   it("commits the open row before Next, so the walk reaches Your Family", async () => {
     goTo("/about-you/your-address-history");
     setBody(row(0) + `<button id="save">Save entry</button><button data-testid="next-button">Next</button>`);
