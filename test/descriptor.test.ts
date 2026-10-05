@@ -155,6 +155,13 @@ describe("descriptor coverage", () => {
     }
   });
 
+  it("saves each address and employer row before the walk moves on", () => {
+    for (const prefix of ["applicant.yourAddressHistory", "applicant.employmentHistory"]) {
+      const p = I130_PAGES.find((x) => x.repeater?.namePrefix === prefix);
+      expect(p?.repeater?.rowCommitButtonText, prefix).toBe("Save entry");
+    }
+  });
+
   it("drives a meaningful number of distinct fields", () => {
     // Sanity floor — the descriptor should cover the bulk of the dump's
     // fillable fields (exact count asserted against the backend payload below).

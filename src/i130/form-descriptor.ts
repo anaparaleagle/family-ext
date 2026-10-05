@@ -170,6 +170,7 @@ export const I130_PAGES: FormPage[] = [
     repeater: {
       namePrefix: "applicant.employmentHistory",
       addButtonText: "add employer",
+      rowCommitButtonText: "Save entry",
     },
     fields: [
       t("applicant.employmentHistory.{i}.name"),
