@@ -17,7 +17,7 @@ import { debugLog, resetDebugLog } from "../src/engine/logger";
 import { I485J_BASE, I485J_SLUGS } from "./fixtures/i485j-inferred";
 import { I130_PAGES } from "../src/i130/form-descriptor";
 import { findByName } from "../src/engine/value-setter";
-import { setBody, textInput, radioGroup, addButton } from "./fixtures/dom";
+import { setBody, textInput, radioGroup, addButton, checkbox } from "./fixtures/dom";
 import { cond, radio, t, FormPage, FormConfig } from "../src/runner/types";
 
 function page(slug: string) {
@@ -537,4 +537,58 @@ describe("I-130 address history - a list of several addresses", () => {
     });
     expect(clicks.slice(0, 3)).toEqual(["add", "save", "add"]);
   }, 60000);
+});
+
+describe("I-130 describe yourself", () => {
+  const D = "applicant.i130DescribeYourself";
+  const describePage = () => page("/about-you/describe-yourself");
+  const RACE = ["5", "2", "3", "6", "1"];
+
+  it("ticks the race boxes the backend sends", async () => {
+    setBody(RACE.map((n) => checkbox(n)).join(""));
+    await fillPage(describePage(), { "1": "true", "2": "true" });
+    const box = (n: string) => document.querySelector<HTMLInputElement>(`input[name="${n}"]`)!;
+    expect(box("1").checked, "White").toBe(true);
+    expect(box("2").checked, "Asian").toBe(true);
+    expect(box("3").checked).toBe(false);
+  });
+
+  it("selects Not Hispanic or Latino on the ethnicity radio", async () => {
+    setBody(
+      radioGroup(`${D}.ethnicity`, [
+        { value: "1", label: "Hispanic or Latino" },
+        { value: "2", label: "Not Hispanic or Latino" },
+      ]),
+    );
+    await fillPage(describePage(), { [`${D}.ethnicity`]: "2" });
+    const no = document.querySelector<HTMLInputElement>(`input[name="${D}.ethnicity"][value="2"]`);
+    expect(no?.checked).toBe(true);
+  });
+
+  it("drives height, eye and hair colour as autocompletes", () => {
+    const plan = planPageFill(describePage(), {
+      [`${D}.height.feet`]: "5",
+      [`${D}.height.inches`]: "9",
+      [`${D}.eyeColor`]: "Brown",
+      [`${D}.hairColor`]: "Blonde",
+    });
+    const kind = (n: string) => plan.find((p) => p.spec.name === `${D}.${n}`)?.spec.kind;
+    expect(kind("height.feet")).toBe("search");
+    expect(kind("height.inches")).toBe("search");
+    expect(kind("eyeColor")).toBe("search");
+    expect(kind("hairColor")).toBe("search");
+  });
+
+  it("picks the eye colour option instead of only typing the text", async () => {
+    setBody(
+      `<input type="text" name="${D}.eyeColor" id="${D}.eyeColor" />` +
+        `<ul role="listbox">${["Black", "Blue", "Brown", "Gray"].map((o) => `<li role="option">${o}</li>`).join("")}</ul>`,
+    );
+    let clicked = "";
+    document.querySelectorAll('[role="option"]').forEach((o) =>
+      o.addEventListener("click", () => (clicked = o.textContent || "")),
+    );
+    await fillPage(describePage(), { [`${D}.eyeColor`]: "Brown" });
+    expect(clicked).toBe("Brown");
+  }, 20000);
 });
