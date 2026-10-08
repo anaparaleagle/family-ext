@@ -84,6 +84,8 @@ export interface DescriptorField {
    * selects nothing and is logged, rather than typed as-is.
    */
   strictValueMap?: boolean;
+  /** The kind to try when `kind` fails; for a widget whose live shape is unconfirmed. */
+  fallbackKind?: FieldKind;
 }
 
 /**
@@ -231,6 +233,10 @@ export const radio = (name: string, options: string[]): DescriptorField => ({
 });
 export const check = (name: string): DescriptorField => ({ name, kind: "checkbox" });
 export const area = (name: string): DescriptorField => ({ name, kind: "textarea" });
+export const orElse = (field: DescriptorField, fallbackKind: FieldKind): DescriptorField => ({
+  ...field,
+  fallbackKind,
+});
 
 /**
  * A field whose real `name` cannot be used — give it a logical name plus how to

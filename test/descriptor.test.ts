@@ -58,6 +58,11 @@ describe("section-detector", () => {
     expect(p?.slug).toBe("/your-family/your-parents/your-parents-page-2");
   });
 
+  it("detects Your parents page 1 from the -page-1 sibling of its -page-2 route", () => {
+    const p = pageForUrl(I130_PAGES, `${BASE}/your-family/your-parents/your-parents-page-1`);
+    expect(p?.slug).toBe("/your-family/your-parents/your-parents");
+  });
+
   it("lets an exact match on ANY page beat a -page-1 alias on a longer slug", () => {
     // Two full passes, exact first — not one pass that considers both forms per
     // page. A slug declared as it is served must win even when some other page's
@@ -147,6 +152,13 @@ describe("descriptor coverage", () => {
       expect(p.repeater!.addButtonText.length).toBeGreaterThan(0);
       // Repeater fields use the {i} token.
       expect(p.fields.some((f) => f.name.includes("{i}"))).toBe(true);
+    }
+  });
+
+  it("saves each address and employer row before the walk moves on", () => {
+    for (const prefix of ["applicant.yourAddressHistory", "applicant.employmentHistory"]) {
+      const p = I130_PAGES.find((x) => x.repeater?.namePrefix === prefix);
+      expect(p?.repeater?.rowCommitButtonText, prefix).toBe("Save entry");
     }
   });
 

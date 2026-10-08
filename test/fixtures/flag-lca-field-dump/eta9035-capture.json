@@ -1,0 +1,151 @@
+{
+  "_source": "Live read of a throwaway ETA-9035/9035E draft on flag.dol.gov, 2026-10-08, account varis@paraleagle.ai, draft 6ac7c38a36551c001c88422a. Pass 1 = every section with no answers; pass 2 = gating radios clicked one at a time and the new inputs diffed.",
+  "urlPattern": "^https://flag\\.dol\\.gov/dashboard/application/9035/[0-9a-f]+",
+  "navigation": "Sidebar li.page-item; section letter is a separate element, match by title text. Sidebar click switches section; FLAG autosaves ('Case has been updated' toasts).",
+  "yesNo": "Radio values are \"YES\" / \"NO\" (upper case) on B.4, F.2, G.1, H.1, H.2, H.3, H.5, H.6.",
+  "sidebar": [
+    "Employment-Based Nonimmigrant Visa Information",
+    "Temporary Need Information",
+    "Employer Information",
+    "Employer Point of Contact Information",
+    "Attorney or Agent Information (if applicable)",
+    "Employment and Wage Information",
+    "Employer Labor Condition Statements",
+    "H-1B Additional Employer Labor Condition Statements",
+    "Employer Obligations",
+    "LCA Preparer",
+    "Appendix A - Educational Attainment Documentation",
+    "Application Documents",
+    "Review & Submit"
+  ],
+  "forbidden": [
+    {"id": "employer-9035", "reason": "Section C employer PROFILE picker - selecting repopulates the whole section from DOL's stored employer"},
+    {"id": "employer-pocs-9035", "reason": "Section D point-of-contact profile picker"},
+    {"id": "agent-attorney-individs-9035", "reason": "Section E attorney/agent profile picker"},
+    {"text": "PWD Case Lookup", "reason": "F.12a is filled through a lookup modal, not a plain input - manual"},
+    {"text": "OES Wage Calculator", "reason": "F.13 calculator modal - manual by 2026-09-01 decision"},
+    {"text": "Review & Submit", "reason": "never"}
+  ],
+  "sections": {
+    "A": {"nav": "Employment-Based Nonimmigrant Visa Information", "fields": [
+      {"box": "A.1", "kind": "radio", "name": "a1_visa_type", "values": ["H-1B", "H-1B1 Chile", "H-1B1 Singapore", "E-3 Australian"]}
+    ]},
+    "B": {"nav": "Temporary Need Information", "fields": [
+      {"box": "B.1", "kind": "text", "name": "b1_job_title"},
+      {"box": "B.2/B.3", "kind": "search", "name": null, "id": null, "label": "B.2/B.3. SOC (ONET/OES) Code and Occupation Title", "note": "NO name and NO id - locate by label"},
+      {"box": "B.4", "kind": "radio", "name": "b4_is_full_time", "values": ["YES", "NO"]},
+      {"box": "B.5", "kind": "text", "name": "b5_begin_date"},
+      {"box": "B.6", "kind": "text", "name": "b6_end_date"},
+      {"box": "B.7", "kind": "text", "name": "b7_total_positions"},
+      {"box": "B.7a", "kind": "text", "name": "b7a_new_employment"},
+      {"box": "B.7b", "kind": "text", "name": "b7b_continuation"},
+      {"box": "B.7c", "kind": "text", "name": "b7c_change_approved"},
+      {"box": "B.7d", "kind": "text", "name": "b7d_new_concurrent"},
+      {"box": "B.7e", "kind": "text", "name": "b7e_change_employer"},
+      {"box": "B.7f", "kind": "text", "name": "b7f_amended_petition"}
+    ]},
+    "C": {"nav": "Employer Information", "fields": [
+      {"box": "C.1", "kind": "text", "name": "c1_emp_name"},
+      {"box": "C.2", "kind": "text", "name": "c2_emp_dba"},
+      {"box": "C.12", "kind": "text", "name": "c12_emp_fein"},
+      {"box": "C.13", "kind": "search", "name": null, "id": null, "label": "C.13. NAICS Code", "note": "NO name and NO id - locate by label"},
+      {"box": "C.3", "kind": "text", "name": "c3_emp_address_1"},
+      {"box": "C.4", "kind": "text", "name": "c4_emp_address_2"},
+      {"box": "C.8", "kind": "select", "name": "c8_emp_country_id", "options": 216},
+      {"box": "C.5", "kind": "text", "name": "c5_emp_city"},
+      {"box": "C.6", "kind": "select", "name": "c6_emp_state_id", "options": 56},
+      {"box": "C.7", "kind": "text", "name": "c7_emp_zip"},
+      {"box": "C.10 country code", "kind": "select", "name": "c10_emp_phoneCountry", "options": 246},
+      {"box": "C.10", "kind": "tel", "name": "c10_emp_phone"},
+      {"box": "C.11", "kind": "text", "name": "c11_emp_phone_ext"}
+    ]},
+    "D": {"nav": "Employer Point of Contact Information", "fields": [
+      {"box": "D.1", "kind": "text", "name": "d1_poc_last"},
+      {"box": "D.2", "kind": "text", "name": "d2_poc_first"},
+      {"box": "D.3", "kind": "text", "name": "d3_poc_middle"},
+      {"box": "D.4", "kind": "text", "name": "d4_poc_title"},
+      {"box": "D.5", "kind": "text", "name": "d5_poc_address_1"},
+      {"box": "D.6", "kind": "text", "name": "d6_poc_address_2"},
+      {"box": "D.10", "kind": "select", "name": "d10_poc_country_id", "options": 216},
+      {"box": "D.7", "kind": "text", "name": "d7_poc_city"},
+      {"box": "D.8", "kind": "select", "name": "d8_poc_state_id", "options": 56},
+      {"box": "D.9", "kind": "text", "name": "d9_poc_zip"},
+      {"box": "D.12 country code", "kind": "select", "name": "d12_poc_phoneCountry", "options": 246},
+      {"box": "D.12", "kind": "tel", "name": "d12_poc_phone"},
+      {"box": "D.13", "kind": "text", "name": "d13_poc_phone_ext"},
+      {"box": "D.14", "kind": "text", "name": "d14_poc_email"}
+    ]},
+    "E": {"nav": "Attorney or Agent Information (if applicable)", "fields": [
+      {"box": "E.1", "kind": "radio", "name": "e1_is_represented", "values": ["Attorney", "Agent", "None"]},
+      {"box": "E.2", "kind": "text", "name": "e2_agent_last"},
+      {"box": "E.3", "kind": "text", "name": "e3_agent_first"},
+      {"box": "E.4", "kind": "text", "name": "e4_agent_middle"},
+      {"box": "E.5", "kind": "text", "name": "e5_agent_address_1"},
+      {"box": "E.6", "kind": "text", "name": "e6_agent_address_2"},
+      {"box": "E.10", "kind": "select", "name": "e10_agent_country_id", "options": 216},
+      {"box": "E.7", "kind": "text", "name": "e7_agent_city"},
+      {"box": "E.8", "kind": "select", "name": "e8_agent_state_id", "options": 56},
+      {"box": "E.9", "kind": "text", "name": "e9_agent_zip"},
+      {"box": "E.12 country code", "kind": "select", "name": "e12_agent_phoneCountry", "options": 246},
+      {"box": "E.12", "kind": "tel", "name": "e12_agent_phone"},
+      {"box": "E.13", "kind": "text", "name": "e13_agent_phone_ext"},
+      {"box": "E.14", "kind": "text", "name": "e14_agent_email"},
+      {"box": "E.15", "kind": "text", "name": "e15_agent_firm_name"},
+      {"box": "E.16", "kind": "text", "name": "e16_agent_firm_fein"},
+      {"box": "E.17", "kind": "text", "name": "e17_agent_bar_number"},
+      {"box": "E.18", "kind": "select", "name": "e18_agent_court_state_id", "options": 56},
+      {"box": "E.19", "kind": "text", "name": "e19_agent_court_name"}
+    ]},
+    "F": {"nav": "Employment and Wage Information", "fields": [
+      {"box": "F.12/F.13/F.14", "kind": "radio", "name": "_section_f_f12_f13_f14_prevailing_wage_question", "values": ["f12_is_dol_prevailing_wage", "f13_is_oes_prevailing_wage", "f14_non_oes_prevailing_wage"], "note": "ids are the full label text, e.g. '_section_f_f12_f13_f14_prevailing_wage_question_F.13. A PW obtained independently from the Occupational Employment Statistics (OES) program'"},
+      {"box": "F.12a", "kind": "lookup", "name": null, "revealedBy": {"by": "_section_f_f12_f13_f14_prevailing_wage_question", "is": ["f12_is_dol_prevailing_wage"]}, "note": "PWD tracking number via 'PWD Case Lookup' button - manual"},
+      {"box": "F.13a", "kind": "radio", "name": "_section_f_f13a_wage_level", "values": ["I", "II", "III", "IV", "N/A"], "revealedBy": {"by": "_section_f_f12_f13_f14_prevailing_wage_question", "is": ["f13_is_oes_prevailing_wage"]}},
+      {"box": "F.13b", "kind": "select", "name": "_section_f_f13b_source_year", "options": 2, "revealedBy": {"by": "_section_f_f12_f13_f14_prevailing_wage_question", "is": ["f13_is_oes_prevailing_wage"]}},
+      {"box": "F.14a", "kind": "radio", "name": "_section_f_f14a_source_type", "values": ["CBA", "DBA", "SCA", "Other/PW Survey"], "revealedBy": {"by": "_section_f_f12_f13_f14_prevailing_wage_question", "is": ["f14_non_oes_prevailing_wage"]}, "note": "radio ids drop the leading underscore: 'section_f_f14a_source_type_CBA'"},
+      {"box": "F.14b", "kind": "select", "name": "_section_f_f14b_source_year_notcba", "options": 4, "revealedBy": {"by": "_section_f_f14a_source_type", "is": ["Other/PW Survey"]}},
+      {"box": "F.14c", "kind": "text", "name": "_section_f_f14c_survey_publisher", "revealedBy": {"by": "_section_f_f14a_source_type", "is": ["Other/PW Survey"]}},
+      {"box": "F.14d", "kind": "text", "name": "_section_f_f14d_survey_name", "revealedBy": {"by": "_section_f_f14a_source_type", "is": ["Other/PW Survey"]}},
+      {"box": "F.1", "kind": "text", "name": "_section_f_f1_number_workers"},
+      {"box": "F.2", "kind": "radio", "name": "_section_f_f2_is_secondary_entity", "values": ["YES", "NO"]},
+      {"box": "F.3", "kind": "text", "name": "_section_f_f3_secondary_entity_name", "revealedBy": {"by": "_section_f_f2_is_secondary_entity", "is": ["YES"]}},
+      {"box": "F.4", "kind": "text", "name": "_section_f_f4_work_address_1"},
+      {"box": "F.5", "kind": "text", "name": "_section_f_f5_work_address_2"},
+      {"box": "F.6", "kind": "text", "name": "_section_f_f6_work_city"},
+      {"box": "F.8", "kind": "select", "name": "_section_f_f8_work_state_id", "options": 56},
+      {"box": "F.7", "kind": "text", "name": null, "id": "_section_f_f7_work_county_id", "note": "NO name - locate by id"},
+      {"box": "F.9", "kind": "text", "name": "_section_f_f9_work_zip"},
+      {"box": "F.10 from", "kind": "text", "name": "_section_f_f10_nonimmigrant_wage_from"},
+      {"box": "F.10 to", "kind": "text", "name": "_section_f_f10_nonimmigrant_wage_to"},
+      {"box": "F.10a", "kind": "radio", "name": "_section_f_f10a_nonimmigrant_wage_per", "values": ["Hour", "Week", "Bi-Weekly", "Month", "Year"]},
+      {"box": "F.11", "kind": "text", "name": "_section_f_f11_prevailing_wage"},
+      {"box": "F.11a", "kind": "radio", "name": "_section_f_f11a_prevailing_wage_per", "values": ["Hour", "Week", "Bi-Weekly", "Month", "Year"]}
+    ]},
+    "G": {"nav": "Employer Labor Condition Statements", "fields": [
+      {"box": "G.1", "kind": "radio", "name": "g1_read_agree", "values": ["YES", "NO"], "note": "attestation"}
+    ]},
+    "H": {"nav": "H-1B Additional Employer Labor Condition Statements", "fields": [
+      {"box": "H.1", "kind": "radio", "name": "h1_is_dependent", "values": ["YES", "NO"]},
+      {"box": "H.2", "kind": "radio", "name": "h2_is_willful_violator", "values": ["YES", "NO"]},
+      {"box": "H.3", "kind": "radio", "name": "h3_only_h1b", "values": ["YES", "NO"], "revealedBy": {"by": "h1_is_dependent", "is": ["YES"]}},
+      {"box": "H.4", "kind": "radio", "name": "h4_exemption_basis", "values": ["$60,000 or higher annual wage", "Master's Degree or higher", "Both"], "revealedBy": {"by": "h3_only_h1b", "is": ["YES"]}, "note": "values captured truncated in the diff: read the full value strings before mapping"},
+      {"box": "H.5", "kind": "radio", "name": "h5_is_appendix_a_completed", "values": ["YES", "N/A"], "revealedBy": {"by": "h3_only_h1b", "is": ["NO"]}},
+      {"box": "H.6", "kind": "radio", "name": "h6_read_agree", "values": ["YES", "NO"], "revealedBy": {"by": "h3_only_h1b", "is": ["NO"]}, "note": "attestation"}
+    ]},
+    "I/J": {"nav": "Employer Obligations", "fields": [
+      {"box": "I.1 principal place of business", "kind": "checkbox", "name": "i1_is_disclosure_principal_business"},
+      {"box": "I.1 place of employment", "kind": "checkbox", "name": "i1_is_disclosure_place_of_employment"},
+      {"box": "J.1", "kind": "text", "name": "j1_official_last"},
+      {"box": "J.2", "kind": "text", "name": "j2_official_first"},
+      {"box": "J.3", "kind": "text", "name": "j3_official_middle"},
+      {"box": "J.4", "kind": "text", "name": "j4_official_title"}
+    ]},
+    "K": {"nav": "LCA Preparer", "fields": [
+      {"box": "K.1", "kind": "text", "name": "k1_prep_last"},
+      {"box": "K.2", "kind": "text", "name": "k2_prep_first"},
+      {"box": "K.3", "kind": "text", "name": "k3_prep_middle"},
+      {"box": "K.4", "kind": "text", "name": "k4_prep_firm_name"},
+      {"box": "K.5", "kind": "text", "name": "k5_prep_email"}
+    ]},
+    "APP A": {"nav": "Appendix A - Educational Attainment Documentation", "fields": [], "note": "Row table behind an add-row button; only for H-1B-dependent employers claiming the master's exemption. Manual in v1."}
+  }
+}

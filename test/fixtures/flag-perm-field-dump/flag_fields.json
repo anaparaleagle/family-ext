@@ -1034,6 +1034,659 @@
     "name": "prepEmail",
     "kind": "text"
    }
+  },
+  "ETA-9035E": {
+   "A1": {
+    "map_id": "A1",
+    "box": "A.1",
+    "name": "a1_visa_type",
+    "kind": "radio",
+    "options": {
+     "H-1B": "H-1B"
+    }
+   },
+   "B1": {
+    "map_id": "B1",
+    "box": "B.1",
+    "name": "b1_job_title",
+    "kind": "text"
+   },
+   "B2": {
+    "map_id": "B2",
+    "box": "B.2/B.3",
+    "name": "b2_soc_code",
+    "kind": "search",
+    "label": "B.2/B.3. SOC (ONET/OES) Code and Occupation Title"
+   },
+   "B4": {
+    "map_id": "B4",
+    "box": "B.4",
+    "name": "b4_is_full_time",
+    "kind": "radio",
+    "options": {
+     "Yes": "YES",
+     "No": "NO"
+    }
+   },
+   "B5": {
+    "map_id": "B5",
+    "box": "B.5",
+    "name": "b5_begin_date",
+    "kind": "text"
+   },
+   "B6": {
+    "map_id": "B6",
+    "box": "B.6",
+    "name": "b6_end_date",
+    "kind": "text"
+   },
+   "B7": {
+    "map_id": "B7",
+    "box": "B.7",
+    "name": "b7_total_positions",
+    "kind": "text"
+   },
+   "B7a": {
+    "map_id": "B7a",
+    "box": "B.7a",
+    "name": "b7a_new_employment",
+    "kind": "text"
+   },
+   "B7b": {
+    "map_id": "B7b",
+    "box": "B.7b",
+    "name": "b7b_continuation",
+    "kind": "text"
+   },
+   "B7c": {
+    "map_id": "B7c",
+    "box": "B.7c",
+    "name": "b7c_change_approved",
+    "kind": "text"
+   },
+   "B7d": {
+    "map_id": "B7d",
+    "box": "B.7d",
+    "name": "b7d_new_concurrent",
+    "kind": "text"
+   },
+   "B7e": {
+    "map_id": "B7e",
+    "box": "B.7e",
+    "name": "b7e_change_employer",
+    "kind": "text"
+   },
+   "B7f": {
+    "map_id": "B7f",
+    "box": "B.7f",
+    "name": "b7f_amended_petition",
+    "kind": "text"
+   },
+   "C1": {
+    "map_id": "C1",
+    "box": "C.1",
+    "name": "c1_emp_name",
+    "kind": "text"
+   },
+   "C2": {
+    "map_id": "C2",
+    "box": "C.2",
+    "name": "c2_emp_dba",
+    "kind": "text"
+   },
+   "C3": {
+    "map_id": "C3",
+    "box": "C.3",
+    "name": "c3_emp_address_1",
+    "kind": "text"
+   },
+   "C4": {
+    "map_id": "C4",
+    "box": "C.4",
+    "name": "c4_emp_address_2",
+    "kind": "text"
+   },
+   "C5": {
+    "map_id": "C5",
+    "box": "C.5",
+    "name": "c5_emp_city",
+    "kind": "text"
+   },
+   "C6": {
+    "map_id": "C6",
+    "box": "C.6",
+    "name": "c6_emp_state_id",
+    "kind": "select"
+   },
+   "C7": {
+    "map_id": "C7",
+    "box": "C.7",
+    "name": "c7_emp_zip",
+    "kind": "text"
+   },
+   "C8": {
+    "map_id": "C8",
+    "box": "C.8",
+    "name": "c8_emp_country_id",
+    "kind": "select"
+   },
+   "C10": {
+    "map_id": "C10",
+    "box": "C.10",
+    "name": "c10_emp_phone",
+    "kind": "phone"
+   },
+   "C11": {
+    "map_id": "C11",
+    "box": "C.11",
+    "name": "c11_emp_phone_ext",
+    "kind": "text"
+   },
+   "C12": {
+    "map_id": "C12",
+    "box": "C.12",
+    "name": "c12_emp_fein",
+    "kind": "text"
+   },
+   "C13": {
+    "map_id": "C13",
+    "box": "C.13",
+    "name": "c13_naics_code",
+    "kind": "search",
+    "label": "C.13. NAICS Code"
+   },
+   "D1": {
+    "map_id": "D1",
+    "box": "D.1",
+    "name": "d1_poc_last",
+    "kind": "text"
+   },
+   "D2": {
+    "map_id": "D2",
+    "box": "D.2",
+    "name": "d2_poc_first",
+    "kind": "text"
+   },
+   "D3": {
+    "map_id": "D3",
+    "box": "D.3",
+    "name": "d3_poc_middle",
+    "kind": "text"
+   },
+   "D4": {
+    "map_id": "D4",
+    "box": "D.4",
+    "name": "d4_poc_title",
+    "kind": "text"
+   },
+   "D5": {
+    "map_id": "D5",
+    "box": "D.5",
+    "name": "d5_poc_address_1",
+    "kind": "text"
+   },
+   "D6": {
+    "map_id": "D6",
+    "box": "D.6",
+    "name": "d6_poc_address_2",
+    "kind": "text"
+   },
+   "D7": {
+    "map_id": "D7",
+    "box": "D.7",
+    "name": "d7_poc_city",
+    "kind": "text"
+   },
+   "D8": {
+    "map_id": "D8",
+    "box": "D.8",
+    "name": "d8_poc_state_id",
+    "kind": "select"
+   },
+   "D9": {
+    "map_id": "D9",
+    "box": "D.9",
+    "name": "d9_poc_zip",
+    "kind": "text"
+   },
+   "D10": {
+    "map_id": "D10",
+    "box": "D.10",
+    "name": "d10_poc_country_id",
+    "kind": "select"
+   },
+   "D12": {
+    "map_id": "D12",
+    "box": "D.12",
+    "name": "d12_poc_phone",
+    "kind": "phone"
+   },
+   "D13": {
+    "map_id": "D13",
+    "box": "D.13",
+    "name": "d13_poc_phone_ext",
+    "kind": "text"
+   },
+   "D14": {
+    "map_id": "D14",
+    "box": "D.14",
+    "name": "d14_poc_email",
+    "kind": "text"
+   },
+   "E1": {
+    "map_id": "E1",
+    "box": "E.1",
+    "name": "e1_is_represented",
+    "kind": "radio",
+    "options": {
+     "Yes": "Attorney"
+    }
+   },
+   "E2": {
+    "map_id": "E2",
+    "box": "E.2",
+    "name": "e2_agent_last",
+    "kind": "text"
+   },
+   "E3": {
+    "map_id": "E3",
+    "box": "E.3",
+    "name": "e3_agent_first",
+    "kind": "text"
+   },
+   "E4": {
+    "map_id": "E4",
+    "box": "E.4",
+    "name": "e4_agent_middle",
+    "kind": "text"
+   },
+   "E5": {
+    "map_id": "E5",
+    "box": "E.5",
+    "name": "e5_agent_address_1",
+    "kind": "text"
+   },
+   "E6": {
+    "map_id": "E6",
+    "box": "E.6",
+    "name": "e6_agent_address_2",
+    "kind": "text"
+   },
+   "E7": {
+    "map_id": "E7",
+    "box": "E.7",
+    "name": "e7_agent_city",
+    "kind": "text"
+   },
+   "E8": {
+    "map_id": "E8",
+    "box": "E.8",
+    "name": "e8_agent_state_id",
+    "kind": "select"
+   },
+   "E9": {
+    "map_id": "E9",
+    "box": "E.9",
+    "name": "e9_agent_zip",
+    "kind": "text"
+   },
+   "E10": {
+    "map_id": "E10",
+    "box": "E.10",
+    "name": "e10_agent_country_id",
+    "kind": "select"
+   },
+   "E12": {
+    "map_id": "E12",
+    "box": "E.12",
+    "name": "e12_agent_phone",
+    "kind": "phone"
+   },
+   "E13": {
+    "map_id": "E13",
+    "box": "E.13",
+    "name": "e13_agent_phone_ext",
+    "kind": "text"
+   },
+   "E14": {
+    "map_id": "E14",
+    "box": "E.14",
+    "name": "e14_agent_email",
+    "kind": "text"
+   },
+   "E15": {
+    "map_id": "E15",
+    "box": "E.15",
+    "name": "e15_agent_firm_name",
+    "kind": "text"
+   },
+   "E16": {
+    "map_id": "E16",
+    "box": "E.16",
+    "name": "e16_agent_firm_fein",
+    "kind": "text"
+   },
+   "E17": {
+    "map_id": "E17",
+    "box": "E.17",
+    "name": "e17_agent_bar_number",
+    "kind": "text"
+   },
+   "E18": {
+    "map_id": "E18",
+    "box": "E.18",
+    "name": "e18_agent_court_state_id",
+    "kind": "select"
+   },
+   "E19": {
+    "map_id": "E19",
+    "box": "E.19",
+    "name": "e19_agent_court_name",
+    "kind": "text"
+   },
+   "F1": {
+    "map_id": "F1",
+    "box": "F.1",
+    "name": "_section_f_f1_number_workers",
+    "kind": "text"
+   },
+   "F2": {
+    "map_id": "F2",
+    "box": "F.2",
+    "name": "_section_f_f2_is_secondary_entity",
+    "kind": "radio",
+    "options": {
+     "Yes": "YES",
+     "No": "NO"
+    }
+   },
+   "F3": {
+    "map_id": "F3",
+    "box": "F.3",
+    "name": "_section_f_f3_secondary_entity_name",
+    "kind": "text"
+   },
+   "F4": {
+    "map_id": "F4",
+    "box": "F.4",
+    "name": "_section_f_f4_work_address_1",
+    "kind": "text"
+   },
+   "F5": {
+    "map_id": "F5",
+    "box": "F.5",
+    "name": "_section_f_f5_work_address_2",
+    "kind": "text"
+   },
+   "F6": {
+    "map_id": "F6",
+    "box": "F.6",
+    "name": "_section_f_f6_work_city",
+    "kind": "text"
+   },
+   "F7": {
+    "map_id": "F7",
+    "box": "F.7",
+    "name": "_section_f_f7_work_county_id",
+    "kind": "text",
+    "by_id": true
+   },
+   "F8": {
+    "map_id": "F8",
+    "box": "F.8",
+    "name": "_section_f_f8_work_state_id",
+    "kind": "select"
+   },
+   "F9": {
+    "map_id": "F9",
+    "box": "F.9",
+    "name": "_section_f_f9_work_zip",
+    "kind": "text"
+   },
+   "F10": {
+    "map_id": "F10",
+    "box": "F.10 from",
+    "name": "_section_f_f10_nonimmigrant_wage_from",
+    "kind": "text"
+   },
+   "F10t": {
+    "map_id": "F10t",
+    "box": "F.10 to",
+    "name": "_section_f_f10_nonimmigrant_wage_to",
+    "kind": "text"
+   },
+   "F10a": {
+    "map_id": "F10a",
+    "box": "F.10a",
+    "name": "_section_f_f10a_nonimmigrant_wage_per",
+    "kind": "radio",
+    "options": {
+     "Hourly": "Hour",
+     "Weekly": "Week",
+     "Bi-Weekly": "Bi-Weekly",
+     "Monthly": "Month",
+     "Yearly": "Year"
+    }
+   },
+   "F11": {
+    "map_id": "F11",
+    "box": "F.11",
+    "name": "_section_f_f11_prevailing_wage",
+    "kind": "text"
+   },
+   "F11a": {
+    "map_id": "F11a",
+    "box": "F.11a",
+    "name": "_section_f_f11a_prevailing_wage_per",
+    "kind": "radio",
+    "options": {
+     "Hourly": "Hour",
+     "Weekly": "Week",
+     "Bi Weekly": "Bi-Weekly",
+     "Monthly": "Month",
+     "Yearly": "Year"
+    }
+   },
+   "F12": {
+    "map_id": "F12",
+    "box": "F.12/F.13/F.14",
+    "name": "_section_f_f12_f13_f14_prevailing_wage_question",
+    "kind": "radio",
+    "options": {
+     "DOL": "f12_is_dol_prevailing_wage",
+     "OES Program": "f13_is_oes_prevailing_wage",
+     "Other than OES Program": "f14_non_oes_prevailing_wage"
+    }
+   },
+   "F13a": {
+    "map_id": "F13a",
+    "box": "F.13a",
+    "name": "_section_f_f13a_wage_level",
+    "kind": "radio",
+    "options": {
+     "I": "I",
+     "II": "II",
+     "III": "III",
+     "IV": "IV",
+     "N/A": "N/A"
+    }
+   },
+   "F13b": {
+    "map_id": "F13b",
+    "box": "F.13b",
+    "name": "_section_f_f13b_source_year",
+    "kind": "select"
+   },
+   "F14a": {
+    "map_id": "F14a",
+    "box": "F.14a",
+    "name": "_section_f_f14a_source_type",
+    "kind": "radio",
+    "options": {
+     "Other/PW Survey": "Other/PW Survey"
+    }
+   },
+   "F14b": {
+    "map_id": "F14b",
+    "box": "F.14b",
+    "name": "_section_f_f14b_source_year_notcba",
+    "kind": "select"
+   },
+   "F14c": {
+    "map_id": "F14c",
+    "box": "F.14c",
+    "name": "_section_f_f14c_survey_publisher",
+    "kind": "text"
+   },
+   "F14d": {
+    "map_id": "F14d",
+    "box": "F.14d",
+    "name": "_section_f_f14d_survey_name",
+    "kind": "text"
+   },
+   "G1": {
+    "map_id": "G1",
+    "box": "G.1",
+    "name": "g1_read_agree",
+    "kind": "radio",
+    "options": {
+     "Yes": "YES",
+     "No": "NO"
+    }
+   },
+   "H1": {
+    "map_id": "H1",
+    "box": "H.1",
+    "name": "h1_is_dependent",
+    "kind": "radio",
+    "options": {
+     "Yes": "YES",
+     "No": "NO"
+    }
+   },
+   "H2": {
+    "map_id": "H2",
+    "box": "H.2",
+    "name": "h2_is_willful_violator",
+    "kind": "radio",
+    "options": {
+     "Yes": "YES",
+     "No": "NO"
+    }
+   },
+   "H3": {
+    "map_id": "H3",
+    "box": "H.3",
+    "name": "h3_only_h1b",
+    "kind": "radio",
+    "options": {
+     "Yes": "YES",
+     "No": "NO"
+    }
+   },
+   "H4": {
+    "map_id": "H4",
+    "box": "H.4",
+    "name": "h4_exemption_basis",
+    "kind": "radio",
+    "options": {
+     "$60,000 or higher annual wage": "$60,000 or higher annual wage",
+     "Master's Degree or higher in related specialty": "Master's Degree or higher in related speciality",
+     "Both": "Both"
+    }
+   },
+   "H5": {
+    "map_id": "H5",
+    "box": "H.5",
+    "name": "h5_is_appendix_a_completed",
+    "kind": "radio",
+    "options": {
+     "Yes": "YES",
+     "N/A": "N/A"
+    }
+   },
+   "H6": {
+    "map_id": "H6",
+    "box": "H.6",
+    "name": "h6_read_agree",
+    "kind": "radio",
+    "options": {
+     "Yes": "YES",
+     "No": "NO"
+    }
+   },
+   "I1": {
+    "map_id": "I1",
+    "box": "I.1 principal place of business",
+    "name": "i1_is_disclosure_principal_business",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "Yes"
+    }
+   },
+   "I2": {
+    "map_id": "I2",
+    "box": "I.1 place of employment",
+    "name": "i1_is_disclosure_place_of_employment",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "Yes"
+    }
+   },
+   "J1": {
+    "map_id": "J1",
+    "box": "J.1",
+    "name": "j1_official_last",
+    "kind": "text"
+   },
+   "J2": {
+    "map_id": "J2",
+    "box": "J.2",
+    "name": "j2_official_first",
+    "kind": "text"
+   },
+   "J3": {
+    "map_id": "J3",
+    "box": "J.3",
+    "name": "j3_official_middle",
+    "kind": "text"
+   },
+   "J4": {
+    "map_id": "J4",
+    "box": "J.4",
+    "name": "j4_official_title",
+    "kind": "text"
+   },
+   "K1": {
+    "map_id": "K1",
+    "box": "K.1",
+    "name": "k1_prep_last",
+    "kind": "text"
+   },
+   "K2": {
+    "map_id": "K2",
+    "box": "K.2",
+    "name": "k2_prep_first",
+    "kind": "text"
+   },
+   "K3": {
+    "map_id": "K3",
+    "box": "K.3",
+    "name": "k3_prep_middle",
+    "kind": "text"
+   },
+   "K4": {
+    "map_id": "K4",
+    "box": "K.4",
+    "name": "k4_prep_firm_name",
+    "kind": "text"
+   },
+   "K5": {
+    "map_id": "K5",
+    "box": "K.5",
+    "name": "k5_prep_email",
+    "kind": "text"
+   }
   }
  },
  "orphans": {
@@ -1129,8 +1782,62 @@
     "name": "appAContCitizenCountryId",
     "kind": "select"
    }
+  ],
+  "ETA-9035E": [
+   {
+    "box": "C.10 country code",
+    "section": "C",
+    "name": "c10_emp_phoneCountry",
+    "kind": "select",
+    "reason": "Phone country-code select. The map holds a U.S. number only and no box number maps to it; left as FLAG renders it."
+   },
+   {
+    "box": "D.12 country code",
+    "section": "D",
+    "name": "d12_poc_phoneCountry",
+    "kind": "select",
+    "reason": "Phone country-code select. The map holds a U.S. number only and no box number maps to it; left as FLAG renders it."
+   },
+   {
+    "box": "E.12 country code",
+    "section": "E",
+    "name": "e12_agent_phoneCountry",
+    "kind": "select",
+    "reason": "Phone country-code select. The map holds a U.S. number only and no box number maps to it; left as FLAG renders it."
+   },
+   {
+    "box": "F.12a",
+    "section": "F",
+    "name": null,
+    "kind": "lookup",
+    "reason": "PWD tracking number. FLAG fills it from its 'PWD Case Lookup' modal; there is no input to type into. Manual."
+   }
   ]
  },
  "_radio_values": "Radio option values come from the live reveal pass of 2026-08-17 and are NOT interchangeable between the two forms. Yes/No/N-A is \"1\"/\"No\"/\"2\" on the ETA-9141 and \"Yes\"/\"No\"/\"N/A\" on the ETA-9089 -- the same logical question, spelled differently. Writing \"Yes\" to a 9141 radio is ignored by React: no error, and the box stays blank on a federal form. `options` maps the value the backend map emits to the value THAT FORM's widget offers; a value not in the map is never written.",
- "_never_autofilled": "ETA-9089 I.1 (sectionIAgreement) is the employer's certification UNDER PENALTY OF PERJURY. The map carries const=\"Yes\" because the form is not filable without it, but ticking it is a person's act, not an autofill. It is listed here so the table describes the form completely, and refused in autofill.py."
+ "_never_autofilled": "ETA-9089 I.1 (sectionIAgreement) is the employer's certification UNDER PENALTY OF PERJURY. The map carries const=\"Yes\" because the form is not filable without it, but ticking it is a person's act, not an autofill. It is listed here so the table describes the form completely, and refused in autofill.py.",
+ "skipped": {
+  "ETA-9035E": {
+   "B3": "FLAG has no separate title box: the B.2/B.3 SOC combobox fills the occupation title from the code picked.",
+   "C9": "Not rendered for a U.S. employer on FLAG; the map leaves it blank for the same reason.",
+   "D11": "Not rendered for a U.S. address on FLAG; the map leaves it blank for the same reason.",
+   "E11": "Not rendered for a U.S. address on FLAG. A non-U.S. attorney address is typed by hand.",
+   "F10c": "FLAG takes the wage as ONE box; the dollars entry (F10) fills it. Cents are not typed.",
+   "F10tc": "FLAG takes the wage as ONE box; the dollars entry (F10t) fills it. Cents are not typed.",
+   "F11c": "FLAG takes the wage as ONE box; the dollars entry (F11) fills it. Cents are not typed.",
+   "F12a": "FLAG fills the PWD tracking number through its 'PWD Case Lookup' modal, not a plain input. Type it by hand.",
+   "G1no": "FLAG's G.1 is one YES/NO radio (g1_read_agree); there is no separate No box.",
+   "J5": "The form says to leave it blank here; nothing to type.",
+   "J6": "The form says to leave it blank here; nothing to type.",
+   "L1": "DOL use only.",
+   "L2": "DOL use only.",
+   "L3": "DOL use only.",
+   "L4": "DOL use only.",
+   "L5": "DOL use only.",
+   "L6": "DOL use only.",
+   "M1": "A PDF artefact; FLAG has no such box."
+  }
+ },
+ "_skipped_doc": "Map entries with NO FLAG field, and why. autofill.py reports a filled one with this reason instead of 'not mapped yet', so nobody goes looking for a field that does not exist.",
+ "_source_9035": "ETA-9035E: live read of a throwaway ETA-9035 draft on flag.dol.gov/dashboard/application/9035/<id>, 2026-10-08 (family-ext test/fixtures/flag-lca-field-dump/eta9035-capture.json). Yes/No is \"YES\"/\"NO\" on this form. B.2/B.3 SOC and C.13 NAICS have no name and no id: `name` is a LOGICAL key the extension finds by `label`. F.7 county has an id and no name (`by_id`)."
 }

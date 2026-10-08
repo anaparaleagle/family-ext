@@ -262,4 +262,5 @@ export const ETA9141_CONFIG: FlagFormConfig = {
   caseTypes: ["PERM"],
   sections: ETA9141_SECTIONS,
   forbidden: ETA9141_FORBIDDEN,
+  notAutofilled: ETA9141_NOT_AUTOFILLED,
 };

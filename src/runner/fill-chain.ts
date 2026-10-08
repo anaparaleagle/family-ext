@@ -265,6 +265,7 @@ export function planPageFill(
         // ground truth a select-style set can be verified against.
         ...(field.valueMap && field.valueMap[sent] !== undefined ? { commitValue: sent } : {}),
         ...(field.locate ? { locate: field.locate } : {}),
+        ...(field.fallbackKind ? { fallbackKind: field.fallbackKind } : {}),
       },
       value,
       rowIndex,

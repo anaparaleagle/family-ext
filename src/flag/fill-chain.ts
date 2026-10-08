@@ -18,10 +18,17 @@
 // ===========================================================================
 
 import { dbg } from "../engine/logger";
-import { setValue } from "../engine/value-setter";
+import { locateElement, setValue } from "../engine/value-setter";
 import { auditUnmappedFields, normalizeName } from "../engine/telemetry";
 import { goToSection, sectionIsRendered } from "./nav";
-import { FlagField, FlagFormConfig, FlagSection, ForbiddenControl, flagFieldNames } from "./types";
+import {
+  FlagField,
+  FlagFormConfig,
+  FlagSection,
+  ForbiddenControl,
+  flagFieldNames,
+  flagFieldSpec,
+} from "./types";
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -61,9 +68,12 @@ export function isForbidden(
   forbidden: ForbiddenControl[],
 ): ForbiddenControl | null {
   const haystacks = [field.name.toLowerCase()];
-  const el =
-    document.querySelector(`[name="${CSS.escape(field.name)}"]`) ??
-    document.getElementById(field.name);
+  // A label-located field is checked on the element the label resolved to, so
+  // a label that lands on a profile picker is refused by the picker's id.
+  const el = field.byLabel
+    ? locateElement(flagFieldSpec(field))
+    : document.querySelector(`[name="${CSS.escape(field.name)}"]`) ??
+      document.getElementById(field.name);
   if (el) {
     haystacks.push((el.id || "").toLowerCase());
     haystacks.push((el.getAttribute("aria-label") || "").toLowerCase());
@@ -78,6 +88,7 @@ export function isForbidden(
 /** Is the input for this field on the page right now? */
 function isRendered(field: FlagField): boolean {
   if (field.byId) return !!document.getElementById(field.name);
+  if (field.byLabel) return !!locateElement(flagFieldSpec(field));
   return !!document.querySelector(`[name="${CSS.escape(field.name)}"]`);
 }
 
@@ -166,11 +177,8 @@ export async function fillSection(
       }
     }
 
-    // `locate` by id when the input has no name — the worksite county.
-    const spec = field.byId
-      ? { name: field.name, kind: field.kind, locate: { id: field.name } }
-      : { name: field.name, kind: field.kind };
-    const result = await setValue(spec, value);
+    // `locate` by id or box label when the input has no name.
+    const result = await setValue(flagFieldSpec(field), value);
     outcomes.push({
       name: field.name,
       status: result.success ? "filled" : "failed",

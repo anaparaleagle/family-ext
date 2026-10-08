@@ -16,7 +16,7 @@
 // ===========================================================================
 
 import { dbg } from "./logger";
-import { FieldSpec, LocateSpec, SetResult } from "./types";
+import { FieldKind, FieldSpec, LocateSpec, SetResult } from "./types";
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -154,6 +154,11 @@ export function locateElement(spec: FieldSpec): HTMLElement | null {
     }
   }
 
+  if (locate.boxLabel) {
+    const byBox = findByBoxLabel(locate.boxLabel);
+    if (byBox) return byBox;
+  }
+
   if (locate.labelContains) {
     const want = normaliseText(locate.labelContains).toLowerCase();
     for (const el of Array.from(document.querySelectorAll<HTMLElement>("input, textarea, select"))) {
@@ -162,6 +167,36 @@ export function locateElement(spec: FieldSpec): HTMLElement | null {
   }
 
   return null;
+}
+
+/** How far above a matching label the walk looks for the label's own field. */
+const BOX_LABEL_DEPTH = 4;
+/** Text a label element may carry beyond the box label (a required marker, a hint). */
+const BOX_LABEL_SLACK = 40;
+
+/**
+ * The single input belonging to the label that starts with `label`, or null.
+ * See LocateSpec.boxLabel. Every label element whose text starts with the box
+ * label votes for the one input in its nearest enclosing field; more than one
+ * distinct winner, or a field with more than one input, is no answer.
+ */
+function findByBoxLabel(label: string): HTMLElement | null {
+  const want = normaliseText(label).toLowerCase();
+  const found = new Set<HTMLElement>();
+  for (const el of Array.from(document.querySelectorAll<HTMLElement>("label, legend, p, span, div"))) {
+    const text = normaliseText(el.textContent || "").toLowerCase();
+    if (!text.startsWith(want) || text.length > want.length + BOX_LABEL_SLACK) continue;
+    let scope: HTMLElement | null = el;
+    for (let depth = 0; scope && depth < BOX_LABEL_DEPTH; depth++, scope = scope.parentElement) {
+      const inputs = scope.querySelectorAll<HTMLElement>(
+        'input:not([type="hidden"]), select, textarea',
+      );
+      if (inputs.length === 0) continue;
+      if (inputs.length === 1) found.add(inputs[0]);
+      break;
+    }
+  }
+  return found.size === 1 ? [...found][0] : null;
 }
 
 /** Minimal CSS attribute-value escaper (names contain dots, which are legal in
@@ -1051,6 +1086,21 @@ async function pickMuiSelectOption(
  * success for everything except checkboxes (where "" means "leave unchecked").
  */
 export async function setValue(spec: FieldSpec, value: string): Promise<SetResult> {
+  const res = await setValueAs(spec, value);
+  const fallback = spec.fallbackKind;
+  if (res.success || !fallback || !fallbackFits(spec, fallback)) return res;
+  dbg(`value-setter: ${spec.name} did not take as ${spec.kind} (${res.message}) — trying it as ${fallback}`);
+  return setValueAs({ ...spec, kind: fallback, fallbackKind: undefined }, value);
+}
+
+function fallbackFits(spec: FieldSpec, kind: FieldKind): boolean {
+  const el = locateElement(spec);
+  if (!(el instanceof HTMLInputElement)) return false;
+  if (kind === "checkbox") return el.type === "checkbox";
+  return el.type !== "checkbox" && el.type !== "radio";
+}
+
+async function setValueAs(spec: FieldSpec, value: string): Promise<SetResult> {
   const { name, kind } = spec;
   try {
     if (kind === "radio") {

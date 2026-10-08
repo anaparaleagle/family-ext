@@ -19,7 +19,8 @@
 // ===========================================================================
 
 import { dbg } from "../engine/logger";
-import { FlagSection } from "./types";
+import { locateElement } from "../engine/value-setter";
+import { FlagSection, flagFieldSpec } from "./types";
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -96,7 +97,8 @@ export function sectionIsRendered(section: FlagSection): boolean {
   return section.fields.some(
     (f) =>
       document.querySelector(`[name="${CSS.escape(f.name)}"]`) ||
-      (f.byId && document.getElementById(f.name)),
+      (f.byId && document.getElementById(f.name)) ||
+      (f.byLabel && locateElement(flagFieldSpec(f))),
   );
 }
 

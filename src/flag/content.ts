@@ -13,15 +13,13 @@
 
 import { dbg, resetDebugLog } from "../engine/logger";
 import { apiGet } from "../runner/api-transport";
-import { ETA9141_CONFIG, ETA9141_NOT_AUTOFILLED } from "./eta9141-descriptor";
 import { fillAll, fillCurrentSection, WalkReport } from "./fill-chain";
 import { flushUnmappedFields } from "../engine/telemetry";
+import { FLAG_CONFIGS } from "./registry";
 import { FlagFormConfig } from "./types";
 
-const FLAG_CONFIGS: FlagFormConfig[] = [ETA9141_CONFIG];
-
 /** Storage keys for the FLAG side. Separate from the myUSCIS payload keys so a
- * loaded ETA-9141 cannot be mistaken for a loaded I-130 or vice versa. */
+ * loaded DOL form cannot be mistaken for a loaded I-130 or vice versa. */
 const KEYS = {
   fieldValues: "flagFieldValues",
   formType: "flagFormType",
@@ -107,7 +105,7 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
   const apiBaseUrl = (stored[KEYS.apiBaseUrl] as string) ?? "http://localhost:8001/api/v1";
 
   if (!caseId) {
-    setStatus("No case loaded — open the popup and pick a PERM case.");
+    setStatus(`No case loaded — open the popup and pick a case for the ${config.formType}.`);
     return null;
   }
 
@@ -177,16 +175,17 @@ function buildToolbar(config: FlagFormConfig): void {
   status.textContent = "Ready.";
   bar.appendChild(status);
 
-  // The two fields this extension will not fill, said up front rather than left
+  // The fields this extension will not fill, said up front rather than left
   // as blanks a caseworker finds at DOL with the application open.
-  const manual = document.createElement("div");
-  manual.style.cssText = "margin-top:6px;padding-top:6px;border-top:1px solid #eee;color:#663;";
-  manual.textContent =
-    "Type by hand: " +
-    ETA9141_NOT_AUTOFILLED.map((f) => `${f.box} ${f.label}`).join(", ") +
-    ". Both are unnamed dropdowns sitting next to FLAG's profile picker — " +
-    "picking the wrong one would overwrite the whole section.";
-  bar.appendChild(manual);
+  if (config.notAutofilled?.length) {
+    const manual = document.createElement("div");
+    manual.style.cssText =
+      "margin-top:6px;padding-top:6px;border-top:1px solid #eee;color:#663;white-space:pre-line";
+    manual.textContent =
+      "Type by hand:\n" +
+      config.notAutofilled.map((f) => `${f.box} ${f.label} — ${f.reason}`).join("\n");
+    bar.appendChild(manual);
+  }
 
   document.body.appendChild(bar);
 }
@@ -232,7 +231,7 @@ async function onFillSection(config: FlagFormConfig): Promise<void> {
     if (!loaded) return;
     const outcome = await fillCurrentSection(config, loaded.fieldValues);
     if (!outcome) {
-      setStatus("This is not a section the ETA-9141 descriptor knows.");
+      setStatus(`This is not a section the ${config.formType} descriptor knows.`);
       return;
     }
     void flushUnmappedFields(config.formType, loaded.caseId);

@@ -62,6 +62,16 @@ export interface LocateSpec {
    * the anchor is not on the page.
    */
   labelContains?: string;
+  /**
+   * The box's printed label, for an input with NO name, NO id and no bound
+   * <label>. The ETA-9035's B.2/B.3 SOC and C.13 NAICS comboboxes are the case.
+   *
+   * Matched as a prefix of a label element's text, and the input must be the ONLY
+   * one in that label's own field. Anything else (no match, two matches, a field
+   * holding two inputs) finds nothing. C.13 sits below FLAG's employer profile
+   * picker, so a near miss here must not resolve to a neighbour.
+   */
+  boxLabel?: string;
 }
 
 /** What the engine needs to set one field. `name` is the Formik `[name]`. */
@@ -94,6 +104,8 @@ export interface FieldSpec {
    * back races React.
    */
   commitValue?: string;
+  /** Tried when `kind` fails on a widget whose live shape is unconfirmed. */
+  fallbackKind?: FieldKind;
 }
 
 export interface SetResult {

@@ -15,8 +15,14 @@ import { FormPage } from "./types";
  * `/a/work-location/work-location-page-1` and `/a/work-location/work-location-1`.
  */
 export function pageOneAliases(slug: string): string[] {
+  const parent = slug.slice(0, slug.lastIndexOf("/"));
   const lastSegment = slug.slice(slug.lastIndexOf("/") + 1);
-  return [`${slug}/${lastSegment}-page-1`, `${slug}/${lastSegment}-1`];
+  const aliases = [`${slug}/${lastSegment}-page-1`, `${slug}/${lastSegment}-1`];
+  // A page already nested under itself (`/your-parents/your-parents`) splits into siblings instead.
+  if (parent.endsWith(`/${lastSegment}`)) {
+    aliases.push(`${parent}/${lastSegment}-page-1`, `${parent}/${lastSegment}-1`);
+  }
+  return aliases;
 }
 
 /** Find the descriptor page whose slug the URL path ends with. */
