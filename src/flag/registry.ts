@@ -5,10 +5,11 @@
 // popup can import it without pulling a content script's imports into the popup
 // bundle.
 
+import { ETA9035_CONFIG } from "./eta9035-descriptor";
 import { ETA9141_CONFIG } from "./eta9141-descriptor";
 import { FlagFormConfig } from "./types";
 
-export const FLAG_CONFIGS: FlagFormConfig[] = [ETA9141_CONFIG];
+export const FLAG_CONFIGS: FlagFormConfig[] = [ETA9141_CONFIG, ETA9035_CONFIG];
 
 /**
  * Storage keys for the FLAG side.

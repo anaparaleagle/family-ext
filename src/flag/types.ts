@@ -18,7 +18,7 @@
 // ETA-9141 spells Yes as "1"; the ETA-9089 spells it "Yes").
 // ===========================================================================
 
-import { FieldKind } from "../engine/types";
+import { FieldKind, FieldSpec } from "../engine/types";
 
 /** What makes a conditional field render. Mirrors the myUSCIS RevealSpec. */
 export interface FlagReveal {
@@ -47,8 +47,22 @@ export interface FlagField {
    * for a field that is right there.
    */
   byId?: true;
+  /**
+   * Set when the input has NO name and NO id, only a printed box label. `name`
+   * is then a LOGICAL key (the one the backend feed emits under) and the input
+   * is found by this label; see LocateSpec.boxLabel for how strict that is.
+   * The ETA-9035's B.2/B.3 SOC and C.13 NAICS comboboxes.
+   */
+  byLabel?: string;
   /** Present when an upstream answer has to be driven before this renders. */
   revealedBy?: FlagReveal;
+}
+
+/** A box the extension leaves for a person, said up front in the toolbar. */
+export interface NotAutofilled {
+  box: string;
+  label: string;
+  reason: string;
 }
 
 export interface FlagSection {
@@ -96,6 +110,15 @@ export interface FlagFormConfig {
   caseTypes: string[];
   sections: FlagSection[];
   forbidden: ForbiddenControl[];
+  /** Boxes left for a person, listed in the toolbar. */
+  notAutofilled?: NotAutofilled[];
+}
+
+/** The engine spec for a field: by name, or by id / box label when it has no name. */
+export function flagFieldSpec(field: FlagField): FieldSpec {
+  if (field.byId) return { name: field.name, kind: field.kind, locate: { id: field.name } };
+  if (field.byLabel) return { name: field.name, kind: field.kind, locate: { boxLabel: field.byLabel } };
+  return { name: field.name, kind: field.kind };
 }
 
 /** Every field name a descriptor drives, for coverage accounting. */
