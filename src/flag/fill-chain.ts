@@ -20,7 +20,7 @@
 import { dbg } from "../engine/logger";
 import { locateElement, setValue } from "../engine/value-setter";
 import { auditUnmappedFields, normalizeName } from "../engine/telemetry";
-import { goToSection, sectionIsRendered } from "./nav";
+import { CommitOutcome, commitSection, goToSection, sectionIsRendered } from "./nav";
 import {
   FlagField,
   FlagFormConfig,
@@ -46,6 +46,8 @@ export interface SectionOutcome {
   title: string;
   reached: boolean;
   fields: FieldOutcome[];
+  /** What pressing Continue did. Absent when the walk did not try to commit. */
+  commit?: CommitOutcome;
 }
 
 export interface WalkReport {
@@ -54,6 +56,8 @@ export interface WalkReport {
   failed: number;
   /** Field names present in the payload that no section of the descriptor drives. */
   unclaimed: string[];
+  /** The section FLAG refused, if the walk stopped on one. */
+  blockedAt?: string;
 }
 
 /**
@@ -207,6 +211,8 @@ export async function fillAll(
   const sections: SectionOutcome[] = [];
   const coverage = new Set(flagFieldNames(config.sections).map(normalizeName));
 
+  let blockedAt: string | undefined;
+
   for (const section of config.sections) {
     dbg(`section: ${section.title}`);
     const reached = await goToSection(section);
@@ -214,11 +220,21 @@ export async function fillAll(
       sections.push({ title: section.title, reached: false, fields: [] });
       continue;
     }
-    sections.push({
-      title: section.title,
-      reached: true,
-      fields: await fillSection(section, values, config.forbidden, coverage),
-    });
+    const fields = await fillSection(section, values, config.forbidden, coverage);
+
+    // Commit before moving on. A sidebar click is not a save: FLAG persists a
+    // section when Continue is pressed and discards it otherwise, so a walk
+    // that only navigated would leave every section it typed behind it empty.
+    const commit = await commitSection();
+    sections.push({ title: section.title, reached: true, fields, commit });
+
+    if (commit === "blocked") {
+      // FLAG is holding this section over a box it wants. Pressing on would
+      // type the rest of the form on top of an unsaved one and report success.
+      blockedAt = section.title;
+      dbg(`walk: stopped at "${section.title}" — FLAG would not take it`);
+      break;
+    }
   }
 
   const all = sections.flatMap((s) => s.fields);
@@ -231,6 +247,7 @@ export async function fillAll(
     // backend table, or the feed grew a field — both worth saying out loud
     // rather than dropping the value on the floor.
     unclaimed: Object.keys(values).filter((k) => !driven.has(k)),
+    blockedAt,
   };
 }
 
