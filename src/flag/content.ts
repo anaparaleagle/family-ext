@@ -253,10 +253,16 @@ async function onFillAll(config: FlagFormConfig): Promise<void> {
     setStatus("Filling…");
     const report = await fillAll(config, loaded.fieldValues);
     void flushUnmappedFields(config.formType, loaded.caseId);
+    const committed = report.sections.filter((s) => s.commit === "committed").length;
     setStatus(
       summarise(report) +
-        " Nothing has been saved — press FLAG's own Continue on each section, and " +
-        "check every value before you do.",
+        ` ${committed} section(s) saved with FLAG's own Continue.` +
+        (report.blockedAt
+          ? ` STOPPED at "${report.blockedAt}" — FLAG would not accept it. Read the ` +
+            "errors it is showing, fix them, and press Continue yourself; the " +
+            "sections after it were not touched."
+          : " Nothing was submitted — the walk never presses Submit, Sign or Certify. " +
+            "Check every value before you file."),
     );
     dbg(JSON.stringify(report, null, 1));
   });

@@ -152,3 +152,35 @@ export function findCommitButton(): HTMLElement | null {
   }
   return null;
 }
+
+/** What pressing Continue did. `blocked` is FLAG refusing the section, which is
+ * a RESULT and not an error: the page stays put and says which box it wants. */
+export type CommitOutcome = "committed" | "blocked" | "no-button";
+
+/**
+ * Press Continue and wait for FLAG to move.
+ *
+ * The page not changing is how FLAG reports a validation failure — it re-renders
+ * the same section with "This field is required." against the boxes it wants. So
+ * an unchanged fingerprint is reported as `blocked` and the walk stops rather
+ * than pressing on: every later section would be filled into a form whose
+ * earlier half was never saved, and the report would claim otherwise.
+ */
+export async function commitSection(): Promise<CommitOutcome> {
+  const button = findCommitButton();
+  if (!button) {
+    dbg("commit: no Continue button on this section");
+    return "no-button";
+  }
+
+  const before = fingerprint();
+  button.click();
+
+  const deadline = Date.now() + NAV_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    await sleep(POLL_MS);
+    if (fingerprint() !== before) return "committed";
+  }
+  dbg(`commit: page unchanged ${NAV_TIMEOUT_MS}ms after Continue — FLAG refused it`);
+  return "blocked";
+}
