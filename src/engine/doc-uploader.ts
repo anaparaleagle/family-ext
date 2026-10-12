@@ -23,6 +23,9 @@ const INJECT_ATTEMPTS = 2;
 /** How long to wait for myUSCIS to show a batch before treating it as dropped. */
 const ACK_TIMEOUT_MS = 20000;
 
+/** How long to let one batch finish uploading before sending the next. */
+const BATCH_SETTLE_TIMEOUT_MS = 180000;
+
 export interface AttachResult {
   attached: number;
   /** Files already on the page, so deliberately not re-attached (SOF-1005).
@@ -63,6 +66,8 @@ export async function attachFiles(
 
   let attached = 0;
   for (let i = 0; i < pending.length; i += MAX_FILES_PER_BATCH) {
+    // myUSCIS takes no more than five at a time, counting ones still uploading.
+    if (i > 0) await waitForNoUploadsInFlight();
     const batch = pending.slice(i, i + MAX_FILES_PER_BATCH);
     const baseline = countAttachedFileControls();
     const lastFilename = batch[batch.length - 1].name;
@@ -201,7 +206,13 @@ function controlsMatching(labels: Set<string>): HTMLElement[] {
   const controls = Array.from(
     document.querySelectorAll<HTMLElement>('button, a, [role="button"]'),
   );
-  return controls.filter((c) => labels.has((c.textContent || "").trim().toLowerCase()));
+  return controls.filter(
+    (c) =>
+      labels.has((c.textContent || "").trim().toLowerCase()) &&
+      // A modal's Cancel (myUSCIS keeps a hidden "continue with this change?" one
+      // on evidence pages) is never a file row.
+      !c.closest('.usa-modal-wrapper, .usa-modal, [role="dialog"], dialog'),
+  );
 }
 
 function removeControls(): HTMLElement[] {
@@ -349,6 +360,13 @@ async function waitForUploadAccepted(
     }
   }
   return false;
+}
+
+async function waitForNoUploadsInFlight(timeoutMs = BATCH_SETTLE_TIMEOUT_MS): Promise<void> {
+  const start = Date.now();
+  while (uploadsInFlight() > 0 && Date.now() - start < timeoutMs) {
+    await new Promise((r) => setTimeout(r, 400));
+  }
 }
 
 function errMsg(err: unknown): string {
