@@ -204,6 +204,31 @@ describe("doc-uploader: a row whose upload is still running", () => {
     expect(countAttachedFileControls()).toBe(1);
   });
 
+  it("waits for one batch to finish uploading before sending the next", async () => {
+    // Live I-539 H-4 walk, 2026-10-12: eight files on Additional evidence went as
+    // five then three while the five were still uploading. myUSCIS takes "no more
+    // than five documents at a time" and dropped the offer letter without a word.
+    mountWithRows([]);
+    const input = document.getElementById("desktop-drop") as HTMLInputElement;
+    const inFlightAtDrop: number[] = [];
+    input.addEventListener("change", () => {
+      inFlightAtDrop.push(uploadsInFlight());
+      for (const f of Array.from(input.files ?? [])) {
+        const row = document.createElement("div");
+        row.className = "uploaded-file";
+        row.innerHTML = `<span>${f.name}</span><button class="act">Cancel</button>`;
+        document.body.appendChild(row);
+        setTimeout(() => {
+          row.querySelector("button")!.textContent = "Delete";
+        }, 1500);
+      }
+    });
+    const names = ["a", "b", "c", "d", "e", "f", "g", "h"].map((n) => pdf(`${n}_document.pdf`));
+    const res = await attachFiles(names, 3000);
+    expect(res.attached).toBe(8);
+    expect(inFlightAtDrop).toEqual([0, 0]);
+  }, 30000);
+
   it("treats a settled Remove row exactly as before (no regression)", async () => {
     mountWithRows([{ name: "i94.pdf", action: "Remove" }]);
     const res = await attachFiles([pdf("i94.pdf")]);
