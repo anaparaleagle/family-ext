@@ -183,6 +183,27 @@ describe("doc-uploader: a row whose upload is still running", () => {
     expect(res.warnings[0]).toMatch(/0 file row\(s\)/);
   });
 
+  it("does not read a closed confirmation modal's Cancel as an upload in flight", () => {
+    // Live I-539 H-4 walk, 2026-10-12: once the I-94 landed, myUSCIS kept a hidden
+    // "continue with this change?" modal in the page. Its Cancel held the walk on
+    // the I-94 page for 180s and every later evidence page was never reached.
+    mountWithRows([{ name: "Form_I-94_Arriv...j.pdf", action: "none" }]);
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      '<div class="uploaded-file"><a href="#">Form_I-94_Arriv...j.pdf</a>' +
+        '<span>Form I-94</span><button class="usa-button">Delete</button></div>' +
+        '<div class="usa-modal-wrapper is-hidden" style="visibility: hidden">' +
+        '<div class="usa-modal"><div class="usa-modal__content"><div class="usa-modal__main">' +
+        "<h2>Are you sure you want to continue with this change?</h2>" +
+        '<div class="usa-modal__footer"><ul class="usa-button-group">' +
+        '<li><button class="usa-button">Yes, continue</button></li>' +
+        '<li><button class="usa-button usa-button--unstyled">Cancel</button></li>' +
+        "</ul></div></div></div></div></div>",
+    );
+    expect(uploadsInFlight()).toBe(0);
+    expect(countAttachedFileControls()).toBe(1);
+  });
+
   it("treats a settled Remove row exactly as before (no regression)", async () => {
     mountWithRows([{ name: "i94.pdf", action: "Remove" }]);
     const res = await attachFiles([pdf("i94.pdf")]);
