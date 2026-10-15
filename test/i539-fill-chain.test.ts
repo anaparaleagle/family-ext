@@ -442,6 +442,34 @@ describe("I-539 conditional reveals", () => {
     expect(shut.map((p) => p.spec.name)).not.toContain(RECEIPT);
   });
 
+  it("fills the whole principal-petition block from a pending H-4 answer", () => {
+    // The payload the backend resolves for an H-4 extension whose principal's
+    // I-129 was filed earlier and is still pending.
+    const P = "yourApplication.informationAboutRequest.informationAboutRequestPage1.";
+    const plan = planPageFill(page("/your-application/information-about-request/information-about-request-page-1"), {
+      [`${P}isBasedOnGrantedFamilyPetition`]: "false",
+      [`${P}basedOnSeparateFamilyPetition`]: "filedPreviouslyAndPending",
+      [`${P}selectedFormType`]: "formI129",
+      [`${P}fullName.firstName`]: "Rohan",
+      [`${P}fullName.lastName`]: "Iyer",
+      [`${P}separatePetitionReceiptNumber.receiptNumber`]: "WAC2512345678",
+      [`${P}dateFiled`]: "",
+    });
+    const names = plan.map((p) => p.spec.name.slice(P.length));
+    expect(names).toEqual(expect.arrayContaining([
+      "isBasedOnGrantedFamilyPetition",
+      "basedOnSeparateFamilyPetition",
+      "selectedFormType",
+      "separatePetitionReceiptNumber.receiptNumber",
+      "fullName.firstName",
+      "fullName.lastName",
+    ]));
+    expect(names).not.toContain("dateFiled");
+    for (const revealed of ["selectedFormType", "separatePetitionReceiptNumber.receiptNumber"]) {
+      expect(names.indexOf("basedOnSeparateFamilyPetition")).toBeLessThan(names.indexOf(revealed));
+    }
+  });
+
   // Cluster B as it actually happened: four values held, no answer to the
   // question that opens the block. The page reported 0/4 filled. It must now
   // report nothing attempted, not four failures.
