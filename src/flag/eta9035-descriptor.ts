@@ -15,7 +15,14 @@
 // order, except that a gate is listed before the fields it reveals.
 // ===========================================================================
 
-import { FlagField, FlagFormConfig, FlagSection, ForbiddenControl, NotAutofilled } from "./types";
+import {
+  FlagField,
+  FlagFormConfig,
+  FlagReveal,
+  FlagSection,
+  ForbiddenControl,
+  NotAutofilled,
+} from "./types";
 
 const t = (name: string): FlagField => ({ name, kind: "text" });
 const sel = (name: string): FlagField => ({ name, kind: "select" });
@@ -26,6 +33,12 @@ const box = (name: string): FlagField => ({ name, kind: "checkbox" });
 const when = (field: FlagField, by: string, is: string[]): FlagField => ({
   ...field,
   revealedBy: { by, is },
+});
+
+/** A field revealed by ANY ONE of several answers — the form's own "and/or". */
+const whenAny = (field: FlagField, gates: FlagReveal[]): FlagField => ({
+  ...field,
+  revealedBy: gates,
 });
 
 const YES = "YES";
@@ -180,7 +193,24 @@ export const ETA9035_SECTIONS: FlagSection[] = [
     fields: [
       radio("h1_is_dependent"),
       radio("h2_is_willful_violator"),
-      when(radio("h3_only_h1b"), "h1_is_dependent", [YES]),
+      // "If Yes to H.1 AND/OR H.2" — the form's own wording, and the backend
+      // derives H.3 on exactly that rule. The capture only ever toggled H.1, so
+      // it recorded the one gate it saw; taking that literally hid H.3 from a
+      // willful violator that is not H-1B dependent, which is a REQUIRED box
+      // left blank and a section FLAG then refuses to save. H.2 only became
+      // answerable at all when the employer record gained the question
+      // (SOF-2300), which is why nothing caught this before.
+      whenAny(radio("h3_only_h1b"), [
+        { by: "h1_is_dependent", is: [YES] },
+        {
+          by: "h2_is_willful_violator",
+          is: [YES],
+          unobserved:
+            "DOL's printed rule for H.3 is \"If Yes to H.1 and/or H.2\"; the " +
+            "2026-10-08 capture only toggled H.1, so this half was never seen " +
+            "firing. Confirm on a throwaway draft before relying on it.",
+        },
+      ]),
       when(radio("h4_exemption_basis"), "h3_only_h1b", [YES]),
       when(radio("h5_is_appendix_a_completed"), "h3_only_h1b", [NO]),
       when(radio("h6_read_agree"), "h3_only_h1b", [NO]),

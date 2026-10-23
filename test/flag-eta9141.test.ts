@@ -14,7 +14,7 @@ import {
 } from "../src/flag/eta9141-descriptor";
 import { fillSection, isForbidden } from "../src/flag/fill-chain";
 import { findSectionLink, matchesSection, findCommitButton, sectionIsRendered } from "../src/flag/nav";
-import { flagFieldNames } from "../src/flag/types";
+import { flagFieldNames, revealGates } from "../src/flag/types";
 
 const CAPTURE = JSON.parse(
   readFileSync("test/fixtures/flag-perm-field-dump/eta9141-run3.json", "utf-8"),
@@ -64,7 +64,7 @@ describe("descriptor vs the live capture", () => {
     // answered" — a silent under-fill, not an error.
     for (const section of ETA9141_SECTIONS) {
       for (const field of section.fields) {
-        for (const value of field.revealedBy?.is ?? []) {
+        for (const value of revealGates(field).flatMap((g) => g.is ?? [])) {
           expect(value).not.toBe("Yes");
           expect(value).not.toBe("No");
         }
@@ -79,8 +79,8 @@ describe("descriptor vs the live capture", () => {
     // Run 3 proved Attorney and Agent both reveal the block and None reveals
     // nothing, so every other field in the section must be gated on those two.
     for (const field of rest) {
-      expect(field.revealedBy?.by).toBe("attyRepresentType");
-      expect(field.revealedBy?.is).toEqual(["Attorney", "Agent"]);
+      expect(revealGates(field).map((g) => g.by)).toEqual(["attyRepresentType"]);
+      expect(revealGates(field)[0].is).toEqual(["Attorney", "Agent"]);
     }
   });
 
@@ -90,7 +90,7 @@ describe("descriptor vs the live capture", () => {
     for (const section of ETA9141_SECTIONS) {
       const seen = new Set<string>();
       for (const field of section.fields) {
-        if (field.revealedBy) expect(seen.has(field.revealedBy.by)).toBe(true);
+        for (const gate of revealGates(field)) expect(seen.has(gate.by)).toBe(true);
         seen.add(field.name);
       }
     }
