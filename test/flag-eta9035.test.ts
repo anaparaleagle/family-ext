@@ -14,7 +14,7 @@ import {
 import { fillSection, isForbidden } from "../src/flag/fill-chain";
 import { findSectionLink, sectionIsRendered } from "../src/flag/nav";
 import { FLAG_CONFIGS, caseTypeMatchesForm, flagConfigForPath } from "../src/flag/registry";
-import { FlagField, flagFieldNames } from "../src/flag/types";
+import { FlagField, flagFieldNames, revealGates } from "../src/flag/types";
 import { locateElement } from "../src/engine/value-setter";
 
 interface CapturedField {
@@ -69,16 +69,44 @@ describe("descriptor vs the live capture", () => {
       .filter((f) => f.revealedBy && f.name)
       .map((f) => [f.name, f.revealedBy!.by, f.revealedBy!.is.join("|")].join(" "));
     const ours = fields()
-      .filter((f) => f.revealedBy)
-      .map((f) => [f.name, f.revealedBy!.by, (f.revealedBy!.is ?? []).join("|")].join(" "));
-    expect(ours.sort()).toEqual(want.sort());
+      .flatMap((f) => revealGates(f).map((g) => [f.name, g.by, (g.is ?? []).join("|")].join(" ")));
+    // Every captured reveal must still be carried. The descriptor may hold MORE
+    // than the capture saw — a capture is one session on one draft, not the
+    // form's rulebook — but each extra gate has to say so in `unobserved`, so
+    // the difference between "read off DOL's own wording" and "guessed" stays
+    // on the page.
+    const extra = fields().flatMap((f) =>
+      revealGates(f)
+        .filter((g) => !want.includes([f.name, g.by, (g.is ?? []).join("|")].join(" ")))
+        .map((g) => ({ field: f.name, gate: g.by, reason: g.unobserved })),
+    );
+    expect(extra).toEqual([
+      {
+        field: "h3_only_h1b",
+        gate: "h2_is_willful_violator",
+        reason: expect.stringContaining("and/or"),
+      },
+    ]);
+    expect(ours.filter((r) => want.includes(r)).sort()).toEqual(want.sort());
+  });
+
+  it("reveals H.3 on the willful-violator answer as well as the dependency one", () => {
+    // DOL: "If Yes to H.1 and/or H.2". A willful violator that is NOT H-1B
+    // dependent sees H.3, and the backend sends it — so gating on H.1 alone
+    // left a required box blank and the section unsaveable.
+    const h3 = fields().find((f) => f.name === "h3_only_h1b")!;
+    expect(revealGates(h3).map((g) => g.by)).toEqual([
+      "h1_is_dependent",
+      "h2_is_willful_violator",
+    ]);
+    for (const gate of revealGates(h3)) expect(gate.is).toEqual(["YES"]);
   });
 
   it("lists each gate before the fields it reveals", () => {
     for (const section of ETA9035_SECTIONS) {
       const seen = new Set<string>();
       for (const field of section.fields) {
-        if (field.revealedBy) expect(seen.has(field.revealedBy.by), field.name).toBe(true);
+        for (const gate of revealGates(field)) expect(seen.has(gate.by), field.name).toBe(true);
         seen.add(field.name);
       }
     }
@@ -256,5 +284,106 @@ describe("registry", () => {
     expect(caseTypeMatchesForm("H-1B-COS-F1", "ETA-9035E")).toBe(true);
     expect(caseTypeMatchesForm("PERM", "ETA-9035E")).toBe(false);
     expect(caseTypeMatchesForm("IR-1", "ETA-9035E")).toBe(false);
+  });
+});
+
+describe("Section H when the employer is a willful violator but not dependent", () => {
+  // The case SOF-2300 created. Until the employer record carried the question,
+  // H.2 was always No and H.1 was the only gate anyone could see fire — so the
+  // descriptor gated H.3 on H.1 alone and this whole branch was dead code. It
+  // is not dead now: the backend derives H.3 = Yes whenever H.1 OR H.2 is Yes,
+  // and sends the exemption basis with it.
+  const section = ETA9035_SECTIONS.find((s) => s.title.startsWith("H —"))!;
+
+  // What the feed sends for that employer, verbatim from the backend.
+  const WILLFUL_ONLY = {
+    h1_is_dependent: "NO",
+    h2_is_willful_violator: "YES",
+    h3_only_h1b: "YES",
+    h4_exemption_basis: "$60,000 or higher annual wage",
+  };
+
+  const radios = (...names: string[]): string =>
+    names
+      .map((n) =>
+        ["YES", "NO", "$60,000 or higher annual wage"]
+          .map((v) => `<input type="radio" name="${n}" value="${v}" />`)
+          .join(""),
+      )
+      .join("");
+
+  /**
+   * Section H as FLAG actually serves it: H.3 and H.4 are NOT on the page until
+   * their gate is answered, and each arrives A TICK LATER, not in the same turn
+   * as the click. FLAG is React — answering H.2 schedules a re-render, it does
+   * not perform one — so the chain looks for H.3 and finds nothing there yet.
+   *
+   * Both halves of that matter. Pre-rendering the fields would make these tests
+   * pass against the very bug they exist for, since `fillSection` consults a
+   * gate only for a field the DOM does not already hold. Revealing them
+   * synchronously does the same thing more subtly: the field would be in place
+   * before the chain ever looked, and the gate would again go unread.
+   */
+  const REPAINT_MS = 20;
+
+  const revealingPage = (): void => {
+    document.body.innerHTML = radios("h1_is_dependent", "h2_is_willful_violator");
+    const appearLater = (name: string) => {
+      setTimeout(() => {
+        if (!document.querySelector(`[name="${name}"]`)) {
+          document.body.insertAdjacentHTML("beforeend", radios(name));
+        }
+      }, REPAINT_MS);
+    };
+    document.body.addEventListener("change", (e) => {
+      const el = e.target as HTMLInputElement;
+      if (el.value !== "YES") return;
+      if (el.name === "h1_is_dependent" || el.name === "h2_is_willful_violator") {
+        appearLater("h3_only_h1b");
+      }
+      if (el.name === "h3_only_h1b") appearLater("h4_exemption_basis");
+    });
+  };
+
+  it("types H.3, instead of skipping it as hidden", async () => {
+    revealingPage();
+    const out = await fillSection(section, WILLFUL_ONLY, ETA9035_FORBIDDEN);
+    const h3 = out.find((o) => o.name === "h3_only_h1b")!;
+    expect(h3.status).toBe("filled");
+    expect(out.filter((o) => o.status === "failed")).toEqual([]);
+  });
+
+  it("does not then report H.4 as a broken reveal", async () => {
+    // The old failure mode's second half: H.3 was skipped silently, so FLAG
+    // never rendered H.4, and H.4 — whose own gate WAS answered — came back
+    // "answered but this never appeared", pointing at a redesign that had not
+    // happened.
+    revealingPage();
+    const out = await fillSection(section, WILLFUL_ONLY, ETA9035_FORBIDDEN);
+    expect(out.find((o) => o.name === "h4_exemption_basis")?.status).toBe("filled");
+  });
+
+  it("still says nothing about H.3 when neither gate is Yes", async () => {
+    // The ordinary employer, which is nearly all of them. H.3 genuinely never
+    // renders, the backend sends nothing for it, and a silent skip is right.
+    document.body.innerHTML = radios("h1_is_dependent", "h2_is_willful_violator");
+    const out = await fillSection(
+      section, { h1_is_dependent: "NO", h2_is_willful_violator: "NO" }, ETA9035_FORBIDDEN,
+    );
+    expect(out.find((o) => o.name === "h3_only_h1b")?.status).toBe("no-value");
+    expect(out.filter((o) => o.status === "failed")).toEqual([]);
+  });
+
+  it("names both gates when it does report H.3 as hidden", async () => {
+    // A message naming only H.1 is what sent this the wrong way the first time.
+    document.body.innerHTML = radios("h1_is_dependent", "h2_is_willful_violator");
+    const out = await fillSection(
+      section,
+      { h1_is_dependent: "NO", h2_is_willful_violator: "NO", h3_only_h1b: "YES" },
+      ETA9035_FORBIDDEN,
+    );
+    const h3 = out.find((o) => o.name === "h3_only_h1b")!;
+    expect(h3.status).toBe("not-rendered");
+    expect(h3.message).toContain("h1_is_dependent or h2_is_willful_violator");
   });
 });

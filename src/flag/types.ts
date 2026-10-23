@@ -29,6 +29,13 @@ export interface FlagReveal {
    * "Yes"/"No" — on the ETA-9141 Yes is `"1"`. Omit when any answer reveals it.
    */
   is?: string[];
+  /**
+   * Set when the capture never saw this gate fire, and it is carried from the
+   * form's own printed rule instead. The reason is REQUIRED, because the capture
+   * is the evidence everything else here rests on and a gate without one is
+   * indistinguishable from a guess.
+   */
+  unobserved?: string;
 }
 
 export interface FlagField {
@@ -54,8 +61,17 @@ export interface FlagField {
    * The ETA-9035's B.2/B.3 SOC and C.13 NAICS comboboxes.
    */
   byLabel?: string;
-  /** Present when an upstream answer has to be driven before this renders. */
-  revealedBy?: FlagReveal;
+  /**
+   * Present when an upstream answer has to be driven before this renders.
+   *
+   * A LIST means OR: any one of the gates answered with a revealing value is
+   * enough. The ETA-9035's H.3 is why — DOL's own wording is "If Yes to H.1
+   * AND/OR H.2", so a willful violator that is not H-1B dependent reveals it on
+   * H.2 alone. The capture only ever toggled H.1, so a single-gate rule here
+   * read "H.1 only" and the willful-violator case silently lost H.3 — a
+   * required box left blank, and the section then refuses to save.
+   */
+  revealedBy?: FlagReveal | FlagReveal[];
 }
 
 /** A box the extension leaves for a person, said up front in the toolbar. */
@@ -119,6 +135,17 @@ export function flagFieldSpec(field: FlagField): FieldSpec {
   if (field.byId) return { name: field.name, kind: field.kind, locate: { id: field.name } };
   if (field.byLabel) return { name: field.name, kind: field.kind, locate: { boxLabel: field.byLabel } };
   return { name: field.name, kind: field.kind };
+}
+
+/**
+ * The gates that reveal a field, as a list, whatever shape the descriptor used.
+ *
+ * One place to ask, so nothing downstream has to know that `revealedBy` can be
+ * a single gate or several. An empty list means the field is unconditional.
+ */
+export function revealGates(field: FlagField): FlagReveal[] {
+  if (!field.revealedBy) return [];
+  return Array.isArray(field.revealedBy) ? field.revealedBy : [field.revealedBy];
 }
 
 /** Every field name a descriptor drives, for coverage accounting. */

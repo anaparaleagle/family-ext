@@ -28,6 +28,7 @@ import {
   ForbiddenControl,
   flagFieldNames,
   flagFieldSpec,
+  revealGates,
 } from "./types";
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -104,6 +105,10 @@ function isRendered(field: FlagField): boolean {
  * expected and silent. A field whose gate we DID answer and which still did not
  * appear is a broken reveal, and that stays loud — it is how a FLAG redesign gets
  * noticed instead of quietly halving the fill.
+ *
+ * Several gates mean OR: one revealing answer is enough. Reading them as AND
+ * would put the ETA-9035's H.3 back where it started, hidden on every employer
+ * that is a willful violator without also being H-1B dependent.
  */
 async function waitForReveal(field: FlagField): Promise<boolean> {
   const deadline = Date.now() + REVEAL_TIMEOUT_MS;
@@ -151,19 +156,20 @@ export async function fillSection(
     }
 
     if (!isRendered(field)) {
-      if (field.revealedBy) {
-        const gate = field.revealedBy.by;
-        const gateValue = values[gate];
-        const gateWanted = field.revealedBy.is;
-        const gateWasDriven =
-          gateValue !== undefined && (!gateWanted || gateWanted.includes(gateValue));
-        if (!gateWasDriven) {
-          // We never answered the gate the way that reveals this, so there was
+      const gates = revealGates(field);
+      if (gates.length) {
+        const named = gates.map((g) => g.by).join(" or ");
+        const anyGateDriven = gates.some((gate) => {
+          const gateValue = values[gate.by];
+          return gateValue !== undefined && (!gate.is || gate.is.includes(gateValue));
+        });
+        if (!anyGateDriven) {
+          // We never answered any gate the way that reveals this, so there was
           // never anything to fill. Silent by design.
           outcomes.push({
             name: field.name,
             status: "not-rendered",
-            message: `hidden — ${gate} was not answered with a revealing value`,
+            message: `hidden — ${named} was not answered with a revealing value`,
           });
           continue;
         }
@@ -171,7 +177,7 @@ export async function fillSection(
           outcomes.push({
             name: field.name,
             status: "failed",
-            message: `${gate} was answered but this never appeared — broken reveal`,
+            message: `${named} was answered but this never appeared — broken reveal`,
           });
           continue;
         }
