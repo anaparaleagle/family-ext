@@ -19,6 +19,12 @@
 // ----------
 //   1. Open a THROWAWAY 9035 draft on flag.dol.gov and click to Section H.
 //      Not a real filing — this sets H.1 and H.2, and FLAG autosaves.
+//
+//      SECTION H RENDERS NOTHING until A.1 (visa classification) says H-1B —
+//      it shows "Please specify the type of visa classification ... in Field
+//      A.1" and no questions at all. Fill A.1 first on a fresh draft. Not a
+//      problem for the extension, which fills A.1 on its way past Section A,
+//      but it will stop this probe dead.
 //   2. Paste this whole file into the DevTools console on that page.
 //   3. await __h3Probe.run()
 //
@@ -97,11 +103,29 @@
     );
     console.log(result);
 
-    // Put the draft back as it was found.
+    // Put the draft back as it was found — as far as that is possible. A FLAG
+    // radio has no "unanswered" option, so a question that started blank CANNOT
+    // be put back: this probe's own answer stays on the draft, and FLAG has
+    // autosaved it. Say so plainly. The first run of this said "restored" and
+    // printed the current values, which read as a successful restore of a draft
+    // it had in fact changed.
+    const stuck = [];
     for (const [name, value] of Object.entries(was)) {
       if (value) await set(name, value);
+      else stuck.push(name);
     }
-    console.log("restored:", { [H1]: checkedValue(H1), [H2]: checkedValue(H2) });
+    const now = { [H1]: checkedValue(H1), [H2]: checkedValue(H2) };
+    if (stuck.length) {
+      console.warn(
+        "LEFT BEHIND — these started unanswered and a radio cannot be cleared, " +
+          "so this probe's answers are now saved on the draft. Clear them by " +
+          "hand, or discard the draft:",
+        stuck.map((n) => `${n}=${now[n]}`).join(", "),
+      );
+    } else {
+      console.log("restored to the starting answers:", now);
+    }
+    result.leftBehind = stuck;
     return result;
   }
 

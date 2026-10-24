@@ -205,10 +205,10 @@ export const ETA9035_SECTIONS: FlagSection[] = [
         {
           by: "h2_is_willful_violator",
           is: [YES],
-          unobserved:
-            "DOL's printed rule for H.3 is \"If Yes to H.1 and/or H.2\"; the " +
-            "2026-10-08 capture only toggled H.1, so this half was never seen " +
-            "firing. Confirm on a throwaway draft before relying on it.",
+          source:
+            "Observed live on a 9035 draft, 2026-10-24 (tools/flag-h3-probe.js): " +
+            "H.1 No + H.2 Yes renders H.3, and FLAG marks it required. Not in " +
+            "the 2026-10-08 capture, which only ever toggled H.1.",
         },
       ]),
       when(radio("h4_exemption_basis"), "h3_only_h1b", [YES]),

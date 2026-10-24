@@ -30,12 +30,14 @@ export interface FlagReveal {
    */
   is?: string[];
   /**
-   * Set when the capture never saw this gate fire, and it is carried from the
-   * form's own printed rule instead. The reason is REQUIRED, because the capture
-   * is the evidence everything else here rests on and a gate without one is
-   * indistinguishable from a guess.
+   * Where this gate comes from, when it is NOT in the capture file.
+   *
+   * Required for such a gate, because the capture is the evidence everything
+   * else here rests on, and one carried from somewhere else — DOL's printed
+   * wording, a live check run later — is indistinguishable from a guess unless
+   * it says so. Name the source and the date.
    */
-  unobserved?: string;
+  source?: string;
 }
 
 export interface FlagField {
