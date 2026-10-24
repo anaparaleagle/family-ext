@@ -30,6 +30,11 @@ import {
   resolveApiBaseUrl,
   allowedApiOrigins,
 } from "../src/engine/api-config";
+import {
+  DEV_HOST_PERMISSIONS as DEV_ONLY_HOST_PERMISSIONS,
+  hostPermissionsFor,
+  isDevBuild,
+} from "../tools/dev-manifest.mjs";
 
 const REPO = resolve(__dirname, "..");
 const MANIFEST = join(REPO, "manifest.json");
@@ -42,15 +47,16 @@ function manifestPermissions(): string[] {
   return (JSON.parse(readFileSync(MANIFEST, "utf-8")).permissions as string[]) ?? [];
 }
 
-/** The origins `npm run watch` adds, read from the build script, not restated. */
+/**
+ * The origins a dev build adds — imported from the module the build itself
+ * calls, not restated here and no longer regex-read out of esbuild.config.mjs.
+ */
 function watchHostPermissions(): string[] {
-  const src = readFileSync(join(REPO, "esbuild.config.mjs"), "utf-8");
-  const block = src.match(/const DEV_HOST_PERMISSIONS = \[([^\]]*)\]/);
-  return [...(block?.[1] ?? "").matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  return [...DEV_ONLY_HOST_PERMISSIONS];
 }
 
-/** What `npm run watch` produces: the store manifest plus the dev origins. */
-const DEV_HOST_PERMISSIONS = [...manifestHostPermissions(), ...watchHostPermissions()];
+/** What a dev build produces: the store manifest plus the dev origins. */
+const DEV_HOST_PERMISSIONS = hostPermissionsFor(["--watch"], manifestHostPermissions());
 
 describe("the checked-in manifest is the store manifest", () => {
   it("asks for no localhost origin", () => {
@@ -83,6 +89,62 @@ describe("the checked-in manifest is the store manifest", () => {
 
   it("still asks for S3, which is where document downloads come from", () => {
     expect(manifestHostPermissions().some((p) => p.includes("s3"))).toBe(true);
+  });
+});
+
+// `npm run build:dev` was added so that filing a Local or Staging case does not
+// require leaving a watcher running. It introduces the one hazard this whole
+// file exists to prevent: a flag that widens host_permissions. The widening is
+// now gated in ONE place (tools/dev-manifest.mjs), and these ask that gate the
+// question directly rather than trusting a comment.
+describe("only a dev build widens host_permissions", () => {
+  it("adds nothing at all to a bare `npm run build` — that zip is the store build", () => {
+    expect(hostPermissionsFor([], manifestHostPermissions())).toEqual(manifestHostPermissions());
+  });
+
+  it("offers Production only, from what a bare `npm run build` emits", () => {
+    expect(apiEnvOptions(hostPermissionsFor([], manifestHostPermissions())).map((o) => o.url)).toEqual([
+      PROD_API_URL,
+    ]);
+  });
+
+  for (const flag of ["--dev", "--watch"]) {
+    it(`offers Local, Staging and Production from what \`${flag}\` emits`, () => {
+      const perms = hostPermissionsFor([flag], manifestHostPermissions());
+      expect(apiEnvOptions(perms).map((o) => o.url)).toEqual([
+        DEFAULT_API_URL,
+        STAGING_API_URL,
+        PROD_API_URL,
+      ]);
+    });
+  }
+
+  // The two dev invocations must stay interchangeable. If they ever diverge,
+  // `build:dev` becomes a build that silently cannot reach the backend you
+  // picked it for, which surfaces as an opaque fetch failure in the popup.
+  it("gives `--dev` and `--watch` the same reach", () => {
+    expect(hostPermissionsFor(["--dev"], manifestHostPermissions())).toEqual(
+      hostPermissionsFor(["--watch"], manifestHostPermissions()),
+    );
+  });
+
+  it("treats only those two flags as dev, so an unknown flag cannot widen a release", () => {
+    expect(isDevBuild([])).toBe(false);
+    expect(isDevBuild(["--watch"])).toBe(true);
+    expect(isDevBuild(["--dev"])).toBe(true);
+    expect(isDevBuild(["--minify", "--production"])).toBe(false);
+  });
+
+  it("is idempotent, so a dev origin is never listed twice", () => {
+    const once = hostPermissionsFor(["--dev"], manifestHostPermissions());
+    expect(hostPermissionsFor(["--dev"], once)).toEqual(once);
+  });
+
+  it("does not mutate the manifest array it is handed", () => {
+    const perms = manifestHostPermissions();
+    const before = [...perms];
+    hostPermissionsFor(["--dev"], perms);
+    expect(perms).toEqual(before);
   });
 });
 
@@ -464,9 +526,34 @@ describe("the text pasted into the dashboard is store copy, not our notes", () =
     expect(listingField("summary").length).toBeLessThanOrEqual(132);
   });
 
-  it("claims exactly the forms the manifest claims", () => {
-    expect(formsNamedIn(listingField("description"))).toEqual(
-      formsNamedIn(manifestField("description")),
-    );
+  // REJECTED 2026-10-13, "Yellow Argon" again — and this time the guard helped
+  // cause it. The rule used to be EQUALITY, so naming all ten forms in the long
+  // description forced all ten into the manifest's 132 characters too, which
+  // leaves room for nothing but the numbers:
+  //
+  //   "I-130, I-539, N-400, I-129, I-765, I-485, I-131, ETA-9141 and ETA-9035"
+  //
+  // Google quoted that string back as "excessive keywords in the item's
+  // description". The 132-character box cannot hold ten form numbers AND read
+  // like a sentence, so equality was a rule that could only be satisfied by
+  // spam or by under-describing the product on the store page.
+  //
+  // Subset keeps the half that mattered: the manifest may not claim a form the
+  // store page does not. The long description is free to list every form, which
+  // is ordinary store copy in a "Forms supported" section — it was never the
+  // part a reviewer objected to.
+  it("claims no form the store listing does not", () => {
+    const listed = new Set(formsNamedIn(listingField("description")));
+    const unlisted = formsNamedIn(manifestField("description"))
+      .filter((f) => !listed.has(f));
+    expect(unlisted, "named in the manifest, absent from the listing").toEqual([]);
+  });
+
+  // The counterpart to the subset rule above: a manifest description is a
+  // sentence a person reads on a card, not an index. Three form numbers is what
+  // the non-vacuity check below asks for, and the rejection says what happens
+  // past that.
+  it("does not turn the manifest description into a list of form numbers", () => {
+    expect(formsNamedIn(manifestField("description")).length).toBeLessThanOrEqual(4);
   });
 });

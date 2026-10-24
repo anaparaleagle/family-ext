@@ -72,19 +72,18 @@ describe("descriptor vs the live capture", () => {
       .flatMap((f) => revealGates(f).map((g) => [f.name, g.by, (g.is ?? []).join("|")].join(" ")));
     // Every captured reveal must still be carried. The descriptor may hold MORE
     // than the capture saw — a capture is one session on one draft, not the
-    // form's rulebook — but each extra gate has to say so in `unobserved`, so
-    // the difference between "read off DOL's own wording" and "guessed" stays
-    // on the page.
+    // form's rulebook — but each extra gate has to name its `source`, so the
+    // difference between "watched it happen" and "guessed" stays on the page.
     const extra = fields().flatMap((f) =>
       revealGates(f)
         .filter((g) => !want.includes([f.name, g.by, (g.is ?? []).join("|")].join(" ")))
-        .map((g) => ({ field: f.name, gate: g.by, reason: g.unobserved })),
+        .map((g) => ({ field: f.name, gate: g.by, source: g.source })),
     );
     expect(extra).toEqual([
       {
         field: "h3_only_h1b",
         gate: "h2_is_willful_violator",
-        reason: expect.stringContaining("and/or"),
+        source: expect.stringContaining("Observed live"),
       },
     ]);
     expect(ours.filter((r) => want.includes(r)).sort()).toEqual(want.sort());

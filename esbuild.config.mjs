@@ -1,25 +1,26 @@
 import * as esbuild from "esbuild";
-import { cpSync, mkdirSync, readFileSync, writeFileSync, existsSync } from "fs";
+import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "fs";
+import { hostPermissionsFor, isDevBuild } from "./tools/dev-manifest.mjs";
 
+// `--watch` asks "stay running and rebuild on save"; `--dev` asks "build the dev
+// extension once and exit". Watching implies dev, dev does not imply watching —
+// see tools/dev-manifest.mjs, which owns that rule and the dev origins.
 const isWatch = process.argv.includes("--watch");
+const isDev = isDevBuild(process.argv);
 
+// Start from an empty dist. The store package is "the CONTENTS of dist/" (see
+// store-assets/LISTING.md), and esbuild only ever overwrites the files it is
+// emitting now — so a `npm run build:dev` followed by `npm run build` used to
+// leave that dev build's .js.map files sitting in the zip. Sourcemaps of an
+// unminified build are not a rejection on their own, but they ship our source
+// to anyone who unzips the item, and nothing downstream was checking.
+rmSync("dist", { recursive: true, force: true });
 mkdirSync("dist", { recursive: true });
 
-// Copy + (in watch) widen the manifest for local dev. The committed manifest is
-// the STORE manifest; the popup offers only backends host_permissions grants, so
-// these entries are what make Local and Staging appear on a laptop and nowhere
-// else. Keep in step with DEV_ONLY_OPTIONS — guarded by test/store-build.test.ts.
-const DEV_HOST_PERMISSIONS = [
-  "http://localhost/*",
-  "https://paraleagle-family-backend-demo.onrender.com/*",
-];
-
+// Copy the manifest, widening host_permissions for a dev build. Guarded by
+// test/store-build.test.ts.
 const manifest = JSON.parse(readFileSync("manifest.json", "utf-8"));
-if (isWatch) {
-  for (const perm of DEV_HOST_PERMISSIONS) {
-    if (!manifest.host_permissions.includes(perm)) manifest.host_permissions.push(perm);
-  }
-}
+manifest.host_permissions = hostPermissionsFor(process.argv, manifest.host_permissions);
 writeFileSync("dist/manifest.json", JSON.stringify(manifest, null, 2));
 cpSync("src/popup/popup.html", "dist/popup.html");
 cpSync("src/popup/popup.css", "dist/popup.css");
@@ -36,12 +37,12 @@ if (!slackWebhook && existsSync(".slack-webhook")) {
 
 const buildOptions = {
   bundle: true,
-  minify: !isWatch,
-  sourcemap: isWatch,
+  minify: !isDev,
+  sourcemap: isDev,
   target: "chrome120",
   format: "iife",
   define: { __SLACK_WEBHOOK__: JSON.stringify(slackWebhook) },
-  ...(!isWatch && { drop: ["console"] }),
+  ...(!isDev && { drop: ["console"] }),
 };
 
 const entries = [
@@ -63,7 +64,7 @@ async function build() {
     await Promise.all(
       entries.map((e) => esbuild.build({ ...buildOptions, entryPoints: [e.in], outfile: e.out })),
     );
-    console.log("Build complete.");
+    console.log(isDev ? "Dev build complete (Local + Staging offered)." : "Build complete.");
   }
 }
 
