@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "ParaLeagle Family Form Autofill",
-  "version": "0.10.5",
-  "description": "Autofill Forms I-130, I-539 and N-400 on my.uscis.gov, and the ETA-9141 on the DOL FLAG portal, from ParaLeagle family-visa data",
+  "name": "ParaLeagle Form Autofill",
+  "version": "0.10.6",
+  "description": "Fill a ParaLeagle case into the guided I-130, N-400 and ETA-9141 forms, and more, on my.uscis.gov and flag.dol.gov",
   "permissions": [
     "storage"
   ],
