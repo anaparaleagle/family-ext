@@ -212,6 +212,18 @@ export const ETA9035_SECTIONS: FlagSection[] = [
         },
       ]),
       when(radio("h4_exemption_basis"), "h3_only_h1b", [YES]),
+      // H.5's real condition is H.1 Yes AND H.3 No, read live on 2026-10-24:
+      // with H.1 No it is absent on every H.4 basis, and it appears the moment
+      // H.1 flips to Yes. That is an AND, and `revealedBy` only expresses OR —
+      // several gates, any one of which is enough.
+      //
+      // Left as the capture recorded it rather than widened, because the
+      // difference cannot bite today: the backend never emits a value for H.5
+      // (H.3 always derives Yes, so this branch is unreachable from our feed),
+      // and a field with no value is skipped before any gate is read. If
+      // something ever does send H.5, this needs AND support — for a
+      // non-dependent employer the OR reading would wait out the reveal timeout
+      // and report a broken reveal that is really just a box doing as it should.
       when(radio("h5_is_appendix_a_completed"), "h3_only_h1b", [NO]),
       when(radio("h6_read_agree"), "h3_only_h1b", [NO]),
     ],

@@ -129,6 +129,77 @@
     return result;
   }
 
-  window.__h3Probe = { run, onScreen, checkedValue };
-  console.log("__h3Probe ready — run:  await __h3Probe.run()");
+  /**
+   * What H.3 itself reveals, each way.
+   *
+   * The capture says Yes opens H.4 (the statutory basis for the exemption) and
+   * No opens H.5 and H.6 (the Appendix A question and the additional-statements
+   * attestation). Those gates were recorded in the same session that missed the
+   * H.2 half of H.3, so they are worth a second look rather than a second
+   * assumption — especially H.5, which the descriptor reads as appearing on NO
+   * while the box itself is about a master's-degree exemption.
+   *
+   * Leaves H.3 answered: a radio cannot be cleared. Throwaway drafts only.
+   */
+  async function downstream() {
+    if (!radio("h3_only_h1b", "YES")) {
+      console.error("H.3 is not on screen. Answer H.1 or H.2 Yes first, or run run().");
+      return null;
+    }
+    const base = onScreen();
+    await set("h3_only_h1b", "YES");
+    const onYes = [...onScreen()].filter((n) => !base.has(n));
+    await set("h3_only_h1b", "NO");
+    const onNo = [...onScreen()].filter((n) => !base.has(n));
+
+    const result = { revealedByYes: onYes, revealedByNo: onNo };
+    console.log(result);
+    console.warn("H.3 is left answered NO on this draft — a radio cannot be cleared.");
+    return result;
+  }
+
+  /**
+   * Which H.4 answer brings out H.5 (the Appendix A question)?
+   *
+   * The capture put H.5 behind H.3 = No, and a live read on 2026-10-24 shows
+   * H.3 = No bringing out Subsection 2 and H.6 — with no H.5 anywhere. DOL's
+   * box asks about a worker exempt ONLY by a master's degree, which is an H.4
+   * answer, not an H.3 one; the backend map already reads it that way ("N/A
+   * unless the exemption rests on the degree alone"). So this walks all three
+   * bases and reports where H.5 actually shows up.
+   *
+   * Leaves H.3 Yes and H.4 on the last basis tried. Throwaway drafts only.
+   */
+  async function appendixA() {
+    const BASES = [
+      "$60,000 or higher annual wage",
+      "Master's Degree or higher in related speciality",
+      "Both",
+    ];
+    if (!radio("h3_only_h1b", "YES")) {
+      console.error("H.3 is not on screen. Answer H.1 or H.2 Yes first.");
+      return null;
+    }
+    const found = {};
+    for (const basis of BASES) {
+      await set("h3_only_h1b", "YES");
+      if (!radio("h4_exemption_basis", basis)) {
+        found[basis] = "no such option on this page — check the exact label";
+        continue;
+      }
+      await set("h4_exemption_basis", basis);
+      found[basis] = [...onScreen()].filter((n) => n.startsWith("h5"));
+    }
+    console.log(found);
+    console.warn("H.3 and H.4 are left answered on this draft.");
+    return found;
+  }
+
+  window.__h3Probe = { run, downstream, appendixA, onScreen, checkedValue };
+  console.log(
+    "__h3Probe ready\n" +
+      "  await __h3Probe.run()         // does H.2 alone reveal H.3?\n" +
+      "  await __h3Probe.downstream()  // what does H.3 itself reveal, each way?\n" +
+      "  await __h3Probe.appendixA()   // which H.4 basis brings out H.5?",
+  );
 })();
