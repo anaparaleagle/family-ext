@@ -26,6 +26,11 @@ export const FLAG_KEYS = {
   formType: "flagFormType",
   caseId: "flagCaseId",
   loadedAt: "flagLoadedAt",
+  // SOF-2191 — the FLAG values read back so far for the LCA summary review,
+  // accumulated across sections. Cleared whenever a (possibly different) case
+  // is loaded, so switching cases never carries a stale review into the new
+  // one's compare.
+  reviewValues: "lcaReviewValues",
 } as const;
 
 /** Is this form code one of the DOL forms (as opposed to a myUSCIS one)? */

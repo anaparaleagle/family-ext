@@ -323,6 +323,9 @@ async function loadFlagCase(formType: string): Promise<void> {
     [FLAG_KEYS.formType]: formType,
     [FLAG_KEYS.loadedAt]: Date.now(),
   });
+  // SOF-2191: a case switch must not carry the PREVIOUS case's partial LCA
+  // summary review into this one's compare.
+  await chrome.storage.local.remove(FLAG_KEYS.reviewValues);
   const report = payload.autofill_report ?? {};
   const confirm = report.typed_needs_confirming?.length ?? 0;
   const refused = report.refused_fields?.length ?? 0;
