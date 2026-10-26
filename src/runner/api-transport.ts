@@ -67,3 +67,41 @@ export async function apiGet<T = unknown>(
     };
   }
 }
+
+/**
+ * POST a JSON body to a relative API path through the service worker. Same
+ * never-rejects contract as apiGet — see its docstring.
+ */
+export async function apiPost<T = unknown>(
+  path: string,
+  body: unknown,
+  ctx: ApiContext,
+): Promise<ApiResult<T>> {
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: "API_POST",
+      apiBaseUrl: ctx.apiBaseUrl,
+      path,
+      accessToken: ctx.accessToken,
+      body,
+    });
+    if (!response) {
+      return { ok: false, data: null, error: "No response from the extension background worker" };
+    }
+    if (response.success) {
+      return { ok: true, status: response.status, data: (response.data ?? null) as T };
+    }
+    return {
+      ok: false,
+      status: response.status,
+      data: (response.data ?? null) as T,
+      error: String(response.error ?? "Request failed"),
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      data: null,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}

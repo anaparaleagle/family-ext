@@ -12,11 +12,12 @@
 // ===========================================================================
 
 import { dbg, resetDebugLog } from "../engine/logger";
-import { apiGet } from "../runner/api-transport";
+import { apiGet, apiPost } from "../runner/api-transport";
 import { fillAll, fillCurrentSection, WalkReport } from "./fill-chain";
 import { flushUnmappedFields } from "../engine/telemetry";
 import { FLAG_CONFIGS } from "./registry";
 import { FlagFormConfig } from "./types";
+import { scrapeReviewFields } from "./review";
 
 /** Storage keys for the FLAG side. Separate from the myUSCIS payload keys so a
  * loaded DOL form cannot be mistaken for a loaded I-130 or vice versa. */
@@ -26,7 +27,12 @@ const KEYS = {
   caseId: "flagCaseId",
   accessToken: "accessToken",
   apiBaseUrl: "apiBaseUrl",
+  // SOF-2191 — the FLAG values read back so far this review, accumulated
+  // across every section visited (FLAG shows one section at a time).
+  reviewValues: "lcaReviewValues",
 } as const;
+
+const DEFAULT_API_BASE_URL = "http://localhost:8001/api/v1";
 
 function currentConfig(): FlagFormConfig | null {
   return FLAG_CONFIGS.find((c) => c.urlPattern.test(window.location.pathname)) ?? null;
@@ -102,7 +108,7 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
 
   const caseId = stored[KEYS.caseId] as string | undefined;
   const accessToken = (stored[KEYS.accessToken] as string) ?? "";
-  const apiBaseUrl = (stored[KEYS.apiBaseUrl] as string) ?? "http://localhost:8001/api/v1";
+  const apiBaseUrl = (stored[KEYS.apiBaseUrl] as string) ?? DEFAULT_API_BASE_URL;
 
   if (!caseId) {
     setStatus(`No case loaded — open the popup and pick a case for the ${config.formType}.`);
@@ -134,6 +140,7 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
 const TOOLBAR_ID = "mk-flag-toolbar";
 const STATUS_ID = "mk-flag-status";
 const STALE_ID = "mk-flag-stale";
+const REVIEW_PANEL_ID = "mk-flag-review-panel";
 
 function setStatus(msg: string): void {
   const el = document.getElementById(STATUS_ID);
@@ -168,12 +175,21 @@ function buildToolbar(config: FlagFormConfig): void {
 
   bar.appendChild(button("Fill this section", () => void onFillSection(config)));
   bar.appendChild(button("Fill all sections", () => void onFillAll(config)));
+  // SOF-2191: the LCA summary sign-off only applies to the ETA-9035E — the
+  // PERM forms this same toolbar drives have no equivalent review.
+  if (config.formType === "ETA-9035E") {
+    bar.appendChild(button("Review Summary", () => void onReviewSummary()));
+  }
 
   const status = document.createElement("div");
   status.id = STATUS_ID;
   status.style.cssText = "margin-top:6px;color:#334;line-height:1.35";
   status.textContent = "Ready.";
   bar.appendChild(status);
+
+  const reviewPanel = document.createElement("div");
+  reviewPanel.id = REVIEW_PANEL_ID;
+  bar.appendChild(reviewPanel);
 
   // The fields this extension will not fill, said up front rather than left
   // as blanks a caseworker finds at DOL with the application open.
@@ -266,6 +282,139 @@ async function onFillAll(config: FlagFormConfig): Promise<void> {
     );
     dbg(JSON.stringify(report, null, 1));
   });
+}
+
+// ── LCA summary review (SOF-2191, porting the old portal's SOF-643) ────────
+
+interface LcaDiscrepancy {
+  field: string;
+  label: string;
+  questionnaire_value: string;
+  flag_value: string;
+}
+
+interface ReviewContext {
+  apiBaseUrl: string;
+  caseId: string;
+  accessToken: string;
+}
+
+async function reviewContext(): Promise<ReviewContext | null> {
+  const stored = await chrome.storage.local.get([
+    KEYS.caseId, KEYS.accessToken, KEYS.apiBaseUrl,
+  ]);
+  const caseId = stored[KEYS.caseId] as string | undefined;
+  if (!caseId) return null;
+  return {
+    apiBaseUrl: (stored[KEYS.apiBaseUrl] as string) ?? DEFAULT_API_BASE_URL,
+    caseId,
+    accessToken: (stored[KEYS.accessToken] as string) ?? "",
+  };
+}
+
+function renderReviewPanel(discrepancies: LcaDiscrepancy[], readCount: number): void {
+  const panel = document.getElementById(REVIEW_PANEL_ID);
+  if (!panel) return;
+  panel.replaceChildren();
+  panel.style.cssText = "margin-top:8px;padding-top:8px;border-top:1px solid #eee";
+
+  const summary = document.createElement("div");
+  summary.style.cssText = `font-weight:600;margin-bottom:4px;color:${discrepancies.length ? "#7c2d12" : "#14532d"}`;
+  summary.textContent = discrepancies.length
+    ? `${discrepancies.length} difference(s) found (${readCount} field(s) read so far).`
+    : `No differences in the ${readCount} field(s) read so far.`;
+  panel.appendChild(summary);
+
+  if (discrepancies.length) {
+    const list = document.createElement("ul");
+    list.style.cssText = "margin:4px 0 6px;padding-left:18px;color:#334";
+    for (const d of discrepancies) {
+      const li = document.createElement("li");
+      li.textContent = `${d.label}: FLAG has "${d.flag_value}", the questionnaire has "${d.questionnaire_value}"`;
+      list.appendChild(li);
+    }
+    panel.appendChild(list);
+  }
+
+  panel.appendChild(button("Sign Off", () => void onSignOff(discrepancies)));
+}
+
+/** "Review Summary" — read whatever LCA compare fields are on the current
+ * FLAG page, merge with any already read on earlier pages, diff against the
+ * questionnaire, and show the panel. Visit every section that carries a
+ * compared box (B, C, F) before trusting a clean result. */
+async function onReviewSummary(): Promise<void> {
+  await withLock("Review Summary", async () => {
+    const ctx = await reviewContext();
+    if (!ctx) {
+      setStatus(
+        "Load a case's LCA data from the ParaLeagle extension popup first — " +
+          "the review needs to know which case (and be signed in) to compare against.",
+      );
+      return;
+    }
+
+    const read = scrapeReviewFields();
+    const stored = await chrome.storage.local.get(KEYS.reviewValues);
+    const accumulated: Record<string, string> = {
+      ...((stored[KEYS.reviewValues] as Record<string, string>) || {}),
+      ...read,
+    };
+    await chrome.storage.local.set({ [KEYS.reviewValues]: accumulated });
+
+    if (Object.keys(accumulated).length === 0) {
+      setStatus(
+        "Couldn't read any LCA values on this page. Open the section with the " +
+          "job, employer, worksite or wage boxes and try again.",
+      );
+      return;
+    }
+
+    setStatus("Comparing against the questionnaire…");
+    const resp = await apiPost<{ discrepancies: LcaDiscrepancy[] }>(
+      `/cases/${encodeURIComponent(ctx.caseId)}/lca-summary/compare/`,
+      { flag_values: accumulated },
+      ctx,
+    );
+    if (!resp.ok || !resp.data) {
+      setStatus(`Review failed: ${resp.error ?? "unknown error"}`);
+      return;
+    }
+    const discrepancies = resp.data.discrepancies ?? [];
+    setStatus(`Reviewed ${Object.keys(accumulated).length} field(s) read so far.`);
+    renderReviewPanel(discrepancies, Object.keys(accumulated).length);
+  });
+}
+
+async function onSignOff(discrepancies: LcaDiscrepancy[]): Promise<void> {
+  const ctx = await reviewContext();
+  if (!ctx) return;
+
+  let overrideReason = "";
+  if (discrepancies.length) {
+    const entered = prompt(
+      `There ${discrepancies.length === 1 ? "is" : "are"} still ${discrepancies.length} ` +
+        "unresolved difference(s). To sign off anyway, enter a reason (recorded on the case):",
+    );
+    if (entered === null) return; // cancelled
+    if (!entered.trim()) {
+      alert("An override reason is required to sign off with unresolved differences.");
+      return;
+    }
+    overrideReason = entered.trim();
+  }
+
+  const resp = await apiPost(
+    `/cases/${encodeURIComponent(ctx.caseId)}/lca-summary/sign-off/`,
+    { override_reason: overrideReason },
+    ctx,
+  );
+  if (!resp.ok) {
+    setStatus(`Sign-off failed: ${resp.error ?? "unknown error"}`);
+    return;
+  }
+  document.getElementById(REVIEW_PANEL_ID)?.replaceChildren();
+  setStatus("LCA summary signed off. The in-process LCA upload is now unlocked.");
 }
 
 // ── boot ────────────────────────────────────────────────────────────────────
