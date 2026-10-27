@@ -72,9 +72,12 @@ const WAGE_PER = "_section_f_f10a_nonimmigrant_wage_per";
  *
  * THE SELECTORS ARE THE OLD EXTENSION'S, AND THEY MAY HAVE AGED. Its own
  * comment records that DOL redesigned this modal once already. Everything here
- * therefore degrades to a reported miss rather than a wrong wage: a field that
- * is not in the dialog is reported, and the modal is never submitted unless its
- * result box actually holds a wage.
+ * therefore degrades to a reported miss rather than a silent wrong wage: a
+ * field that is not in the dialog is reported, and a calculator that returns
+ * no prevailing wage says so in the toolbar. It is still submitted in that
+ * case, exactly as the old flow submitted it — the modal sits OVER the rest of
+ * Section F, so leaving it open would cost every box below it and the worksite
+ * row with them. The boxes it owns stay untyped either way.
  *
  * THREE CHOICES ARE OURS, NOT THE CASE'S, and the toolbar says so. The old
  * system carried them as backend fields (OES_collection_type, OES_area_based,
