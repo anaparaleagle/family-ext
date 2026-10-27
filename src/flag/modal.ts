@@ -57,12 +57,36 @@ export interface ModalFieldOutcome {
 }
 
 export interface ModalOutcome {
-  /** "skipped" is the ordinary case for a filing whose wage source is not OES. */
-  status: "applied" | "skipped" | "no-button" | "did-not-open" | "no-result" | "not-submitted";
+  /**
+   * "skipped" is the ordinary case for a filing whose wage source is not OES.
+   * "cannot-calculate" is the live failure of 2026-10-27: the modal opened and
+   * took five of its six answers, AREA stayed empty, and FLAG therefore kept
+   * Calculate greyed out — so there was never a wage to apply.
+   */
+  status:
+    | "applied"
+    | "skipped"
+    | "no-button"
+    | "did-not-open"
+    | "no-result"
+    | "not-submitted"
+    | "cannot-calculate";
   fields: ModalFieldOutcome[];
   /** What the calculator put in its result box, when it produced anything. */
   result?: string;
   message?: string;
+  /** True when the dialog was still on screen after Submit — FLAG refused it. */
+  stillOpen?: boolean;
+}
+
+/** The modal inputs that did not end up answered, named for the toolbar. */
+export function unanswered(fields: ModalFieldOutcome[]): ModalFieldOutcome[] {
+  return fields.filter((f) => f.status !== "filled");
+}
+
+/** "OES_area (no match for \"Harris\")" — one unanswered input, in words. */
+export function describeField(f: ModalFieldOutcome): string {
+  return f.message ? `${f.name} (${f.message})` : f.name;
 }
 
 /** Is the control writable — on the page, and not disabled by FLAG? */
@@ -161,6 +185,34 @@ export async function runModal(
       message: `No "${spec.calculateButton}" button in the calculator. Finish it yourself.`,
     };
   }
+
+  // FLAG greys Calculate out until every input above it is answered, and a
+  // click on a greyed button does nothing while `click()` still returns. The
+  // old flow clicked regardless and read the empty result box as "DOL has no
+  // data for this combination" — two different problems with the same symptom.
+  //
+  // They need opposite fixes, so they are told apart here: a missing ANSWER is
+  // ours to correct (and the toolbar names the input), while an empty result
+  // from a calculator that did run is DOL's. Submit is not pressed in the
+  // first case — the modal has a required box empty, so FLAG refuses it and
+  // the dialog stays over Section F, which is exactly what was seen live.
+  if (isDisabled(calculate)) {
+    const missing = unanswered(fields);
+    dbg(`modal: "${spec.calculateButton}" is greyed out — ${missing.length} input(s) unanswered`);
+    return {
+      status: "cannot-calculate",
+      fields,
+      stillOpen: true,
+      message:
+        `The OES Wage Calculator could not run — FLAG has "${spec.calculateButton}" ` +
+        "greyed out" +
+        (missing.length
+          ? ` because it is still missing ${missing.map(describeField).join(", ")}`
+          : "") +
+        ". Nothing was applied, and its dialog is still open. Finish it yourself.",
+    };
+  }
+
   calculate.click();
   await sleep(AFTER_CALCULATE_MS);
 
@@ -203,17 +255,26 @@ export async function runModal(
   submit.click();
   await sleep(AFTER_SUBMIT_MS);
 
+  // Did it actually close? Submit is only ACCEPTED when the modal validates;
+  // with a required box empty FLAG keeps the dialog up and prints the error
+  // against it. A dialog left on screen sits over the rest of Section F, so
+  // this is the difference between "applied" and "the page is still waiting".
+  const stillOpen = openDialog() !== null;
+  if (stillOpen) dbg("modal: the calculator did not close — FLAG refused its Submit");
+
   if (!result) {
     return {
       status: "no-result",
       fields,
+      stillOpen,
       message:
         "The OES Wage Calculator produced NO prevailing wage. It was submitted " +
         "so the rest of the section could be filled, but F.11 and F.13a are " +
-        "empty — run the calculator yourself before you file.",
+        "empty — run the calculator yourself before you file." +
+        (stillOpen ? " Its dialog is STILL OPEN — FLAG would not take it." : ""),
     };
   }
-  return { status: "applied", fields, result };
+  return { status: "applied", fields, result, stillOpen };
 }
 
 async function fillModalField(

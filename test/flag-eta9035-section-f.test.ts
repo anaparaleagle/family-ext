@@ -342,6 +342,11 @@ describe("a control FLAG has disabled is never reported as filled", () => {
     // The live symptom: "Wage Level: This field is required" on screen while
     // the run reported it filled. A click on a disabled radio is dropped, but
     // `click()` still returns, so nothing used to notice.
+    //
+    // Reported as `locked`, not `failed`, since 2026-10-28: a greyed-out box
+    // is the PAGE's decision and there was nothing the fill could have done.
+    // Calling it a failure is what sent a live ETA-9035E run looking for a bug
+    // in the extension while FLAG was simply waiting on its own calculator.
     document.body.innerHTML = radios("_section_f_f13a_wage_level", ["I", "II", "III"]);
     for (const el of document.querySelectorAll<HTMLInputElement>("input")) el.disabled = true;
     const out = await fillSection(
@@ -349,7 +354,8 @@ describe("a control FLAG has disabled is never reported as filled", () => {
       { _section_f_f13a_wage_level: "II" },
       [],
     );
-    expect(out[0].status).toBe("failed");
+    expect(out[0].status).toBe("locked");
+    expect(out[0].message).toContain("disabled");
     expect(document.querySelector<HTMLInputElement>('input[value="II"]')!.checked).toBe(false);
   });
 
@@ -362,9 +368,37 @@ describe("a control FLAG has disabled is never reported as filled", () => {
       { _section_f_f13b_source_year: "7/1/2026 - 6/30/2027" },
       [],
     );
-    expect(out[0].status).toBe("failed");
+    expect(out[0].status).toBe("locked");
     expect(out[0].message).toContain("disabled");
   });
+
+  it("names the calculator when the OES branch is what greyed the box out", async () => {
+    // The two boxes the live run of 2026-10-27 listed as failures: the
+    // worksite State and the offered-wage unit. Both were greyed out, both
+    // because the OES Wage Calculator owns the wage block on this branch and
+    // had produced no wage. The toolbar has to say that, not "2 failed".
+    const calc = mountOesSectionF({ noResult: true });
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      '<select name="_section_f_f8_work_state_id" disabled>' +
+        '<option value="">- Select -</option><option>TEXAS</option></select>',
+    );
+    for (const el of document.querySelectorAll<HTMLInputElement>(
+      '[name="_section_f_f10a_nonimmigrant_wage_per"]',
+    )) {
+      el.disabled = true;
+    }
+    const out = await runSection(SECTION_F, OES_VALUES, ETA9035_FORBIDDEN);
+    expect(calc.submits).toBe(1);
+    for (const name of [
+      "_section_f_f8_work_state_id",
+      "_section_f_f10a_nonimmigrant_wage_per",
+    ]) {
+      const field = out.fields.find((f) => f.name === name)!;
+      expect(field.status, name).toBe("locked");
+      expect(field.message, name).toContain("OES Wage Calculator");
+    }
+  }, 40000);
 
   it("still fills the same control once FLAG enables it", async () => {
     document.body.innerHTML = radios("_section_f_f13a_wage_level", ["I", "II", "III"]);
