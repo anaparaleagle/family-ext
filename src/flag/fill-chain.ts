@@ -18,7 +18,7 @@
 // ===========================================================================
 
 import { dbg } from "../engine/logger";
-import { locateElement, setValue } from "../engine/value-setter";
+import { LOCKED_MESSAGE, locateElement, setValue } from "../engine/value-setter";
 import { auditUnmappedFields, normalizeName } from "../engine/telemetry";
 import {
   CommitOutcome,
@@ -82,8 +82,22 @@ export interface FieldOutcome {
    * not a range, a box the OES calculator owns. Distinct from `refused`, which
    * is the descriptor's standing ban on a control, and from `no-value`, which
    * is the feed having nothing to say.
+   *
+   * `locked` is the PAGE's decision, not ours: FLAG renders the control
+   * disabled, so there is nothing we could have done. It was reported as
+   * `failed` until 2026-10-28, which read as a bug in the extension — the live
+   * ETA-9035E run listed `_section_f_f8_work_state_id` and
+   * `_section_f_f10a_nonimmigrant_wage_per` as failures when both were simply
+   * greyed out, waiting on an OES Wage Calculator that never produced a wage.
    */
-  status: "filled" | "no-value" | "not-rendered" | "failed" | "refused" | "skipped";
+  status:
+    | "filled"
+    | "no-value"
+    | "not-rendered"
+    | "failed"
+    | "refused"
+    | "skipped"
+    | "locked";
   message?: string;
 }
 
@@ -195,6 +209,31 @@ async function waitForReveal(field: FlagField): Promise<boolean> {
  * payload-order pass would report fifteen missing inputs that were never given a
  * chance to exist.
  */
+/**
+ * One attempt's result, as an outcome — separating what FLAG would not let us
+ * do from what we could not do.
+ *
+ * A disabled control is not a failure of the fill. Saying so matters because
+ * the toolbar's "N failed" line is the only thing a caseworker reads: two
+ * greyed-out boxes listed as failures sent a live ETA-9035E run looking for a
+ * bug in the extension when the page was simply waiting on its own calculator.
+ */
+function classify(
+  field: FlagField,
+  result: { success: boolean; message: string },
+  lockedReason?: string,
+): FieldOutcome {
+  if (result.success) return { name: field.name, status: "filled", message: result.message };
+  if (result.message === LOCKED_MESSAGE) {
+    return {
+      name: field.name,
+      status: "locked",
+      message: lockedReason ? `${LOCKED_MESSAGE} — ${lockedReason}` : LOCKED_MESSAGE,
+    };
+  }
+  return { name: field.name, status: "failed", message: result.message };
+}
+
 export async function fillSection(
   section: FlagSection,
   values: Record<string, string>,
@@ -205,6 +244,10 @@ export async function fillSection(
   // Boxes another step of the section owns — the OES calculator's, once it has
   // run. Reported as `skipped` with this reason rather than typed over.
   owned?: { names: Set<string>; reason: string },
+  // Why a control FLAG has disabled is disabled, when this section knows. On
+  // Section F that is the OES Wage Calculator, which FLAG hands the whole wage
+  // block to the moment F.12/13/14 says OES.
+  lockedReason?: string,
 ): Promise<FieldOutcome[]> {
   const outcomes: FieldOutcome[] = [];
 
@@ -277,11 +320,7 @@ export async function fillSection(
 
     // `locate` by id or box label when the input has no name.
     const result = await setValue(flagFieldSpec(field), value);
-    outcomes.push({
-      name: field.name,
-      status: result.success ? "filled" : "failed",
-      message: result.message,
-    });
+    outcomes.push(classify(field, result, lockedReason));
 
     // A country or a state REBUILDS the list below it — FLAG filters its
     // states by country and its counties by state — and the dependent box is
@@ -306,7 +345,17 @@ export async function fillSection(
     const again = await setValue(flagFieldSpec(field), want);
     await sleep(REASSERT_SETTLE_MS);
     const outcome = outcomes.find((o) => o.name === field.name);
-    if (outcome && again.success) outcome.message = `${outcome.message ?? ""} (re-asserted)`.trim();
+    if (!outcome) continue;
+    if (again.success) {
+      outcome.message = `${outcome.message ?? ""} (re-asserted)`.trim();
+      continue;
+    }
+    // It ran and FLAG dropped it. On the OES branch that is the ordinary
+    // answer for F.10a — the calculator owns the wage unit and FLAG greys the
+    // radios out until it has applied one — and the old step 7b had no way to
+    // say so, which is how a correct refusal read as a failed field.
+    dbg(`  ${field.name} would not re-assert: ${again.message}`);
+    Object.assign(outcome, classify(field, again, lockedReason));
   }
 
   // RETRY, once, for a box that WAS on the page and then could not be written.
@@ -439,17 +488,30 @@ async function driveSection(
   if (gateOutcome.some((o) => o.status === "filled")) await sleep(AFTER_GATE_MS);
 
   const modal = await runModal(section.modal, values);
-  // The calculator owns its boxes whenever it ran and applied something. A
-  // calculator that produced no wage still OWNS them — they are disabled
-  // either way — so typing the case's own annual PWD into F.11 behind its back
-  // is exactly the overwrite the old extension stopped doing.
-  const owned =
-    modal.status === "applied" || modal.status === "no-result"
-      ? {
-          names: new Set(section.modal.owns),
-          reason: `filled by the ${section.modal.openButton} and locked by FLAG`,
-        }
-      : undefined;
+  // The calculator owns its boxes whenever it OPENED, not only when it worked.
+  // FLAG disables them the moment the source radio says OES, so a calculator
+  // that produced no wage — or could not even run, because Calculate stayed
+  // greyed out — leaves them disabled and empty. Typing the case's own annual
+  // PWD into F.11 behind its back is exactly the overwrite the old extension
+  // stopped doing, and it is no safer when the calculator failed.
+  const ran =
+    modal.status === "applied" ||
+    modal.status === "no-result" ||
+    modal.status === "cannot-calculate";
+  const owned = ran
+    ? {
+        names: new Set(section.modal.owns),
+        reason: `filled by the ${section.modal.openButton} and locked by FLAG`,
+      }
+    : undefined;
+  // Why anything ELSE on this section may be greyed out. The calculator does
+  // not only own the five boxes it writes: picking the OES branch hands FLAG
+  // the whole wage block, and on the live run of 2026-10-27 the worksite State
+  // and the offered-wage unit were disabled with it.
+  const lockedReason = ran
+    ? `FLAG hands this to the ${section.modal.openButton} on the OES branch` +
+      (modal.status === "applied" ? "" : ", and it produced no wage")
+    : undefined;
 
   const rest = await fillSection(
     { ...section, fields: section.fields.filter((f) => f !== gate) },
@@ -457,6 +519,7 @@ async function driveSection(
     forbidden,
     coverage,
     owned,
+    lockedReason,
   );
   return { fields: [...gateOutcome, ...rest], modal };
 }

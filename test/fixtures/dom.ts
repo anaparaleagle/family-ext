@@ -312,6 +312,24 @@ export function mountOesCalculator(
     /** Field ids to leave OUT of the modal, as a redesign would. */
     omit?: string[];
     areaOptions?: string[];
+    /**
+     * The Area combobox as flag.dol.gov actually serves it, read off the live
+     * modal on 2026-10-27:
+     *
+     *   * placeholder "Type search term here", with a dropdown chevron;
+     *   * its option list PORTALLED to <body>, outside the dialog node, and
+     *     linked to the input only by `aria-controls`;
+     *   * list items that are plain `<li class="dropdown-item">` — no
+     *     `role="option"`, nothing MUI-shaped;
+     *   * "Calculate" greyed out until an Area has been COMMITTED (typing into
+     *     the box is not enough);
+     *   * "Submit" refused, and the dialog left open, while Area is empty.
+     *
+     * That last pair is the cascade: no Area means no wage, which means F.11,
+     * F.11a, F.13a and F.13b stay empty and "Add Place of Employment" stays
+     * grey, so the worksite row is never committed.
+     */
+    areaIsPortalled?: boolean;
   } = {},
 ): OesCalculatorHandle {
   const omit = new Set(opts.omit ?? []);
@@ -366,24 +384,49 @@ export function mountOesCalculator(
 
     // The area combobox: filters its list as it is typed, commits on click.
     const area = dialog.querySelector<HTMLInputElement>("#OES_area")!;
-    const list = dialog.querySelector<HTMLUListElement>("#OES_area_list")!;
+    let list = dialog.querySelector<HTMLUListElement>("#OES_area_list")!;
+    const portalled = opts.areaIsPortalled === true;
+    if (portalled) {
+      // FLAG's own shape: the list lives at <body> level, reachable from the
+      // input only through ARIA, and its items carry no role="option".
+      list.remove();
+      list = document.createElement("ul");
+      list.id = "OES_area_list";
+      list.className = "dropdown-menu";
+      document.body.appendChild(list);
+      area.setAttribute("placeholder", "Type search term here");
+      area.setAttribute("aria-controls", "OES_area_list");
+    }
     const options = opts.areaOptions ?? ["Santa Clara County, CA", "Santa Cruz County, CA"];
+    // Committed, not merely typed. FLAG keeps Calculate grey until an option
+    // has been PICKED, so a box holding query text counts for nothing.
+    let areaCommitted = "";
     area.addEventListener("input", () => {
       const query = area.value.toLowerCase();
+      areaCommitted = "";
       list.replaceChildren();
       for (const label of options) {
         if (query && !label.toLowerCase().includes(query)) continue;
         const li = document.createElement("li");
-        li.setAttribute("role", "option");
+        if (portalled) li.className = "dropdown-item";
+        else li.setAttribute("role", "option");
         li.textContent = label;
-        li.addEventListener("click", () => {
+        const take = (): void => {
           area.value = label;
+          areaCommitted = label;
           area.dispatchEvent(new Event("change", { bubbles: true }));
           list.replaceChildren();
-        });
+          if (portalled) calculateButton().disabled = false;
+        };
+        // A USWDS/FLAG list item commits on MOUSEDOWN, not on click.
+        li.addEventListener(portalled ? "mousedown" : "click", take);
         list.appendChild(li);
       }
     });
+
+    const calculateButton = (): HTMLButtonElement =>
+      [...dialog.querySelectorAll("button")].find((b) => b.textContent === "Calculate")!;
+    if (portalled) calculateButton().disabled = true;
 
     const result = dialog.querySelector<HTMLInputElement>("#OES_prevailing_wage")!;
     const level = dialog.querySelector<HTMLSelectElement>("#OES_wage_level");
@@ -391,6 +434,7 @@ export function mountOesCalculator(
 
     for (const button of dialog.querySelectorAll("button")) {
       button.addEventListener("click", () => {
+        if (button.disabled) return;
         if (button.textContent === "Calculate") {
           handle.calculates += 1;
           if (opts.noResult) return;
@@ -400,13 +444,17 @@ export function mountOesCalculator(
           if (per) per.disabled = false;
           return;
         }
+        // FLAG will not take a Submit while a required box is empty: the
+        // dialog stays up, with "This field is required" against Area.
+        if (portalled && !areaCommitted) return;
         handle.submits += 1;
         handle.applied = {
           prevailing_wage: result.value,
           wage_level: level?.value ?? "",
           per: per?.value ?? "",
-          area: area.value,
+          area: areaCommitted || area.value,
         };
+        list.remove();
         dialog.remove();
       });
     }

@@ -13,7 +13,15 @@
 
 import { dbg, resetDebugLog } from "../engine/logger";
 import { apiGet, apiPost } from "../runner/api-transport";
-import { fillAll, fillCurrentSection, RowValues, SectionOutcome, WalkReport } from "./fill-chain";
+import {
+  FieldOutcome,
+  fillAll,
+  fillCurrentSection,
+  RowValues,
+  SectionOutcome,
+  WalkReport,
+} from "./fill-chain";
+import { describeField, unanswered } from "./modal";
 import { flushUnmappedFields } from "../engine/telemetry";
 import { FLAG_CONFIGS } from "./registry";
 import { FlagFormConfig } from "./types";
@@ -249,6 +257,18 @@ async function withLock(what: string, body: () => Promise<void>): Promise<void> 
 }
 
 /**
+ * A box and WHY it did not take.
+ *
+ * The toolbar used to print bare field names — "2 failed
+ * (_section_f_f8_work_state_id, _section_f_f10a_nonimmigrant_wage_per)" — which
+ * is the one thing a caseworker cannot act on. The reason is already in the
+ * outcome; it was only ever being dropped on the way to the screen.
+ */
+function withReason(f: FieldOutcome): string {
+  return f.message ? `${f.name}: ${f.message}` : f.name;
+}
+
+/**
  * What the OES calculator and the worksite row did, in a caseworker's words.
  *
  * Said out loud rather than left in the log, because both are steps where the
@@ -265,6 +285,21 @@ function sectionNotes(outcome: SectionOutcome): string {
       notes.push(`OES Wage Calculator: ${modal.result} — check it before you file.`);
     } else {
       notes.push(`OES Wage Calculator: ${modal.message ?? modal.status}`);
+    }
+    // WHICH of its inputs did not land. This was in the debug log and nowhere
+    // else, so the live run of 2026-10-27 reported "no prevailing wage" with
+    // no hint that the one empty box was Area — and Area is the box FLAG makes
+    // Calculate wait on, so it was the whole story.
+    const missed = unanswered(modal.fields);
+    if (missed.length) {
+      notes.push(
+        `Its ${missed.length === 1 ? "input" : "inputs"} ` +
+          `${missed.map(describeField).join(", ")} ` +
+          `${missed.length === 1 ? "was" : "were"} not answered.`,
+      );
+    }
+    if (modal.stillOpen) {
+      notes.push("Its dialog is still open over the section — close it yourself.");
     }
   }
   const rows = outcome.rows ?? [];
@@ -295,10 +330,13 @@ function sectionNotes(outcome: SectionOutcome): string {
 }
 
 function summarise(report: WalkReport): string {
-  const refused = report.sections.flatMap((s) => s.fields).filter((f) => f.status === "refused");
+  const all = report.sections.flatMap((s) => s.fields);
+  const refused = all.filter((f) => f.status === "refused");
+  const locked = all.filter((f) => f.status === "locked");
   const unreached = report.sections.filter((s) => !s.reached).map((s) => s.title);
   const parts = [`${report.filled} filled`];
   if (report.failed) parts.push(`${report.failed} failed`);
+  if (locked.length) parts.push(`${locked.length} greyed out by FLAG`);
   if (refused.length) parts.push(`${refused.length} refused`);
   if (unreached.length) parts.push(`${unreached.length} section(s) not reached`);
   if (report.unclaimed.length) parts.push(`${report.unclaimed.length} value(s) unclaimed`);
@@ -344,11 +382,15 @@ async function onFillSection(config: FlagFormConfig): Promise<void> {
     await recordExtraRows([outcome]);
     const filled = outcome.fields.filter((f) => f.status === "filled").length;
     const failed = outcome.fields.filter((f) => f.status === "failed");
+    const locked = outcome.fields.filter((f) => f.status === "locked");
     const skipped = outcome.fields.filter((f) => f.status === "skipped");
     const notes = sectionNotes(outcome);
     setStatus(
       `${outcome.title}: ${filled} filled` +
-        (failed.length ? `, ${failed.length} failed (${failed.map((f) => f.name).join(", ")})` : "") +
+        (failed.length ? `, ${failed.length} failed (${failed.map(withReason).join("; ")})` : "") +
+        (locked.length
+          ? `, ${locked.length} greyed out by FLAG (${locked.map(withReason).join("; ")})`
+          : "") +
         (skipped.length ? `, ${skipped.length} left for a reason (see the log)` : "") +
         ". Press FLAG's own Continue to save." +
         (notes ? ` ${notes}` : ""),
