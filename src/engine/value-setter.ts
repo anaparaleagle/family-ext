@@ -545,6 +545,12 @@ function setRadio(name: string, value: string, locate?: LocateSpec): boolean {
     }
   }
   const chosen = pickRadio(radios, value);
+  if (chosen && lockedByPage(chosen)) {
+    // A click on a disabled radio is dropped, but `click()` still returns, so
+    // without this the run reports a wage level FLAG is still asking for.
+    dbg(`value-setter: "${name}" option "${value}" is disabled — leaving it alone`);
+    return false;
+  }
   if (chosen) return clickRadio(chosen);
   dbg(`value-setter: no radio option matched "${value}" for "${name}" (${radios.length} options)`);
   // Name what WAS on the page. A radio miss is either a value we do not send in
@@ -565,7 +571,23 @@ function clickRadio(radio: HTMLInputElement): boolean {
   radio.click();
   radio.dispatchEvent(new Event("change", { bubbles: true }));
   radio.dispatchEvent(new Event("input", { bubbles: true }));
-  return true;
+  if (radio.checked) return true;
+
+  // The input did not take the click. FLAG's forms are built on USWDS, which
+  // hides the real input under a styled label and listens on the LABEL — and
+  // the H-1B extension found it had to click that label to select the
+  // prevailing-wage source at all. Tried only as a fallback, so an ordinary
+  // radio is unaffected.
+  const label =
+    (radio.id && document.querySelector<HTMLElement>(`label[for="${cssEscape(radio.id)}"]`)) ||
+    (radio.nextElementSibling?.tagName === "LABEL"
+      ? (radio.nextElementSibling as HTMLElement)
+      : null);
+  if (!label) return radio.checked;
+  dbg(`value-setter: radio "${radio.name}" ignored its own click — clicking its label`);
+  label.click();
+  radio.dispatchEvent(new Event("change", { bubbles: true }));
+  return radio.checked;
 }
 
 function radioLabel(radio: HTMLInputElement): string {
@@ -613,11 +635,65 @@ function setSelect(el: HTMLSelectElement, value: string): boolean {
       return true;
     }
   }
+  if (selectWageYear(el, value)) return true;
   dbg(`value-setter: option "${value}" not in select "${el.getAttribute("name")}"`);
   return false;
 }
 
+/**
+ * Last resort for a DOL WAGE-YEAR select: "2026-27" against "7/1/2026 - 6/30/2027".
+ *
+ * Carried from the H-1B extension, which needed it because its feed sent the
+ * compact year while FLAG's F.13b lists the OFLC wage window. Ours sends the
+ * window already, so this fires for nothing we currently emit — it is here
+ * because an unmatched source year is not a cosmetic miss: F.13b is required
+ * on the OES branch, and a blank one keeps "Add Place of Employment" disabled
+ * and costs the whole worksite row.
+ */
+function selectWageYear(el: HTMLSelectElement, value: string): boolean {
+  const compact = value.trim().match(/^(\d{4})\s*[-/]\s*(\d{2,4})$/);
+  if (!compact) return false;
+  const start = compact[1];
+  const end = compact[2].length === 2 ? String(Number(start) + 1) : compact[2];
+  for (const opt of Array.from(el.options)) {
+    if (opt.disabled) continue;
+    const txt = opt.textContent ?? "";
+    if (txt.includes(start) && txt.includes(end)) {
+      el.value = opt.value;
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      dbg(`value-setter: matched wage year "${value}" to "${txt.trim()}"`);
+      return true;
+    }
+  }
+  return false;
+}
+
 // ── Search (MUI Autocomplete: country / state) ────────────────────────────
+
+/**
+ * Where to look for an autocomplete's rendered options.
+ *
+ * An OPEN MODAL clamps it. The H-1B extension learnt this the hard way on
+ * FLAG's OES Wage Calculator: the Area combobox froze the renderer outright
+ * (RESULT_CODE_HUNG) because the option scan walked the whole document and
+ * read `.textContent` off huge subtrees, with the modal layered over the
+ * application's own. When a dialog is open, its options are the only ones that
+ * can be ours.
+ *
+ * `document` otherwise, which is required rather than tidy: MUI portals its
+ * listbox to <body>, outside the input's own parent chain.
+ */
+function optionScope(): ParentNode {
+  return (
+    document.querySelector<HTMLElement>(
+      '[role="dialog"]:not([aria-hidden="true"]), .modal.show',
+    ) ?? document
+  );
+}
+
+/** Hard cap on options examined per selector, so a stale match cannot turn
+ * into a whole-page walk. The old extension's own bound. */
+const MAX_OPTIONS_SCANNED = 150;
 
 const OPTION_SELECTORS = [
   '[role="option"]',
@@ -686,8 +762,9 @@ async function typeInto(el: HTMLInputElement, text: string): Promise<void> {
 /** Every option currently rendered by the open listbox, de-duplicated. */
 function renderedOptions(): string[] {
   const seen = new Set<string>();
+  const scope = optionScope();
   for (const sel of OPTION_SELECTORS) {
-    for (const opt of Array.from(document.querySelectorAll<HTMLElement>(sel))) {
+    for (const opt of Array.from(scope.querySelectorAll<HTMLElement>(sel)).slice(0, MAX_OPTIONS_SCANNED)) {
       const text = (opt.textContent ?? "").trim();
       if (text) seen.add(text);
     }
@@ -812,8 +889,11 @@ function withoutCodePrefix(label: string): string {
 async function selectRenderedOption(wanted: string): Promise<HTMLElement | null> {
   const want = wanted.trim().toLowerCase();
   const wantKey = labelKey(wanted);
+  const scope = optionScope();
   for (const sel of OPTION_SELECTORS) {
-    const options = Array.from(document.querySelectorAll<HTMLElement>(sel));
+    const options = Array.from(scope.querySelectorAll<HTMLElement>(sel)).slice(
+      0, MAX_OPTIONS_SCANNED,
+    );
     if (options.length === 0) continue;
     const text = (o: HTMLElement): string => (o.textContent ?? "").trim();
 
@@ -1191,7 +1271,7 @@ async function setValueAs(spec: FieldSpec, value: string): Promise<SetResult> {
   try {
     if (kind === "radio") {
       const ok = setRadio(name, spec.optionValue ?? value, spec.locate);
-      return result(name, ok, ok ? "set radio" : "radio option not found");
+      return result(name, ok, ok ? "set radio" : "radio option not found, or disabled by the page");
     }
 
     // locateElement is findByName plus the declared structural/label fallbacks.
@@ -1201,6 +1281,7 @@ async function setValueAs(spec: FieldSpec, value: string): Promise<SetResult> {
     // not locateElement, which returns one element.
     const el = locateElement(spec);
     if (!el) return result(name, false, "element not on page");
+    if (lockedByPage(el)) return result(name, false, LOCKED_MESSAGE);
 
     switch (kind) {
       case "checkbox": {
@@ -1252,4 +1333,30 @@ async function setValueAs(spec: FieldSpec, value: string): Promise<SetResult> {
 
 function result(name: string, success: boolean, message: string): SetResult {
   return { name, success, message };
+}
+
+export const LOCKED_MESSAGE = "the page has this control disabled";
+
+/**
+ * Is this control one the PAGE has locked — disabled or read-only?
+ *
+ * Writing to one anyway is worse than failing, because most of the ways this
+ * file writes a value still "work" on a locked control: a native assignment
+ * sticks, and a radio click is silently dropped while `click()` still returns.
+ * Either way the run reports a box as filled that the form never accepted, and
+ * on the ETA-9035 that is not hypothetical — choosing the OES prevailing-wage
+ * source disables F.7, F.11, F.11a, F.13a and F.13b, which the calculator owns.
+ * The live page then says "Wage Level: This field is required" while the run
+ * says it typed one.
+ *
+ * DISABLED only — read-only is deliberately NOT locked here. myUSCIS renders
+ * the pick-from-a-list rows (Part 7's employer Country and State) as read-only
+ * inputs that are EMPTY, and refusing those left them blank on a live N-400.
+ * The myUSCIS runner has its own, narrower read-only rule: skip a read-only box
+ * that already holds a value, fill one that does not.
+ */
+export function lockedByPage(el: HTMLElement): boolean {
+  if ((el as HTMLInputElement).disabled) return true;
+  if (el.hasAttribute("disabled")) return true;
+  return el.getAttribute("aria-disabled") === "true";
 }

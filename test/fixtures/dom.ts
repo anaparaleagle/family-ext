@@ -192,3 +192,225 @@ export function mountCurrencyBox(name: string, opts: { disabled?: boolean } = {}
   });
   return handle;
 }
+
+// ── FLAG Section F: the worksite repeater (ETA-9035E) ──────────────────────
+//
+// The live contract, from Varis's screenshots of flag.dol.gov Section F on
+// 2026-10-27. Below the worksite and wage boxes FLAG renders:
+//
+//   * a yellow banner — "If you navigate away from this page without clicking
+//     the 'Add Place of Employment' button, your changes will be lost. Your
+//     entry will be displayed in the table below.";
+//   * an "Add Place of Employment" button, GREYED OUT while the entry fails
+//     validation, with the failing boxes listed above it;
+//   * a table headed "0 Entries for Place of Employment".
+//
+// So the section is a repeater whose rows are committed by their own button,
+// and Continue saves a section with no rows unless that button was pressed.
+// The real markup was not captured (the ETA-9035E dump records field names and
+// kinds), so this reproduces the BEHAVIOUR, which is the part the walk needs.
+
+export interface WorksiteRepeaterHandle {
+  button: HTMLButtonElement;
+  /** How many times the Add button was actually clicked. */
+  clicks: number;
+  rows: number;
+  /** Grey the button out and show these validation messages, as FLAG does. */
+  block(messages: string[]): void;
+  /** Let the entry validate again. */
+  unblock(): void;
+}
+
+export function mountWorksiteRepeater(
+  opts: { rows?: number; errors?: string[]; commits?: boolean } = {},
+): WorksiteRepeaterHandle {
+  const wrap = document.createElement("div");
+  wrap.innerHTML =
+    '<div class="usa-alert usa-alert--warning">If you navigate away from this page ' +
+    "without clicking the 'Add Place of Employment' button, your changes will be " +
+    "lost. Your entry will be displayed in the table below.</div>" +
+    '<div id="mk-errors"></div>' +
+    '<button type="button">Add Place of Employment</button>' +
+    '<h3 id="mk-entries"></h3><table><tbody id="mk-rows"></tbody></table>';
+  document.body.appendChild(wrap);
+
+  const button = wrap.querySelector("button")!;
+  const heading = wrap.querySelector<HTMLElement>("#mk-entries")!;
+  const errorBox = wrap.querySelector<HTMLElement>("#mk-errors")!;
+  const handle: WorksiteRepeaterHandle = {
+    button,
+    clicks: 0,
+    rows: opts.rows ?? 0,
+    block(messages) {
+      button.disabled = true;
+      errorBox.replaceChildren(
+        ...messages.map((m) => {
+          const div = document.createElement("div");
+          div.className = "usa-error-message";
+          div.textContent = m;
+          return div;
+        }),
+      );
+    },
+    unblock() {
+      button.disabled = false;
+      errorBox.replaceChildren();
+    },
+  };
+
+  const paint = (): void => {
+    heading.textContent = `${handle.rows} Entries for Place of Employment`;
+  };
+  paint();
+  if (opts.errors?.length) handle.block(opts.errors);
+
+  button.addEventListener("click", () => {
+    // A disabled button swallows the click on a real page; happy-dom does too,
+    // but the count is asserted either way so the guard is explicit.
+    if (button.disabled) return;
+    handle.clicks += 1;
+    if (opts.commits === false) return;
+    handle.rows += 1;
+    paint();
+  });
+  return handle;
+}
+
+// ── FLAG Section F: the OES Wage Calculator modal ──────────────────────────
+//
+// Reproduced from the H-1B extension's own field map and flow
+// (paraleagle-ext, src/mappings/lca-field-map.ts `F_OES` block and
+// src/content/lca-filler.ts `fillSectionF` steps 2-6), which drove this modal
+// in production for years:
+//
+//   #OES_state, [name=OES_collection_type], [name=OES_area_based], #OES_area,
+//   [name=OES_rd_flag]  ->  "Calculate"  ->  #OES_prevailing_wage fills, and
+//   #OES_wage_level / #OES_per become enabled  ->  "Submit" applies the result
+//   to the application and closes the modal.
+//
+// DOL has redesigned this modal once already (the old extension says so in a
+// comment), so these ids may have aged — which is exactly why the driver has
+// to degrade to a reported miss, and why that is what these fixtures exercise.
+
+export interface OesCalculatorHandle {
+  openButton: HTMLButtonElement;
+  opens: number;
+  calculates: number;
+  submits: number;
+  /** What the modal applied to the application, once Submit was pressed. */
+  applied: Record<string, string> | null;
+}
+
+export function mountOesCalculator(
+  opts: {
+    /** Pressing the button opens nothing — a redesign we cannot drive. */
+    neverOpens?: boolean;
+    /** Calculate produces no wage — a combination DOL has no data for. */
+    noResult?: boolean;
+    /** The wage Calculate returns. */
+    wage?: string;
+    /** Field ids to leave OUT of the modal, as a redesign would. */
+    omit?: string[];
+    areaOptions?: string[];
+  } = {},
+): OesCalculatorHandle {
+  const omit = new Set(opts.omit ?? []);
+  const openButton = document.createElement("button");
+  openButton.type = "button";
+  openButton.textContent = "OES Wage Calculator";
+  document.body.appendChild(openButton);
+
+  const handle: OesCalculatorHandle = {
+    openButton,
+    opens: 0,
+    calculates: 0,
+    submits: 0,
+    applied: null,
+  };
+
+  const radios = (name: string, values: string[]): string =>
+    values
+      .map(
+        (v, i) =>
+          `<label for="${name}_${i}">${v}` +
+          `<input type="radio" name="${name}" id="${name}_${i}" value="${escapeAttr(v)}" /></label>`,
+      )
+      .join("");
+
+  const select = (id: string, values: string[], disabled: boolean): string =>
+    `<select id="${id}"${disabled ? " disabled" : ""}>` +
+    `<option value="">- Select -</option>` +
+    values.map((v) => `<option value="${escapeAttr(v)}">${v}</option>`).join("") +
+    "</select>";
+
+  openButton.addEventListener("click", () => {
+    if (opts.neverOpens || document.querySelector('[role="dialog"]')) return;
+    handle.opens += 1;
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    dialog.innerHTML =
+      (omit.has("OES_state")
+        ? ""
+        : select("OES_state", ["CALIFORNIA", "TEXAS", "WASHINGTON"], false)) +
+      radios("OES_collection_type", ["All Industries", "ACWIA Higher Ed."]) +
+      radios("OES_area_based", ["County/Township", "BLS Areas"]) +
+      `<input id="OES_area" role="combobox" />` +
+      `<ul role="listbox" id="OES_area_list"></ul>` +
+      radios("OES_rd_flag", ["No", "Yes"]) +
+      select("OES_wage_level", ["I", "II", "III", "IV", "N/A"], true) +
+      select("OES_per", ["Hour", "Week", "Bi-Weekly", "Month", "Year"], true) +
+      `<input id="OES_prevailing_wage" value="$nnnn.nn" readonly />` +
+      `<button type="button">Calculate</button>` +
+      `<button type="button">Submit</button>`;
+    document.body.appendChild(dialog);
+
+    // The area combobox: filters its list as it is typed, commits on click.
+    const area = dialog.querySelector<HTMLInputElement>("#OES_area")!;
+    const list = dialog.querySelector<HTMLUListElement>("#OES_area_list")!;
+    const options = opts.areaOptions ?? ["Santa Clara County, CA", "Santa Cruz County, CA"];
+    area.addEventListener("input", () => {
+      const query = area.value.toLowerCase();
+      list.replaceChildren();
+      for (const label of options) {
+        if (query && !label.toLowerCase().includes(query)) continue;
+        const li = document.createElement("li");
+        li.setAttribute("role", "option");
+        li.textContent = label;
+        li.addEventListener("click", () => {
+          area.value = label;
+          area.dispatchEvent(new Event("change", { bubbles: true }));
+          list.replaceChildren();
+        });
+        list.appendChild(li);
+      }
+    });
+
+    const result = dialog.querySelector<HTMLInputElement>("#OES_prevailing_wage")!;
+    const level = dialog.querySelector<HTMLSelectElement>("#OES_wage_level");
+    const per = dialog.querySelector<HTMLSelectElement>("#OES_per");
+
+    for (const button of dialog.querySelectorAll("button")) {
+      button.addEventListener("click", () => {
+        if (button.textContent === "Calculate") {
+          handle.calculates += 1;
+          if (opts.noResult) return;
+          result.value = opts.wage ?? "$61.52";
+          // The level and the per only become answerable once there is a wage.
+          if (level) level.disabled = false;
+          if (per) per.disabled = false;
+          return;
+        }
+        handle.submits += 1;
+        handle.applied = {
+          prevailing_wage: result.value,
+          wage_level: level?.value ?? "",
+          per: per?.value ?? "",
+          area: area.value,
+        };
+        dialog.remove();
+      });
+    }
+  });
+
+  return handle;
+}

@@ -20,14 +20,24 @@
 import { dbg } from "../engine/logger";
 import { locateElement, setValue } from "../engine/value-setter";
 import { auditUnmappedFields, normalizeName } from "../engine/telemetry";
-import { CommitOutcome, commitSection, goToSection, sectionIsRendered } from "./nav";
+import {
+  CommitOutcome,
+  RowOutcome,
+  commitRepeaterRow,
+  commitSection,
+  goToSection,
+  sectionIsRendered,
+} from "./nav";
+import { ModalOutcome, runModal } from "./modal";
 import {
   FlagField,
   FlagFormConfig,
+  FlagRepeaterSpec,
   FlagSection,
   ForbiddenControl,
   flagFieldNames,
   flagFieldSpec,
+  gateIsAnswered,
   revealGates,
 } from "./types";
 
@@ -37,9 +47,43 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
 const REVEAL_TIMEOUT_MS = 3000;
 const REVEAL_POLL_MS = 150;
 
+// The H-1B extension's own waits for Section F, kept to the millisecond.
+/** After a country or state answer, whose dependent list FLAG rebuilds. */
+const ADDRESS_SETTLE_MS = 1500;
+/** Before re-attempting the boxes that were not on the page the first time. */
+const RETRY_WAIT_MS = 3000;
+/** After re-answering a unit radio that drifted. */
+const REASSERT_SETTLE_MS = 300;
+/** After the prevailing-wage source is answered, for its dependent block
+ * (and the calculator's button) to render. */
+const AFTER_GATE_MS = 2000;
+/** Before pressing Add for a row, and after it is committed. */
+const BEFORE_ADD_MS = 500;
+const AFTER_ADD_MS = 1500;
+/** After the table has taken a row and the next worksite's boxes are blank. */
+const BETWEEN_ROWS_MS = 2000;
+
+/**
+ * Does answering this field rebuild the options of the one below it?
+ *
+ * Country filters state, state filters county. Matched on the name rather than
+ * declared per field, which is how the old extension decided it too.
+ */
+function rebuildsDependents(field: FlagField): boolean {
+  if (field.kind !== "select" && field.kind !== "search") return false;
+  const name = field.name.toLowerCase();
+  return name.includes("country") || name.includes("state");
+}
+
 export interface FieldOutcome {
   name: string;
-  status: "filled" | "no-value" | "not-rendered" | "failed" | "refused";
+  /**
+   * `skipped` is a box this chain DECIDED not to type — a wage range that is
+   * not a range, a box the OES calculator owns. Distinct from `refused`, which
+   * is the descriptor's standing ban on a control, and from `no-value`, which
+   * is the feed having nothing to say.
+   */
+  status: "filled" | "no-value" | "not-rendered" | "failed" | "refused" | "skipped";
   message?: string;
 }
 
@@ -49,6 +93,10 @@ export interface SectionOutcome {
   fields: FieldOutcome[];
   /** What pressing Continue did. Absent when the walk did not try to commit. */
   commit?: CommitOutcome;
+  /** What the section's modal did, when it has one. */
+  modal?: ModalOutcome;
+  /** What each press of the section's Add button did, when it is a repeater. */
+  rows?: RowOutcome[];
 }
 
 export interface WalkReport {
@@ -88,6 +136,25 @@ export function isForbidden(
     if (haystacks.some((h) => h && h.includes(needle))) return rule;
   }
   return null;
+}
+
+/** An amount as a number, or NaN. Mirrors the money reader in the value-setter. */
+function amount(value: string | undefined): number {
+  return Number((value ?? "").replace(/[^0-9.]/g, ""));
+}
+
+/**
+ * Is `value` strictly above `floor`, both read as money?
+ *
+ * False when either is missing or unreadable, which is the safe answer: the
+ * box is then left alone and the caseworker types the range if there is one.
+ */
+function exceeds(value: string, floor: string | undefined): boolean {
+  const a = amount(value);
+  const b = amount(floor);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
+  if ((floor ?? "").trim() === "") return false;
+  return a > b;
 }
 
 /** Is the input for this field on the page right now? */
@@ -135,6 +202,9 @@ export async function fillSection(
   // When passed, health telemetry records rendered questions on this section
   // whose name isn't in the descriptor's coverage set.
   coverage?: Set<string>,
+  // Boxes another step of the section owns — the OES calculator's, once it has
+  // run. Reported as `skipped` with this reason rather than typed over.
+  owned?: { names: Set<string>; reason: string },
 ): Promise<FieldOutcome[]> {
   const outcomes: FieldOutcome[] = [];
 
@@ -146,6 +216,12 @@ export async function fillSection(
       continue;
     }
 
+    if (owned?.names.has(field.name)) {
+      dbg(`  SKIPPED ${field.name}: ${owned.reason}`);
+      outcomes.push({ name: field.name, status: "skipped", message: owned.reason });
+      continue;
+    }
+
     const value = values[field.name];
     if (value === undefined || value === "") {
       // Nothing to type. Not a failure: about half of both forms is boxes the
@@ -153,6 +229,18 @@ export async function fillSection(
       // the map deliberately leaves for a caseworker.
       outcomes.push({ name: field.name, status: "no-value" });
       continue;
+    }
+
+    if (field.onlyAbove) {
+      const floor = values[field.onlyAbove];
+      if (!exceeds(value, floor)) {
+        const reason =
+          `not typed: ${amount(value)} is not above ${field.onlyAbove} ` +
+          `(${amount(floor)}), and FLAG requires the To wage to be higher than the From`;
+        dbg(`  SKIPPED ${field.name}: ${reason}`);
+        outcomes.push({ name: field.name, status: "skipped", message: reason });
+        continue;
+      }
     }
 
     if (!isRendered(field)) {
@@ -194,12 +282,208 @@ export async function fillSection(
       status: result.success ? "filled" : "failed",
       message: result.message,
     });
+
+    // A country or a state REBUILDS the list below it — FLAG filters its
+    // states by country and its counties by state — and the dependent box is
+    // already on the page, so the reveal poll has nothing to wait for. The old
+    // extension paused here for exactly this, and without it the next field is
+    // answered against a list that is about to be replaced.
+    if (result.success && rebuildsDependents(field)) await sleep(ADDRESS_SETTLE_MS);
+  }
+
+  // The old extension's step 7b, by its own rule: a unit radio can be reset by
+  // a wage amount typed after it, so the ones marked `reassert` are checked
+  // once everything else is in and re-answered if they drifted.
+  for (const field of section.fields) {
+    if (!field.reassert) continue;
+    const want = values[field.name];
+    if (!want || owned?.names.has(field.name)) continue;
+    const checked = document.querySelector<HTMLInputElement>(
+      `input[name="${CSS.escape(field.name)}"]:checked`,
+    );
+    if (checked && checked.value.toLowerCase() === want.toLowerCase()) continue;
+    dbg(`  re-asserting ${field.name} -> "${want}" (was "${checked?.value ?? "unset"}")`);
+    const again = await setValue(flagFieldSpec(field), want);
+    await sleep(REASSERT_SETTLE_MS);
+    const outcome = outcomes.find((o) => o.name === field.name);
+    if (outcome && again.success) outcome.message = `${outcome.message ?? ""} (re-asserted)`.trim();
+  }
+
+  // RETRY, once, for a box that WAS on the page and then could not be written.
+  // The old extension waited 3s and re-attempted everything that came back
+  // "Element not found" — FLAG re-renders a section after an answer, and a box
+  // that vanishes mid-pass is not a box that is missing.
+  //
+  // Scoped exactly as the old pass was: a field never rendered at all is NOT
+  // retried. It was skipped before anything was attempted, the reveal rules
+  // above already decided whether that is expected, and re-waiting 3s for each
+  // one would add a minute to a form that is half conditional.
+  const retryable = outcomes
+    .map((o, index) => ({ o, index }))
+    .filter(({ o }) => o.status === "failed" && o.message === "element not on page");
+  if (retryable.length) {
+    await sleep(RETRY_WAIT_MS);
+    for (const { o, index } of retryable) {
+      const field = section.fields.find((f) => f.name === o.name);
+      const value = field && values[field.name];
+      if (!field || !value || !isRendered(field)) continue;
+      const again = await setValue(flagFieldSpec(field), value);
+      if (!again.success) continue;
+      dbg(`  ${field.name} filled on the retry pass`);
+      outcomes[index] = { name: field.name, status: "filled", message: `${again.message} (retry)` };
+    }
   }
 
   // Health telemetry: which questions on this section does the descriptor not cover?
   if (coverage) auditUnmappedFields(coverage, section.title);
 
   return outcomes;
+}
+
+/** What `runSection` did: the fields, plus the modal and the row commit. */
+export interface SectionFill {
+  fields: FieldOutcome[];
+  modal?: ModalOutcome;
+  /**
+   * What each press of the repeater's Add button did — one per worksite, in
+   * the order they were typed. Absent on a section that is not a repeater, and
+   * on one where nothing was typed at all.
+   */
+  rows?: RowOutcome[];
+}
+
+/** One extra worksite, as FLAG field names and values. */
+export type RowValues = Record<string, string>;
+
+/**
+ * Drive one whole section: its gate, its modal, its fields, then its rows.
+ *
+ * The ORDER is the H-1B extension's Section F flow, step for step, because
+ * each step is what makes the next possible:
+ *
+ *   1. the prevailing-wage source. Until it says OES, there is no calculator
+ *      button and no F.13a/F.13b at all;
+ *   2. the OES Wage Calculator, which owns F.7, F.11, F.11a, F.13a and F.13b
+ *      and writes them itself on Submit;
+ *   3. the rest of the boxes, with the calculator's own left alone, and the
+ *      offered-wage unit re-checked at the end (step 7b);
+ *   4. "Add Place of Employment", which commits the worksite as a ROW. Without
+ *      it the section holds no rows and FLAG answers "Field F: Please enter in
+ *      at least one row" — the typed boxes are an uncommitted entry form, and
+ *      the page says so in a yellow banner;
+ *   5. then once more per EXTRA worksite: the same boxes with the address
+ *      replaced, the calculator re-run for that county, and Add again. FLAG
+ *      clears the entry form after each commit and re-disables the dependent
+ *      radios, so a second worksite is a full second pass, not a patch.
+ *
+ * Continue is NOT pressed here. Committing the SECTION is the caller's step, so
+ * a single-section fill can leave it to the caseworker.
+ */
+export async function runSection(
+  section: FlagSection,
+  values: Record<string, string>,
+  forbidden: ForbiddenControl[],
+  coverage?: Set<string>,
+  /** Worksites past the first. Ignored by a section with no repeater. */
+  extraRows?: RowValues[],
+): Promise<SectionFill> {
+  const first = await driveSection(section, values, forbidden, coverage);
+  if (!section.repeater) return first;
+
+  // Old step 8's own condition: nothing typed, nothing to commit. Pressing Add
+  // on an untouched form would only add FLAG's validation errors to the page.
+  if (!first.fields.some((f) => f.status === "filled")) {
+    dbg("  row: nothing was typed into this section — not pressing Add");
+    return first;
+  }
+
+  const rows: RowOutcome[] = [await addRow(section.repeater)];
+  const fields = [...first.fields];
+
+  for (const patch of extraRows ?? []) {
+    if (rows[rows.length - 1].status !== "added") {
+      // The row before this one did not take. Typing the next worksite over
+      // the same boxes would lose it and report the one after as the only
+      // worksite on the application.
+      dbg("  row: the previous worksite was not committed — stopping");
+      break;
+    }
+    await sleep(BETWEEN_ROWS_MS);
+    const next = { ...values, ...rowPatch(section.repeater, patch) };
+    const again = await driveSection(section, next, forbidden);
+    fields.push(...again.fields);
+    rows.push(await addRow(section.repeater));
+  }
+
+  return { fields, modal: first.modal, rows };
+}
+
+/** One pass over the section's own boxes: gate, modal, the rest. */
+async function driveSection(
+  section: FlagSection,
+  values: Record<string, string>,
+  forbidden: ForbiddenControl[],
+  coverage?: Set<string>,
+): Promise<SectionFill> {
+  if (!section.modal || !gateIsAnswered(section.modal.onlyWhen, values)) {
+    return { fields: await fillSection(section, values, forbidden, coverage) };
+  }
+
+  // The gate first and ON ITS OWN, then a pause: the calculator's button does
+  // not exist until the source radio says OES, and neither do the boxes it
+  // owns. The old flow waited 2s here for the button to appear.
+  const gate = section.fields.find((f) => f.name === section.modal!.onlyWhen.by);
+  const gateOutcome = gate
+    ? await fillSection({ ...section, fields: [gate] }, values, forbidden)
+    : [];
+  if (gateOutcome.some((o) => o.status === "filled")) await sleep(AFTER_GATE_MS);
+
+  const modal = await runModal(section.modal, values);
+  // The calculator owns its boxes whenever it ran and applied something. A
+  // calculator that produced no wage still OWNS them — they are disabled
+  // either way — so typing the case's own annual PWD into F.11 behind its back
+  // is exactly the overwrite the old extension stopped doing.
+  const owned =
+    modal.status === "applied" || modal.status === "no-result"
+      ? {
+          names: new Set(section.modal.owns),
+          reason: `filled by the ${section.modal.openButton} and locked by FLAG`,
+        }
+      : undefined;
+
+  const rest = await fillSection(
+    { ...section, fields: section.fields.filter((f) => f !== gate) },
+    values,
+    forbidden,
+    coverage,
+    owned,
+  );
+  return { fields: [...gateOutcome, ...rest], modal };
+}
+
+/** Press the repeater's Add, with the old flow's waits around it. */
+async function addRow(repeater: FlagRepeaterSpec): Promise<RowOutcome> {
+  await sleep(BEFORE_ADD_MS);
+  const row = await commitRepeaterRow(repeater);
+  dbg(`  row: ${row.status}`);
+  await sleep(AFTER_ADD_MS);
+  return row;
+}
+
+/**
+ * One worksite's boxes, and ONLY those.
+ *
+ * Every other value on the section — the wages, the source, the worker count —
+ * is carried forward unchanged, which is what the old extension's patch did.
+ *
+ * A box this row does not name is set to "", which the fill reads as "nothing
+ * to type" and leaves alone. That is right only because FLAG clears the entry
+ * form when a row is committed; if a redesign ever stopped clearing it, the
+ * previous worksite's suite number would ride along into the next one. The old
+ * extension passed "" here for the same reason and with the same dependency.
+ */
+function rowPatch(repeater: FlagRepeaterSpec, row: RowValues): Record<string, string> {
+  return Object.fromEntries(repeater.rowFields.map((name) => [name, row[name] ?? ""]));
 }
 
 /**
@@ -213,6 +497,7 @@ export async function fillSection(
 export async function fillAll(
   config: FlagFormConfig,
   values: Record<string, string>,
+  extraRows?: RowValues[],
 ): Promise<WalkReport> {
   const sections: SectionOutcome[] = [];
   const coverage = new Set(flagFieldNames(config.sections).map(normalizeName));
@@ -226,13 +511,15 @@ export async function fillAll(
       sections.push({ title: section.title, reached: false, fields: [] });
       continue;
     }
-    const fields = await fillSection(section, values, config.forbidden, coverage);
+    const { fields, modal, rows } = await runSection(
+      section, values, config.forbidden, coverage, extraRows,
+    );
 
     // Commit before moving on. A sidebar click is not a save: FLAG persists a
     // section when Continue is pressed and discards it otherwise, so a walk
     // that only navigated would leave every section it typed behind it empty.
     const commit = await commitSection();
-    sections.push({ title: section.title, reached: true, fields, commit });
+    sections.push({ title: section.title, reached: true, fields, commit, modal, rows });
 
     if (commit === "blocked") {
       // FLAG is holding this section over a box it wants. Pressing on would
@@ -261,13 +548,13 @@ export async function fillAll(
 export async function fillCurrentSection(
   config: FlagFormConfig,
   values: Record<string, string>,
+  extraRows?: RowValues[],
 ): Promise<SectionOutcome | null> {
   const section = config.sections.find((s) => sectionIsRendered(s));
   if (!section) return null;
   const coverage = new Set(flagFieldNames(config.sections).map(normalizeName));
-  return {
-    title: section.title,
-    reached: true,
-    fields: await fillSection(section, values, config.forbidden, coverage),
-  };
+  const { fields, modal, rows } = await runSection(
+    section, values, config.forbidden, coverage, extraRows,
+  );
+  return { title: section.title, reached: true, fields, modal, rows };
 }
