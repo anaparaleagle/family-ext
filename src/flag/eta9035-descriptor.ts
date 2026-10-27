@@ -318,6 +318,10 @@ export const ETA9035_CONFIG: FlagFormConfig = {
   // Exactly the backend's H1B_CASE_TYPES (forms/eta/maps.py). Anything else
   // gets a 400 from the feed.
   caseTypes: [
+    // Every H-1B petition needs an LCA, including a case filed under the plain
+    // code. Leaving it out hid those cases from the picker with no error — the
+    // list simply came back empty and read as the extension being broken.
+    "H-1B",
     "H-1B-COS-F1",
     "H-1B-COS-F2",
     "H-1B-COS-J2",
