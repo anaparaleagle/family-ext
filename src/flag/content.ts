@@ -13,7 +13,7 @@
 
 import { dbg, resetDebugLog } from "../engine/logger";
 import { apiGet, apiPost } from "../runner/api-transport";
-import { fillAll, fillCurrentSection, SectionOutcome, WalkReport } from "./fill-chain";
+import { fillAll, fillCurrentSection, RowValues, SectionOutcome, WalkReport } from "./fill-chain";
 import { flushUnmappedFields } from "../engine/telemetry";
 import { FLAG_CONFIGS } from "./registry";
 import { FlagFormConfig } from "./types";
@@ -23,6 +23,13 @@ import { scrapeReviewFields } from "./review";
  * loaded DOL form cannot be mistaken for a loaded I-130 or vice versa. */
 const KEYS = {
   fieldValues: "flagFieldValues",
+  // Worksites past the first, each a patch of Section F names. The ETA-9035
+  // takes several places of employment, one committed row each.
+  extraRows: "flagExtraRows",
+  // Set once those rows have been typed for this load, so a second press of
+  // Fill cannot restart the loop and type worksite 2 over worksite 1. This is
+  // the old extension's `lcaExtrasFilled`, and it exists for the same reason.
+  extraRowsDone: "flagExtraRowsDone",
   formType: "flagFormType",
   caseId: "flagCaseId",
   accessToken: "accessToken",
@@ -42,6 +49,8 @@ function currentConfig(): FlagFormConfig | null {
 
 interface Loaded {
   fieldValues: Record<string, string>;
+  /** Worksites past the first, in the order the case holds them. */
+  extraRows: RowValues[];
   report: Record<string, unknown>;
   /** Case id (for health telemetry). Empty when loaded from cache without one. */
   caseId: string;
@@ -79,6 +88,7 @@ function contextAlive(): boolean {
 async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
   const stored = await chrome.storage.local.get([
     KEYS.fieldValues,
+    KEYS.extraRows,
     KEYS.formType,
     KEYS.caseId,
     KEYS.accessToken,
@@ -103,7 +113,12 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
       );
       return null;
     }
-    return { fieldValues: cached, report: {}, caseId: (stored[KEYS.caseId] as string) ?? "" };
+    return {
+      fieldValues: cached,
+      extraRows: (stored[KEYS.extraRows] as RowValues[]) ?? [],
+      report: {},
+      caseId: (stored[KEYS.caseId] as string) ?? "",
+    };
   }
 
   const caseId = stored[KEYS.caseId] as string | undefined;
@@ -120,6 +135,7 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
     `?form=${encodeURIComponent(config.formType)}`;
   const res = await apiGet<{
     field_values: Record<string, string>;
+    additional_worksites?: RowValues[];
     autofill_report: Record<string, unknown>;
   }>(path, { apiBaseUrl, accessToken });
 
@@ -128,11 +144,14 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
     return null;
   }
   const fieldValues = res.data.field_values ?? {};
+  const extraRows = res.data.additional_worksites ?? [];
   await chrome.storage.local.set({
     [KEYS.fieldValues]: fieldValues,
+    [KEYS.extraRows]: extraRows,
     [KEYS.formType]: config.formType,
   });
-  return { fieldValues, report: res.data.autofill_report ?? {}, caseId };
+  await chrome.storage.local.remove(KEYS.extraRowsDone);
+  return { fieldValues, extraRows, report: res.data.autofill_report ?? {}, caseId };
 }
 
 // ── toolbar ─────────────────────────────────────────────────────────────────
@@ -248,20 +267,24 @@ function sectionNotes(outcome: SectionOutcome): string {
       notes.push(`OES Wage Calculator: ${modal.message ?? modal.status}`);
     }
   }
-  const row = outcome.row;
-  if (row) {
-    if (row.status === "added") {
-      notes.push(`Worksite added — the table now holds ${row.rows}.`);
-    } else if (row.status === "disabled") {
+  const rows = outcome.rows ?? [];
+  const added = rows.filter((r) => r.status === "added").length;
+  if (rows.length) {
+    const last = rows[rows.length - 1];
+    if (last.status === "added") {
       notes.push(
-        "Could NOT add the worksite — FLAG has the Add button greyed out" +
-          (row.errors.length ? `: ${row.errors.join("; ")}` : ". Read the errors on the page") +
-          ". Nothing was saved for this worksite.",
+        `${added} worksite(s) added — FLAG's table now holds ${last.rows}.`,
       );
-    } else if (row.status === "refused") {
+    } else if (last.status === "disabled") {
       notes.push(
-        `Pressed Add, but the table still reads ${row.rows}` +
-          (row.errors.length ? ` — ${row.errors.join("; ")}` : "") +
+        `Worksite ${rows.length} was NOT added — FLAG has the Add button greyed out` +
+          (last.errors.length ? `: ${last.errors.join("; ")}` : ". Read the errors on the page") +
+          ". Nothing was saved for it.",
+      );
+    } else if (last.status === "refused") {
+      notes.push(
+        `Pressed Add for worksite ${rows.length}, but the table still reads ${last.rows}` +
+          (last.errors.length ? ` — ${last.errors.join("; ")}` : "") +
           ". Add it yourself before pressing Continue.",
       );
     } else {
@@ -282,17 +305,43 @@ function summarise(report: WalkReport): string {
   return parts.join(", ") + ".";
 }
 
+/**
+ * The extra worksites, unless they have already been typed for this load.
+ *
+ * The guard is the old extension's `lcaExtrasFilled` and exists for its
+ * reason: a second press of Fill must not restart the loop, because it would
+ * type worksite 2 over worksite 1's boxes while FLAG's table already holds
+ * worksite 1 — leaving the application with the same site twice and one
+ * missing. It is recorded AFTER the run rather than before it (see
+ * `recordExtraRows`), so a fill of some OTHER section cannot spend them.
+ */
+async function pendingExtraRows(loaded: Loaded): Promise<RowValues[]> {
+  if (!loaded.extraRows.length) return [];
+  const stored = await chrome.storage.local.get(KEYS.extraRowsDone);
+  if (stored[KEYS.extraRowsDone] === true) return [];
+  return loaded.extraRows;
+}
+
+/** Mark the extra worksites spent, once a run has actually typed rows. */
+async function recordExtraRows(sections: SectionOutcome[]): Promise<void> {
+  const rows = sections.flatMap((s) => s.rows ?? []);
+  if (rows.length > 1) await chrome.storage.local.set({ [KEYS.extraRowsDone]: true });
+}
+
 async function onFillSection(config: FlagFormConfig): Promise<void> {
   await withLock("Fill section", async () => {
     resetDebugLog();
     const loaded = await loadValues(config);
     if (!loaded) return;
-    const outcome = await fillCurrentSection(config, loaded.fieldValues);
+    const outcome = await fillCurrentSection(
+      config, loaded.fieldValues, await pendingExtraRows(loaded),
+    );
     if (!outcome) {
       setStatus(`This is not a section the ${config.formType} descriptor knows.`);
       return;
     }
     void flushUnmappedFields(config.formType, loaded.caseId);
+    await recordExtraRows([outcome]);
     const filled = outcome.fields.filter((f) => f.status === "filled").length;
     const failed = outcome.fields.filter((f) => f.status === "failed");
     const skipped = outcome.fields.filter((f) => f.status === "skipped");
@@ -313,8 +362,9 @@ async function onFillAll(config: FlagFormConfig): Promise<void> {
     const loaded = await loadValues(config);
     if (!loaded) return;
     setStatus("Filling…");
-    const report = await fillAll(config, loaded.fieldValues);
+    const report = await fillAll(config, loaded.fieldValues, await pendingExtraRows(loaded));
     void flushUnmappedFields(config.formType, loaded.caseId);
+    await recordExtraRows(report.sections);
     const committed = report.sections.filter((s) => s.commit === "committed").length;
     const notes = report.sections.map(sectionNotes).filter(Boolean).join(" ");
     setStatus(

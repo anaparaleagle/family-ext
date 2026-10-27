@@ -1,28 +1,28 @@
 // ===========================================================================
 // DRIVING A FLAG MODAL — the ETA-9035's OES Wage Calculator.
 //
-// WHY THIS EXISTS AT ALL. The descriptor used to say the calculator "stays
+// A STEP-FOR-STEP PORT of the H-1B extension's Section F flow
+// (paraleagle-ext, src/content/lca-filler.ts `fillSectionF`, steps 2-6), which
+// drove this modal on flag.dol.gov in production for years. Its sequencing and
+// its waits are kept as they are, including the ones that look generous: they
+// were tuned against the live form, and neither of us can reach it to retune
+// them. Where this file adds anything it is a REPORT, not a different move —
+// the old flow logged to the console, which is how a redesigned modal went
+// unnoticed for a release.
+//
+// WHY IT EXISTS AT ALL. The descriptor used to say the calculator "stays
 // manual", carried from a decision taken on 2026-09-01 before anyone had read
-// the H-1B extension's Section F path end to end. That assumption is what left
-// F.11 (prevailing wage), F.11a, F.13a (wage level) and F.13b (source year)
-// unanswerable: FLAG DISABLES all four the moment F.12/13/14 says OES, because
-// the calculator owns them. The old extension drove the modal for years
-// (paraleagle-ext, src/content/lca-filler.ts, fillSectionF steps 2-6) and its
-// own comment is explicit that paralegals depended on it.
+// the old path end to end. That assumption is what left F.11 (prevailing
+// wage), F.11a, F.13a (wage level) and F.13b (source year) unanswerable: FLAG
+// DISABLES all four the moment F.12/13/14 says OES, because the calculator
+// owns them and writes them itself on Submit.
 //
 // WHAT THE CALCULATOR IS. A DOL tool, not a box on the form: state, area,
 // industry collection, SOC and a wage level in, one prevailing wage out, which
-// it then writes back into the application. So its inputs are not in the
-// backend feed — the feed describes the FORM. Every one of them is either a
-// Section F value the feed already sends, or a standing choice this file makes
-// and the toolbar states.
-//
-// WHAT IT WILL NOT DO
-//   * press anything outside the open dialog — every search is scoped to it,
-//     so the application's own Review & Submit is out of reach;
-//   * press the modal's Submit when Calculate produced no wage. A modal left
-//     open with the answer blank is a caseworker finishing it by hand; a modal
-//     submitted empty is a federal form with a wage nobody chose.
+// it then applies to the application. Its inputs are therefore not in the
+// backend feed — the feed describes the FORM. Each one is either a Section F
+// value the feed already sends, or a standing choice this file makes and the
+// toolbar states, exactly as the old extension's `F_OES` field block did.
 // ===========================================================================
 
 import { dbg } from "../engine/logger";
@@ -32,13 +32,23 @@ import { FlagModalSpec, flagFieldSpec, gateIsAnswered, modalFieldValue } from ".
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
-/** How long the modal is given to mount after its button is pressed. */
-const OPEN_TIMEOUT_MS = 5000;
-/** How long the calculator is given to produce a wage after Calculate. */
-const CALCULATE_TIMEOUT_MS = 8000;
+// The old extension's own waits, kept to the millisecond.
+/** After pressing the button that opens it. */
+const AFTER_OPEN_MS = 2000;
+/** After each answer inside it — the area list is rebuilt off the state. */
+const AFTER_ANSWER_MS = 500;
+/** Before the area combobox specifically, for its dependent options. */
+const BEFORE_AREA_MS = 500;
+/** After Calculate. */
+const AFTER_CALCULATE_MS = 3000;
+/** After the modal's own Submit. */
+const AFTER_SUBMIT_MS = 2000;
+
+/** Added here, not in the old file: a poll on top of the fixed wait, so a slow
+ * page costs a moment rather than the whole modal. The fixed wait still runs
+ * first — it is what the live form was tuned against. */
+const EXTRA_WAIT_MS = 3000;
 const POLL_MS = 150;
-/** A settle after each answer: FLAG repopulates the area list off the state. */
-const SETTLE_MS = 400;
 
 export interface ModalFieldOutcome {
   name: string;
@@ -60,23 +70,23 @@ function writable(el: HTMLElement | null): boolean {
   return !!el && !isDisabled(el);
 }
 
-/** Wait for the modal to mount, and hand it back. */
+/** The modal, after the old flow's fixed wait and then a short poll. */
 async function waitForDialog(): Promise<HTMLElement | null> {
-  const deadline = Date.now() + OPEN_TIMEOUT_MS;
+  await sleep(AFTER_OPEN_MS);
+  const deadline = Date.now() + EXTRA_WAIT_MS;
   while (Date.now() < deadline) {
     const dialog = openDialog();
     if (dialog) return dialog;
     await sleep(POLL_MS);
   }
-  return null;
+  return openDialog();
 }
 
 /**
  * Read the calculator's answer: the value in its result box, or "".
  *
- * FLAG shows an empty masked money box as its placeholder ("$nnnn.nn"), which
- * is not an answer — the old extension checked for that exact string and this
- * keeps the check, widened to any placeholder-shaped text.
+ * The old flow checked `#OES_prevailing_wage` against the literal placeholder
+ * "$nnnn.nn"; that check is kept and widened to any placeholder-shaped text.
  */
 function readResult(spec: FlagModalSpec, scope: ParentNode): string {
   const el =
@@ -88,12 +98,24 @@ function readResult(spec: FlagModalSpec, scope: ParentNode): string {
 }
 
 /**
- * Open the modal, fill it, calculate, check, submit.
+ * The modal's own button, searched inside the dialog first.
+ *
+ * The old flow searched the whole page for "Submit". Narrowed to the dialog
+ * because the application's own Submit lives on the page and has no undo — but
+ * it falls back to a page-wide search so a modal that renders its footer
+ * outside the dialog node is still driven, exactly as before. The never-click
+ * list still applies to both, so "Review & Submit" is unreachable either way.
+ */
+function modalButton(text: string, dialog: HTMLElement): HTMLElement | null {
+  return findButtonByText(text, dialog) ?? findButtonByText(text);
+}
+
+/**
+ * Open the modal, fill it, calculate, read the answer, submit.
  *
  * Every failure is a RESULT, not a throw: the section around it still has a
- * dozen boxes worth typing, and a caseworker who is told "the calculator did
- * not open, run it yourself" can finish the filing. The old extension logged
- * these to the console only, which is why a redesigned modal went unnoticed.
+ * dozen boxes worth typing, and a caseworker told "the calculator did not
+ * open, run it yourself" can finish the filing.
  */
 export async function runModal(
   spec: FlagModalSpec,
@@ -103,6 +125,8 @@ export async function runModal(
     return { status: "skipped", fields: [], message: `${spec.onlyWhen.by} is not the OES branch` };
   }
 
+  // Step 2 of the old flow. The button only exists once the source radio says
+  // OES, which the caller has just answered and waited on.
   const opener = findButtonByText(spec.openButton);
   if (!opener) {
     dbg(`modal: no "${spec.openButton}" button on this section`);
@@ -112,7 +136,7 @@ export async function runModal(
 
   const dialog = await waitForDialog();
   if (!dialog) {
-    dbg(`modal: "${spec.openButton}" did not open a dialog within ${OPEN_TIMEOUT_MS}ms`);
+    dbg(`modal: "${spec.openButton}" did not open a dialog`);
     return {
       status: "did-not-open",
       fields: [],
@@ -120,14 +144,17 @@ export async function runModal(
     };
   }
 
+  // Step 3: the pre-calculate answers, in the order the old field map listed
+  // them — state, collection type, area basis, area, R&D flag.
   const fields: ModalFieldOutcome[] = [];
-  const before = spec.fields.filter((f) => !f.afterCalculate);
-  const after = spec.fields.filter((f) => f.afterCalculate);
+  for (const field of spec.fields.filter((f) => !f.afterCalculate)) {
+    fields.push(await fillModalField(field, values));
+  }
 
-  for (const field of before) fields.push(await fillModalField(field, values));
-
-  const calculate = findButtonByText(spec.calculateButton, dialog);
+  // Step 4: Calculate.
+  const calculate = modalButton(spec.calculateButton, dialog);
   if (!calculate) {
+    dbg(`modal: no "${spec.calculateButton}" button`);
     return {
       status: "not-submitted",
       fields,
@@ -135,45 +162,57 @@ export async function runModal(
     };
   }
   calculate.click();
+  await sleep(AFTER_CALCULATE_MS);
 
-  // The wage level and the per-unit are disabled until there is a wage to apply
-  // them to, so they are answered here rather than above.
-  const deadline = Date.now() + CALCULATE_TIMEOUT_MS;
-  let result = "";
-  while (Date.now() < deadline) {
-    await sleep(POLL_MS);
-    result = readResult(spec, dialog);
-    if (result) break;
+  // Step 5: the wage level and the per-unit, which FLAG keeps disabled until
+  // Calculate has produced a wage to apply them to.
+  for (const field of spec.fields.filter((f) => f.afterCalculate)) {
+    fields.push(await fillModalField(field, values));
   }
 
-  for (const field of after) fields.push(await fillModalField(field, values));
-
-  // Answering the level re-prices the wage, so read it once more.
-  await sleep(SETTLE_MS);
-  result = readResult(spec, dialog) || result;
-
+  // Step 5b: read the answer back. The old flow logged a WARNING here and
+  // carried on to Submit either way, and that is kept — a modal left open sits
+  // over the rest of Section F and would cost every box below it. The
+  // difference is that the warning now reaches the toolbar instead of the
+  // console, because an empty prevailing wage is the one thing a caseworker
+  // has to see before filing.
+  let result = readResult(spec, dialog);
   if (!result) {
-    dbg("modal: the calculator produced no prevailing wage — leaving it open");
-    return {
-      status: "no-result",
-      fields,
-      message:
-        "The OES Wage Calculator produced no prevailing wage, so it was NOT " +
-        "submitted. It is still open — finish it yourself and press its Submit.",
-    };
+    const deadline = Date.now() + EXTRA_WAIT_MS;
+    while (!result && Date.now() < deadline) {
+      await sleep(POLL_MS);
+      result = readResult(spec, dialog);
+    }
   }
+  if (!result) dbg("modal: WARNING — the calculator produced no prevailing wage");
 
-  const submit = findButtonByText(spec.submitButton, dialog);
+  // Step 6: Submit, which applies the wage to F.11 / F.11a / F.13a / F.13b and
+  // closes the modal.
+  const submit = modalButton(spec.submitButton, dialog);
   if (!submit) {
+    dbg(`modal: no "${spec.submitButton}" button in the calculator`);
     return {
       status: "not-submitted",
       fields,
       result,
-      message: `The calculator gave ${result} but has no "${spec.submitButton}" button. Apply it yourself.`,
+      message:
+        `The calculator has no "${spec.submitButton}" button, so nothing was ` +
+        "applied. Finish it yourself.",
     };
   }
   submit.click();
-  await sleep(SETTLE_MS);
+  await sleep(AFTER_SUBMIT_MS);
+
+  if (!result) {
+    return {
+      status: "no-result",
+      fields,
+      message:
+        "The OES Wage Calculator produced NO prevailing wage. It was submitted " +
+        "so the rest of the section could be filled, but F.11 and F.13a are " +
+        "empty — run the calculator yourself before you file.",
+    };
+  }
   return { status: "applied", fields, result };
 }
 
@@ -181,6 +220,9 @@ async function fillModalField(
   field: FlagModalSpec["fields"][number],
   values: Record<string, string>,
 ): Promise<ModalFieldOutcome> {
+  // The old flow paused before the area combobox for its dependent options.
+  if (field.waitBefore) await sleep(BEFORE_AREA_MS);
+
   const value = modalFieldValue(field, values);
   if (!value) {
     return {
@@ -203,12 +245,14 @@ async function fillModalField(
     };
   }
   const res = await setValue(flagFieldSpec(field), value);
-  // Each answer re-renders the ones below it — the area list is rebuilt off the
-  // state, and the level list off the area.
-  await sleep(SETTLE_MS);
+  // Each answer re-renders the ones below it — the area list is rebuilt off
+  // the state, the level list off the area.
+  if (res.success) await sleep(AFTER_ANSWER_MS);
   return {
     name: field.name,
     status: res.success ? "filled" : "failed",
     message: res.message,
   };
 }
+
+export { BEFORE_AREA_MS, AFTER_OPEN_MS, AFTER_CALCULATE_MS, AFTER_SUBMIT_MS };

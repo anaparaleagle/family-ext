@@ -571,7 +571,23 @@ function clickRadio(radio: HTMLInputElement): boolean {
   radio.click();
   radio.dispatchEvent(new Event("change", { bubbles: true }));
   radio.dispatchEvent(new Event("input", { bubbles: true }));
-  return true;
+  if (radio.checked) return true;
+
+  // The input did not take the click. FLAG's forms are built on USWDS, which
+  // hides the real input under a styled label and listens on the LABEL — and
+  // the H-1B extension found it had to click that label to select the
+  // prevailing-wage source at all. Tried only as a fallback, so an ordinary
+  // radio is unaffected.
+  const label =
+    (radio.id && document.querySelector<HTMLElement>(`label[for="${cssEscape(radio.id)}"]`)) ||
+    (radio.nextElementSibling?.tagName === "LABEL"
+      ? (radio.nextElementSibling as HTMLElement)
+      : null);
+  if (!label) return radio.checked;
+  dbg(`value-setter: radio "${radio.name}" ignored its own click — clicking its label`);
+  label.click();
+  radio.dispatchEvent(new Event("change", { bubbles: true }));
+  return radio.checked;
 }
 
 function radioLabel(radio: HTMLInputElement): string {

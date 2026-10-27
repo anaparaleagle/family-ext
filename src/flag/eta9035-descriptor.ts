@@ -94,7 +94,15 @@ export const OES_WAGE_CALCULATOR: FlagModalSpec = {
     { name: "OES_state", kind: "select", byId: true, from: "_section_f_f8_work_state_id" },
     { name: "OES_collection_type", kind: "radio", constant: "All Industries" },
     { name: "OES_area_based", kind: "radio", constant: "County/Township" },
-    { name: "OES_area", kind: "search", byId: true, from: "_section_f_f7_work_county_id" },
+    // Paused before, as the old flow paused: its option list is rebuilt off
+    // the state and the area basis answered above it.
+    {
+      name: "OES_area",
+      kind: "search",
+      byId: true,
+      from: "_section_f_f7_work_county_id",
+      waitBefore: true,
+    },
     { name: "OES_rd_flag", kind: "radio", constant: "No" },
     // Both only become answerable once Calculate has a wage to apply them to.
     { name: "OES_wage_level", kind: "select", byId: true, from: WAGE_LEVEL, afterCalculate: true },
@@ -225,6 +233,17 @@ export const ETA9035_SECTIONS: FlagSection[] = [
     repeater: {
       addButtonText: "Add Place of Employment",
       entriesLabel: "Entries for Place of Employment",
+      // One row's worth of boxes. F.7 is in the list even though the OES
+      // calculator owns it, because it is the calculator's AREA input and a
+      // second worksite in another county must re-run it with that county.
+      rowFields: [
+        "_section_f_f4_work_address_1",
+        "_section_f_f5_work_address_2",
+        "_section_f_f6_work_city",
+        "_section_f_f7_work_county_id",
+        "_section_f_f8_work_state_id",
+        "_section_f_f9_work_zip",
+      ],
     },
     modal: OES_WAGE_CALCULATOR,
     fields: [
@@ -255,7 +274,13 @@ export const ETA9035_SECTIONS: FlagSection[] = [
       // error standing and "Add Place of Employment" greyed out, so the whole
       // worksite row is lost over a box that was never a range.
       { ...money("_section_f_f10_nonimmigrant_wage_to"), onlyAbove: WAGE_FROM },
-      radio(WAGE_PER),
+      // Re-checked after the whole section is typed, exactly as the old
+      // extension's step 7b did. FLAG defaults the offered-wage unit to Year,
+      // and entering a wage amount after the unit can reset it — which turns
+      // "$43 / Hour" into "$43 / Year" and has FLAG refuse it as below the
+      // state minimum. ONLY this one: F.11a is the calculator's and must not
+      // be re-asserted, or the annual/hourly mismatch comes straight back.
+      { ...radio(WAGE_PER), reassert: true },
       money("_section_f_f11_prevailing_wage"),
       radio("_section_f_f11a_prevailing_wage_per"),
     ],

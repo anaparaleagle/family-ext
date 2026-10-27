@@ -104,7 +104,7 @@ describe("Section F is a repeater, and the row has to be committed", () => {
       ETA9035_FORBIDDEN,
     );
     expect(out.fields.find((f) => f.name === "_section_f_f2_is_secondary_entity")?.status).toBe("filled");
-    expect(out.row).toEqual({ status: "added", rows: 1 });
+    expect(out.rows).toEqual([{ status: "added", rows: 1 }]);
     expect(table.clicks).toBe(1);
   }, 15000);
 
@@ -113,7 +113,7 @@ describe("Section F is a repeater, and the row has to be committed", () => {
     document.body.innerHTML = `<input name="k1_prep_last" />`;
     mountWorksiteRepeater();
     const out = await runSection(section, { k1_prep_last: "Rajak" }, ETA9035_FORBIDDEN);
-    expect(out.row).toBeUndefined();
+    expect(out.rows).toBeUndefined();
     expect(repeaterRowCount(REPEATER)).toBe(0);
   }, 15000);
 });
@@ -242,14 +242,31 @@ describe("the OES Wage Calculator is driven, not left manual", () => {
     expect(calc.applied?.per).toBe("Hour");
   }, 30000);
 
-  it("does NOT submit a calculator that produced no wage, and says so", async () => {
+  it("says so, loudly, when the calculator produced no wage", async () => {
+    // The old flow logged a WARNING here and pressed Submit either way, and
+    // that is kept: the modal sits OVER the rest of Section F, so refusing to
+    // close it would cost every box below it and the worksite row with them.
+    // What changes is where the warning goes — the toolbar, not the console.
     const calc = mountOesSectionF({ noResult: true });
     const out = await runModal(OES_WAGE_CALCULATOR, OES_VALUES);
     expect(out.status).toBe("no-result");
-    expect(calc.submits).toBe(0);
-    expect(out.message).toContain("finish it yourself");
-    // Left open, with the caseworker in front of it.
-    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(out.result).toBeFalsy();
+    expect(out.message).toContain("NO prevailing wage");
+    expect(calc.submits).toBe(1);
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  }, 30000);
+
+  it("still keeps its hands off the boxes it owns when it produced no wage", async () => {
+    // They are disabled either way, so typing the case's own annual PWD into
+    // F.11 behind the calculator's back is exactly the overwrite that turned a
+    // correct $49.44/hr into $123531 on the old portal.
+    mountOesSectionF({ noResult: true });
+    mountWorksiteRepeater();
+    const out = await runSection(SECTION_F, OES_VALUES, ETA9035_FORBIDDEN);
+    expect(out.modal?.status).toBe("no-result");
+    expect(out.fields.find((f) => f.name === "_section_f_f11_prevailing_wage")?.status).toBe(
+      "skipped",
+    );
   }, 30000);
 
   it("reports a button that opens nothing, rather than typing on regardless", async () => {
@@ -291,7 +308,7 @@ describe("Section F, driven whole", () => {
       expect(field.status, name).toBe("skipped");
       expect(field.message, name).toContain("OES Wage Calculator");
     }
-    expect(out.row).toEqual({ status: "added", rows: 1 });
+    expect(out.rows).toEqual([{ status: "added", rows: 1 }]);
     expect(table.clicks).toBe(1);
   }, 30000);
 

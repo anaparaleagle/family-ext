@@ -85,6 +85,15 @@ export interface FlagField {
    * to the box, so it is not typed.
    */
   onlyAbove?: string;
+  /**
+   * Re-checked once the whole section is typed, and re-answered if it drifted.
+   *
+   * The ETA-9035's F.10a is why, and it is the old extension's step 7b: FLAG
+   * defaults the offered-wage unit to Year, and typing a wage amount after the
+   * unit can reset it — "$43 / Hour" silently becomes "$43 / Year", which FLAG
+   * then refuses as below the state minimum.
+   */
+  reassert?: true;
 }
 
 /**
@@ -110,6 +119,13 @@ export interface FlagModalField {
    * disabled until the calculator has an answer to apply them to.
    */
   afterCalculate?: true;
+  /**
+   * Pause before this one for its options to be rebuilt.
+   *
+   * The old extension did exactly this, for the area combobox only: its list
+   * depends on the state and the area basis answered above it.
+   */
+  waitBefore?: true;
 }
 
 /**
@@ -154,6 +170,15 @@ export interface FlagModalSpec {
 export interface FlagRepeaterSpec {
   /** Visible text on the button that commits the row. */
   addButtonText: string;
+  /**
+   * The field names that belong to ONE row, so a second worksite can be typed
+   * over the first one's boxes while everything else on the section — the
+   * wages, the source, the worker count — stays as it is.
+   *
+   * This is the old extension's patch, by its FLAG names: it rebuilt the whole
+   * payload with F.4 to F.9 replaced and re-ran Section F for each extra site.
+   */
+  rowFields: string[];
   /**
    * Text FLAG prints over the table of committed rows, e.g. "Entries for Place
    * of Employment". The count in front of it is how a commit is PROVEN rather
