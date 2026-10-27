@@ -15,7 +15,9 @@ import { fillSection, isForbidden } from "../src/flag/fill-chain";
 import { findSectionLink, sectionIsRendered } from "../src/flag/nav";
 import { FLAG_CONFIGS, caseTypeMatchesForm, flagConfigForPath } from "../src/flag/registry";
 import { FlagField, flagFieldNames, revealGates } from "../src/flag/types";
-import { locateElement } from "../src/engine/value-setter";
+import { asDollarsAndCents, locateElement, sameMoney } from "../src/engine/value-setter";
+import { readFlagValue } from "../src/flag/review";
+import { mountCurrencyBox } from "./fixtures/dom";
 
 interface CapturedField {
   box: string;
@@ -163,7 +165,12 @@ describe("descriptor vs the backend table", () => {
     for (const f of fields()) {
       const s = byName.get(f.name);
       if (!s) continue;
-      const ours = f.kind === "search" && s.by_id ? "text" : f.kind;
+      // The backend table describes the BOX; `kind` here is how the extension
+      // writes it. Two of ours are a write strategy over a box the backend
+      // rightly calls text: the by-id county typeahead, and the wage boxes,
+      // whose mask needs one native write and a numeric read-back.
+      const ours =
+        (f.kind === "search" && s.by_id) || f.kind === "currency" ? "text" : f.kind;
       if (ours !== s.kind) wrong.push(`${f.name}: descriptor=${f.kind} backend=${s.kind}`);
       if ((f.byLabel ?? null) !== (s.label ?? null)) wrong.push(`${f.name}: label`);
       if (!!f.byId !== !!s.by_id) wrong.push(`${f.name}: by_id`);
@@ -384,5 +391,132 @@ describe("Section H when the employer is a willful violator but not dependent", 
     const h3 = out.find((o) => o.name === "h3_only_h1b")!;
     expect(h3.status).toBe("not-rendered");
     expect(h3.message).toContain("h1_is_dependent or h2_is_willful_violator");
+  });
+});
+
+describe("Section F wage boxes, against FLAG's currency mask", () => {
+  // The live failure (FAM-4063, 2026-10-26): "10 filled, 3 failed
+  // (_section_f_f10_nonimmigrant_wage_from, _section_f_f10_nonimmigrant_wage_to,
+  // _section_f_f11_prevailing_wage)", with F.10 and F.11 blank on screen. The
+  // feed was correct — plain digits, "110344" for all three.
+  //
+  // Two faults, and the first caused the second. Driven as plain text the
+  // native write DID land ("$110,344.00"), but the read-back compares digits,
+  // the mask's ".00" makes those "11034400", and so a good write was called a
+  // failure. The waterfall then ran its last resort, which clears the box and
+  // types one character at a time — and a two-decimal mask discards every one
+  // after the first, leaving $1.00.
+  const section = ETA9035_SECTIONS.find((s) => s.title.startsWith("F —"))!;
+  const WAGE = "110344";
+  const WAGE_BOXES = [
+    "_section_f_f10_nonimmigrant_wage_from",
+    "_section_f_f10_nonimmigrant_wage_to",
+    "_section_f_f11_prevailing_wage",
+  ];
+
+  const mountWageBoxes = (opts: { disabled?: boolean } = {}) => {
+    document.body.innerHTML = "";
+    return WAGE_BOXES.map((n) => mountCurrencyBox(n, opts));
+  };
+
+  const fillWages = () =>
+    fillSection(section, Object.fromEntries(WAGE_BOXES.map((n) => [n, WAGE])), ETA9035_FORBIDDEN);
+
+  it("is declared as money, not as text", () => {
+    for (const name of WAGE_BOXES) {
+      expect(section.fields.find((f) => f.name === name)?.kind, name).toBe("currency");
+    }
+  });
+
+  it("leaves the right wage in all three boxes", async () => {
+    const boxes = mountWageBoxes();
+    await fillWages();
+    for (const b of boxes) expect(b.input.value).toBe("$110,344.00");
+  });
+
+  it("reports them as filled rather than as a false failure", async () => {
+    mountWageBoxes();
+    const out = await fillWages();
+    expect(out.filter((o) => o.status === "failed").map((o) => o.name)).toEqual([]);
+    for (const name of WAGE_BOXES) {
+      expect(out.find((o) => o.name === name)?.status, name).toBe("filled");
+    }
+  });
+
+  it("writes each box once, so no retry can type on top of the mask's output", async () => {
+    // The $1.00 came from a second pass, not the first. One write is the fix.
+    const boxes = mountWageBoxes();
+    await fillWages();
+    for (const b of boxes) expect(b.writes).toEqual(["110344.00"]);
+  });
+
+  it("spells the cents out, for a mask that would read bare digits as cents", async () => {
+    const boxes = mountWageBoxes();
+    await fillWages();
+    expect(boxes[0].writes[0]).toBe("110344.00");
+  });
+
+  it("does not report a fill into a box FLAG has disabled", async () => {
+    // F.11 is disabled and owned by the OES calculator whenever the prevailing
+    // wage source is OES. A native assignment sticks even on a disabled input,
+    // so without this guard the walk would claim a wage the page never took.
+    const boxes = mountWageBoxes({ disabled: true });
+    const out = await fillWages();
+    expect(out.filter((o) => o.status === "filled")).toEqual([]);
+    for (const b of boxes) expect(b.input.value).toBe("");
+  });
+
+  it("still fills a wage box that carries no mask at all", async () => {
+    // Drift insurance: if DOL ever drops the mask, the amount must still land.
+    document.body.innerHTML = WAGE_BOXES.map((n) => `<input type="text" name="${n}" />`).join("");
+    const out = await fillWages();
+    expect(out.filter((o) => WAGE_BOXES.includes(o.name) && o.status !== "filled")).toEqual([]);
+    const el = document.querySelector<HTMLInputElement>(`[name="${WAGE_BOXES[0]}"]`)!;
+    expect(el.value).toBe("110344.00");
+  });
+});
+
+describe("reading a wage back for the sign-off compare", () => {
+  it("reads the masked spelling, which the backend normalizes to the same wage", async () => {
+    // readFlagValue is what the LCA summary review POSTs. It must not be
+    // confused by the "$110,344.00" the mask renders — the backend's currency
+    // normalizer (family_visa/cases/lca_summary_compare.py) parses both sides
+    // as numbers, so "$110,344.00" and "110344" compare equal.
+    document.body.innerHTML = "";
+    const box = mountCurrencyBox("_section_f_f10_nonimmigrant_wage_from");
+    await fillSection(
+      ETA9035_SECTIONS.find((s) => s.title.startsWith("F —"))!,
+      { _section_f_f10_nonimmigrant_wage_from: "110344" },
+      ETA9035_FORBIDDEN,
+    );
+    expect(readFlagValue({ name: box.input.name, kind: "currency" })).toBe("$110,344.00");
+    expect(sameMoney("$110,344.00", "110344")).toBe(true);
+  });
+});
+
+describe("the money normalizer", () => {
+  it("spells plain digits as dollars and cents", () => {
+    expect(asDollarsAndCents("110344")).toBe("110344.00");
+  });
+
+  it("keeps cents it was given, and pads a single one", () => {
+    expect(asDollarsAndCents("50.84")).toBe("50.84");
+    expect(asDollarsAndCents("50.8")).toBe("50.80");
+  });
+
+  it("takes an already-formatted amount back apart", () => {
+    expect(asDollarsAndCents("$110,344.00")).toBe("110344.00");
+  });
+
+  it("has nothing to write for an empty amount", () => {
+    expect(asDollarsAndCents("")).toBe("");
+    expect(asDollarsAndCents("$")).toBe("");
+  });
+
+  it("agrees that the mask's spelling is the same wage", () => {
+    expect(sameMoney("$110,344.00", "110344")).toBe(true);
+    expect(sameMoney("$110,344.00", "110344.00")).toBe(true);
+    expect(sameMoney("$1.00", "110344")).toBe(false);
+    expect(sameMoney("", "110344")).toBe(false);
   });
 });

@@ -147,3 +147,48 @@ export function mountMuiSelect(opts: {
   combobox.addEventListener("mousedown", openPopup);
   return handle;
 }
+
+// ── FLAG's masked money box (ETA-9035E F.10 from/to, F.11) ─────────────────
+//
+// The live contract, from Varis typing a wage into F.10 by hand on
+// flag.dol.gov on 2026-10-26: the box takes "110344" and shows "$110,344.00".
+// A dollar prefix, thousands separators, and exactly two decimal places, held
+// on EVERY input event — which is what makes the character-by-character text
+// path destroy the value rather than build it up.
+//
+// The real markup was not captured (the ETA-9035E dump records field names and
+// kinds, not attributes), so what is reproduced here is the behaviour that was
+// observed, which is the part the fill chain has to survive.
+
+export interface CurrencyBoxHandle {
+  input: HTMLInputElement;
+  /** Every value the box was handed, before the mask rewrote it. */
+  writes: string[];
+}
+
+export function mountCurrencyBox(name: string, opts: { disabled?: boolean } = {}): CurrencyBoxHandle {
+  const el = document.createElement("input");
+  el.type = "text";
+  el.setAttribute("name", name);
+  if (opts.disabled) el.disabled = true;
+  document.body.appendChild(el);
+
+  const handle: CurrencyBoxHandle = { input: el, writes: [] };
+  let masking = false;
+  el.addEventListener("input", () => {
+    if (masking || el.disabled) return;
+    const raw = el.value;
+    handle.writes.push(raw);
+    const digits = raw.replace(/[^0-9.]/g, "");
+    let next = "";
+    if (digits) {
+      const [dollars, cents = ""] = digits.split(".");
+      const whole = Number((dollars || "0").replace(/^0+(?=\d)/, ""));
+      next = `$${whole.toLocaleString("en-US")}.${(cents + "00").slice(0, 2)}`;
+    }
+    masking = true;
+    el.value = next;
+    masking = false;
+  });
+  return handle;
+}

@@ -10,7 +10,17 @@ export type FieldKind =
   | "checkbox"
   | "select"
   | "search"
-  | "phone";
+  | "phone"
+  /**
+   * A money box that REWRITES what is put in it — FLAG's ETA-9035E wage boxes
+   * (F.10 from/to and F.11) render "$110,344.00" for a typed 110344.
+   *
+   * Not a flavour of `text`, because the text waterfall is actively harmful
+   * here: it types character by character and re-reads the box after each one,
+   * and a mask that pins two decimal places swallows every digit after the
+   * first, so "110344" lands as "$1.00". See setCurrency.
+   */
+  | "currency";
 
 /**
  * How to find an input whose `name` attribute cannot be relied on.
