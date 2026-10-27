@@ -292,7 +292,11 @@ export const ETA9035_SECTIONS: FlagSection[] = [
   {
     navLabel: "Employer Labor Condition Statements",
     title: "G — Employer Labor Condition Statements",
-    // G.1 is an attestation: refused below, listed so the section is recognised.
+    // G.1 is the agreement every LCA carries, and FLAG will not save the
+    // section while it is blank. The old H-1B extension filled it
+    // (paraleagle-ext, lca-field-map `G1_agree`); this one refused it as an
+    // attestation and left a required radio reading "This field is required"
+    // with one filable answer. It is driven again, on the backend's value.
     fields: [radio("g1_read_agree")],
   },
 
@@ -401,10 +405,9 @@ export const ETA9035_FORBIDDEN: ForbiddenControl[] = [
   // submitted unless it produced a wage, and the application's own
   // "Review & Submit" stays refused below.
   { match: "Review & Submit", reason: "Never." },
-  {
-    match: "g1_read_agree",
-    reason: "G.1 is the employer agreeing to the labor condition statements. A person ticks it.",
-  },
+  // "g1_read_agree" was refused here. Reversed on 2026-10-28: G.1 is the one
+  // agreement every LCA carries, No is not a filable answer, and the old H-1B
+  // portal always set it. See the Section G comment above.
   {
     match: "h6_read_agree",
     reason: "H.6 is the employer agreeing to the additional statements. A person ticks it.",
@@ -420,7 +423,6 @@ export const ETA9035_NOT_AUTOFILLED: NotAutofilled[] = [
       "Driven for you on All Industries / County-Township / R&D No. " +
       "Check the prevailing wage it returns before you file.",
   },
-  { box: "G.1", label: "Labor condition statements", reason: "An attestation. Tick it yourself." },
   { box: "H.6", label: "Additional statements", reason: "An attestation. Tick it yourself, if shown." },
   {
     box: "Appendix A",
