@@ -376,3 +376,187 @@ describe("a control FLAG has disabled is never reported as filled", () => {
     expect(out[0].status).toBe("filled");
   });
 });
+
+// ── several places of employment ───────────────────────────────────────────
+
+describe("worksites past the first", () => {
+  // The old extension carried these in `lcaAdditionalWorksites` and replayed
+  // the whole of Section F for each one — the OES calculator included, because
+  // FLAG re-disables the dependent radios after every commit. The family feed
+  // sends them as patches of the Section F names.
+  const SECOND = {
+    _section_f_f4_work_address_1: "900 Market St",
+    _section_f_f6_work_city: "Seattle",
+    _section_f_f7_work_county_id: "King",
+    _section_f_f8_work_state_id: "WASHINGTON",
+    _section_f_f9_work_zip: "98104",
+  };
+
+  /** Section F with the worksite boxes, no calculator — the plain repeater. */
+  function mountPlainSectionF(): ReturnType<typeof mountWorksiteRepeater> {
+    document.body.innerHTML =
+      radios(PW_SOURCE, [PWD, OES]) +
+      ["_section_f_f4_work_address_1", "_section_f_f6_work_city", "_section_f_f9_work_zip"]
+        .map((n) => `<input type="text" name="${n}" />`)
+        .join("") +
+      '<select name="_section_f_f8_work_state_id">' +
+      '<option value="">- Select -</option><option>ILLINOIS</option><option>WASHINGTON</option>' +
+      "</select>";
+    return mountWorksiteRepeater();
+  }
+
+  const FIRST = {
+    [PW_SOURCE]: PWD,
+    _section_f_f4_work_address_1: "4 Riverbend Way",
+    _section_f_f6_work_city: "Elmwood",
+    _section_f_f8_work_state_id: "ILLINOIS",
+    _section_f_f9_work_zip: "60108",
+  };
+
+  it("declares which boxes belong to one row", () => {
+    expect(REPEATER.rowFields).toEqual([
+      "_section_f_f4_work_address_1",
+      "_section_f_f5_work_address_2",
+      "_section_f_f6_work_city",
+      "_section_f_f7_work_county_id",
+      "_section_f_f8_work_state_id",
+      "_section_f_f9_work_zip",
+    ]);
+  });
+
+  it("commits one row per worksite", async () => {
+    const table = mountPlainSectionF();
+    const out = await runSection(SECTION_F, FIRST, ETA9035_FORBIDDEN, undefined, [SECOND]);
+    expect(out.rows?.map((r) => r.status)).toEqual(["added", "added"]);
+    expect(table.clicks).toBe(2);
+    expect(repeaterRowCount(REPEATER)).toBe(2);
+  }, 40000);
+
+  it("types the second worksite's address over the first one's boxes", async () => {
+    mountPlainSectionF();
+    await runSection(SECTION_F, FIRST, ETA9035_FORBIDDEN, undefined, [SECOND]);
+    const box = (n: string): string =>
+      document.querySelector<HTMLInputElement>(`[name="${n}"]`)!.value;
+    expect(box("_section_f_f4_work_address_1")).toBe("900 Market St");
+    expect(box("_section_f_f6_work_city")).toBe("Seattle");
+    expect(box("_section_f_f9_work_zip")).toBe("98104");
+  }, 40000);
+
+  it("carries everything that is NOT the worksite forward unchanged", async () => {
+    // The wages, the source and the worker count belong to the application,
+    // not to the row. The old extension's patch replaced F.4-F.9 and nothing
+    // else, and re-answering the source is what makes the calculator reachable
+    // for the second site.
+    mountPlainSectionF();
+    const out = await runSection(SECTION_F, FIRST, ETA9035_FORBIDDEN, undefined, [SECOND]);
+    const source = out.fields.filter((f) => f.name === PW_SOURCE);
+    expect(source.length).toBe(2);
+    for (const f of source) expect(f.status).toBe("filled");
+  }, 40000);
+
+  it("stops rather than typing the next worksite on top of one FLAG refused", async () => {
+    // Typing worksite 3 over worksite 2's boxes while 2 was never committed
+    // would lose it, and the report would claim three sites were entered.
+    const table = mountPlainSectionF();
+    const out = await runSection(SECTION_F, FIRST, ETA9035_FORBIDDEN, undefined, [SECOND, SECOND]);
+    expect(out.rows?.length).toBe(3);
+    table.block(["Wage Level: This field is required"]);
+    const blocked = await runSection(SECTION_F, FIRST, ETA9035_FORBIDDEN, undefined, [SECOND, SECOND]);
+    expect(blocked.rows?.map((r) => r.status)).toEqual(["disabled"]);
+  }, 60000);
+
+  it("does nothing extra on a case with one worksite", async () => {
+    const table = mountPlainSectionF();
+    const out = await runSection(SECTION_F, FIRST, ETA9035_FORBIDDEN, undefined, []);
+    expect(out.rows?.length).toBe(1);
+    expect(table.clicks).toBe(1);
+  }, 30000);
+
+  it("does not press Add at all when the section typed nothing", async () => {
+    const table = mountPlainSectionF();
+    const out = await runSection(SECTION_F, {}, ETA9035_FORBIDDEN, undefined, [SECOND]);
+    expect(out.rows).toBeUndefined();
+    expect(table.clicks).toBe(0);
+  }, 20000);
+});
+
+// ── the offered-wage unit, re-checked (old step 7b) ────────────────────────
+
+describe("the offered-wage unit is re-asserted after the section is typed", () => {
+  it("is declared on F.10a and on nothing else", () => {
+    const reasserted = SECTION_F.fields.filter((f) => f.reassert).map((f) => f.name);
+    // F.11a is deliberately absent: it is the calculator's, and re-asserting
+    // it brings the annual/hourly mismatch straight back.
+    expect(reasserted).toEqual(["_section_f_f10a_nonimmigrant_wage_per"]);
+  });
+
+  it("puts the unit back when a later wage box resets it to FLAG's default", async () => {
+    // The live failure the old step 7b was written for: FLAG defaults F.10a to
+    // Year, and a wage amount typed AFTER the unit can reset it — so
+    // "$43 / Hour" becomes "$43 / Year", which FLAG refuses as below the state
+    // minimum. F.11 is the box that comes after it on the page.
+    document.body.innerHTML = radios("_section_f_f10a_nonimmigrant_wage_per", [
+      "Hour", "Week", "Month", "Year",
+    ]);
+    mountCurrencyBox("_section_f_f10_nonimmigrant_wage_from");
+    const prevailing = mountCurrencyBox("_section_f_f11_prevailing_wage");
+    const year = document.querySelector<HTMLInputElement>('input[value="Year"]')!;
+    prevailing.input.addEventListener("input", () => {
+      year.checked = true;
+    });
+
+    const out = await fillSection(
+      SECTION_F,
+      {
+        [PW_SOURCE]: PWD,
+        _section_f_f10_nonimmigrant_wage_from: "43",
+        _section_f_f10a_nonimmigrant_wage_per: "Hour",
+        _section_f_f11_prevailing_wage: "41",
+      },
+      ETA9035_FORBIDDEN,
+    );
+    expect(document.querySelector<HTMLInputElement>('input[value="Hour"]')!.checked).toBe(true);
+    expect(out.find((f) => f.name === "_section_f_f10a_nonimmigrant_wage_per")?.message).toContain(
+      "re-asserted",
+    );
+  }, 20000);
+
+  it("leaves a unit that did not drift alone", async () => {
+    document.body.innerHTML =
+      radios("_section_f_f10a_nonimmigrant_wage_per", ["Hour", "Week", "Month", "Year"]);
+    const out = await fillSection(
+      SECTION_F,
+      { _section_f_f10a_nonimmigrant_wage_per: "Hour" },
+      ETA9035_FORBIDDEN,
+    );
+    expect(out.find((f) => f.name === "_section_f_f10a_nonimmigrant_wage_per")?.message).not.toContain(
+      "re-asserted",
+    );
+  }, 20000);
+});
+
+// ── a radio FLAG hides under its label (USWDS) ─────────────────────────────
+
+describe("a radio whose own click does nothing", () => {
+  it("falls back to clicking the label, as USWDS requires", async () => {
+    // The old extension clicked `label[for=...]` to select the
+    // prevailing-wage source, because FLAG's forms hide the real input under a
+    // styled label and listen on the label.
+    document.body.innerHTML =
+      `<label for="pw_oes">F.13. OES</label>` +
+      `<input type="radio" name="${PW_SOURCE}" id="pw_oes" value="${OES}" />`;
+    const input = document.querySelector<HTMLInputElement>("#pw_oes")!;
+    // Swallow the input's own click, and let the label do the work.
+    input.addEventListener("click", (e) => e.preventDefault(), true);
+    document.querySelector("label")!.addEventListener("click", () => {
+      input.checked = true;
+    });
+    const out = await fillSection(
+      { navLabel: "x", title: "x", fields: [{ name: PW_SOURCE, kind: "radio" }] },
+      { [PW_SOURCE]: OES },
+      [],
+    );
+    expect(out[0].status).toBe("filled");
+    expect(input.checked).toBe(true);
+  });
+});

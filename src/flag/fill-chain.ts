@@ -50,6 +50,8 @@ const REVEAL_POLL_MS = 150;
 // The H-1B extension's own waits for Section F, kept to the millisecond.
 /** After a country or state answer, whose dependent list FLAG rebuilds. */
 const ADDRESS_SETTLE_MS = 1500;
+/** Before re-attempting the boxes that were not on the page the first time. */
+const RETRY_WAIT_MS = 3000;
 /** After re-answering a unit radio that drifted. */
 const REASSERT_SETTLE_MS = 300;
 /** After the prevailing-wage source is answered, for its dependent block
@@ -307,6 +309,31 @@ export async function fillSection(
     if (outcome && again.success) outcome.message = `${outcome.message ?? ""} (re-asserted)`.trim();
   }
 
+  // RETRY, once, for a box that WAS on the page and then could not be written.
+  // The old extension waited 3s and re-attempted everything that came back
+  // "Element not found" — FLAG re-renders a section after an answer, and a box
+  // that vanishes mid-pass is not a box that is missing.
+  //
+  // Scoped exactly as the old pass was: a field never rendered at all is NOT
+  // retried. It was skipped before anything was attempted, the reveal rules
+  // above already decided whether that is expected, and re-waiting 3s for each
+  // one would add a minute to a form that is half conditional.
+  const retryable = outcomes
+    .map((o, index) => ({ o, index }))
+    .filter(({ o }) => o.status === "failed" && o.message === "element not on page");
+  if (retryable.length) {
+    await sleep(RETRY_WAIT_MS);
+    for (const { o, index } of retryable) {
+      const field = section.fields.find((f) => f.name === o.name);
+      const value = field && values[field.name];
+      if (!field || !value || !isRendered(field)) continue;
+      const again = await setValue(flagFieldSpec(field), value);
+      if (!again.success) continue;
+      dbg(`  ${field.name} filled on the retry pass`);
+      outcomes[index] = { name: field.name, status: "filled", message: `${again.message} (retry)` };
+    }
+  }
+
   // Health telemetry: which questions on this section does the descriptor not cover?
   if (coverage) auditUnmappedFields(coverage, section.title);
 
@@ -448,9 +475,12 @@ async function addRow(repeater: FlagRepeaterSpec): Promise<RowOutcome> {
  *
  * Every other value on the section — the wages, the source, the worker count —
  * is carried forward unchanged, which is what the old extension's patch did.
- * A row that does not name one of the boxes blanks it rather than inheriting
- * the previous worksite's: FLAG clears the entry form on each commit, so an
- * inherited "Ste 400" would be the only thing left of the site before it.
+ *
+ * A box this row does not name is set to "", which the fill reads as "nothing
+ * to type" and leaves alone. That is right only because FLAG clears the entry
+ * form when a row is committed; if a redesign ever stopped clearing it, the
+ * previous worksite's suite number would ride along into the next one. The old
+ * extension passed "" here for the same reason and with the same dependency.
  */
 function rowPatch(repeater: FlagRepeaterSpec, row: RowValues): Record<string, string> {
   return Object.fromEntries(repeater.rowFields.map((name) => [name, row[name] ?? ""]));
