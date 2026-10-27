@@ -146,11 +146,11 @@ describe("descriptor vs the backend table", () => {
     expect(Object.keys(table).length).toBeGreaterThan(80);
   });
 
-  it("drives every field the backend can send, except the refused attestations", () => {
+  it("drives every field the backend can send, except the refused attestation", () => {
     const driven = new Set(flagFieldNames(ETA9035_SECTIONS));
     const dropped = Object.values(table)
       .map((s) => s.name)
-      .filter((n) => !driven.has(n) && !["g1_read_agree", "h6_read_agree"].includes(n));
+      .filter((n) => !driven.has(n) && n !== "h6_read_agree");
     expect(dropped).toEqual([]);
   });
 
@@ -186,10 +186,11 @@ describe("refusals", () => {
     }
   });
 
-  it("refuses the two attestations", () => {
-    for (const name of ["g1_read_agree", "h6_read_agree"]) {
-      expect(isForbidden({ name, kind: "radio" }, ETA9035_FORBIDDEN), name).toBeTruthy();
-    }
+  it("refuses H.6, and no longer refuses G.1", () => {
+    expect(isForbidden({ name: "h6_read_agree", kind: "radio" }, ETA9035_FORBIDDEN)).toBeTruthy();
+    // G.1 is the agreement every LCA carries and FLAG requires it. Refusing it
+    // left the box empty and the section unsaveable.
+    expect(isForbidden({ name: "g1_read_agree", kind: "radio" }, ETA9035_FORBIDDEN)).toBeNull();
   });
 
   it("carries every control the capture forbade, bar the one reversal", () => {
@@ -215,7 +216,9 @@ describe("refusals", () => {
 
   it("names what stays manual, with a reason", () => {
     const boxes = ETA9035_NOT_AUTOFILLED.map((f) => f.box);
-    for (const box of ["F.12a", "F.13", "G.1", "H.6", "Appendix A"]) expect(boxes).toContain(box);
+    for (const box of ["F.12a", "F.13", "H.6", "Appendix A"]) expect(boxes).toContain(box);
+    // G.1 is filled now, so the toolbar must stop telling people to tick it.
+    expect(boxes).not.toContain("G.1");
     for (const f of ETA9035_NOT_AUTOFILLED) expect(f.reason).toBeTruthy();
   });
 });
