@@ -29,6 +29,13 @@ const sel = (name: string): FlagField => ({ name, kind: "select" });
 const phone = (name: string): FlagField => ({ name, kind: "phone" });
 const radio = (name: string): FlagField => ({ name, kind: "radio" });
 const box = (name: string): FlagField => ({ name, kind: "checkbox" });
+/**
+ * A masked money box. FLAG's wage boxes rewrite what is typed into them
+ * ("110344" shows as "$110,344.00"), so they are written once and read back as
+ * a number — see setCurrency. Filling one as plain text left $1.00 in F.10 on
+ * a live run and reported it as a failure besides.
+ */
+const money = (name: string): FlagField => ({ name, kind: "currency" });
 /** A field revealed by an upstream answer. `is` carries FLAG's own option values. */
 const when = (field: FlagField, by: string, is: string[]): FlagField => ({
   ...field,
@@ -172,10 +179,10 @@ export const ETA9035_SECTIONS: FlagSection[] = [
       // An id and no name. Driven as a search, as paraleagle-ext drives it.
       { name: "_section_f_f7_work_county_id", kind: "search", byId: true },
       t("_section_f_f9_work_zip"),
-      t("_section_f_f10_nonimmigrant_wage_from"),
-      t("_section_f_f10_nonimmigrant_wage_to"),
+      money("_section_f_f10_nonimmigrant_wage_from"),
+      money("_section_f_f10_nonimmigrant_wage_to"),
       radio("_section_f_f10a_nonimmigrant_wage_per"),
-      t("_section_f_f11_prevailing_wage"),
+      money("_section_f_f11_prevailing_wage"),
       radio("_section_f_f11a_prevailing_wage_per"),
     ],
   },

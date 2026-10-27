@@ -350,6 +350,92 @@ function setPhone(el: HTMLInputElement, value: string): boolean {
   return true;
 }
 
+// ── Currency ──────────────────────────────────────────────────────────────
+//
+// FLAG's ETA-9035E wage boxes (F.10 from, F.10 to, F.11) are masked money
+// inputs: whatever is written lands as "$110,344.00". The text waterfall above
+// gets both halves of that wrong, and the two faults compound.
+//
+//   * It reads the box back with `matchesValue`, which compares DIGITS. The
+//     mask's own ".00" makes "11034400", the payload says "110344", so a write
+//     that landed perfectly is declared a failure.
+//   * Having declared it failed, the waterfall carries on to its last resort,
+//     which clears the box and types one character at a time. The mask pins two
+//     decimals, so every character after the first is discarded ("$1.001" ->
+//     "$1.00") and the box ends holding $1.00. That is the value found in a
+//     live DOM read on 2026-10-26, and the walk still reported it as a failure.
+//
+// So the report was a false negative AND the retry then destroyed the good
+// value. One write and a numeric read-back fix both: this is the H-1B
+// extension's own `fillCurrencyField` (paraleagle-ext lca-filler.ts), which
+// drove these three boxes for years.
+
+/**
+ * "110344" -> "110344.00". The dollars.cents form the H-1B extension wrote.
+ *
+ * Spelling the cents out matters: a mask that counts what it is given in CENTS
+ * would read a bare "110344" as $1,103.44. Both mask styles agree on
+ * "110344.00", so the explicit form is the safe one to hand over.
+ */
+export function asDollarsAndCents(value: string): string {
+  const cleaned = (value ?? "").replace(/[^0-9.]/g, "");
+  if (!cleaned) return "";
+  const [dollars, cents = ""] = cleaned.split(".");
+  return `${dollars || "0"}.${(cents + "00").slice(0, 2)}`;
+}
+
+/**
+ * Do these two spellings mean the same money? "$110,344.00" == "110344".
+ *
+ * Mirrors the backend's currency normalizer in
+ * `family_visa/cases/lca_summary_compare.py` (strip to digits and the point,
+ * compare as a number) so the extension and the sign-off diff cannot disagree
+ * about whether a wage box holds the right wage.
+ */
+export function sameMoney(a: string, b: string): boolean {
+  const num = (s: string): number => Number((s ?? "").replace(/[^0-9.]/g, ""));
+  const x = num(a);
+  const y = num(b);
+  return Number.isFinite(x) && Number.isFinite(y) && x === y && (a ?? "") !== "";
+}
+
+/**
+ * Write one masked money box: a single native assignment, then read it back as
+ * a NUMBER rather than as a string.
+ *
+ * Deliberately has no retry. A mask reformats on every input event, so a second
+ * attempt types on top of the first one's output — which is exactly how the
+ * text waterfall turned a correct $110,344.00 into $1.00.
+ */
+async function setCurrency(el: HTMLInputElement, value: string): Promise<boolean> {
+  const amount = asDollarsAndCents(value);
+  if (!amount) return false;
+  if (el.disabled || el.readOnly) {
+    // FLAG disables F.11/F.13a once the OES calculator owns them. Writing
+    // straight to .value would still stick — and would report a fill that the
+    // page never accepted — so refuse it instead.
+    dbg(`value-setter: ${el.getAttribute("name")} is disabled — leaving the wage alone`);
+    return false;
+  }
+
+  el.focus();
+  el.dispatchEvent(new FocusEvent("focus", { bubbles: true }));
+  setNativeValue(el, amount);
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+  el.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+  setViaFormik(el, amount);
+
+  // The mask reformats on its own schedule; give it a turn before reading.
+  await sleep(300);
+  if (sameMoney(el.value, amount)) return true;
+
+  dbg(
+    `value-setter: currency "${el.getAttribute("name")}" wanted ${amount}, box holds "${el.value}"`,
+  );
+  return false;
+}
+
 // ── Radio / checkbox ──────────────────────────────────────────────────────
 
 /** Yes/No <-> true/false aliases, so a backend "true" matches a radio whose
@@ -1129,6 +1215,11 @@ async function setValueAs(spec: FieldSpec, value: string): Promise<SetResult> {
       case "phone": {
         if (!(el instanceof HTMLInputElement)) return result(name, false, "not an input");
         return result(name, setPhone(el, value), "set phone");
+      }
+      case "currency": {
+        if (!(el instanceof HTMLInputElement)) return result(name, false, "not an input");
+        const ok = await setCurrency(el, value);
+        return result(name, ok, ok ? "set currency" : "could not set the amount");
       }
       case "search": {
         if (!(el instanceof HTMLInputElement)) return result(name, false, "not an input");
