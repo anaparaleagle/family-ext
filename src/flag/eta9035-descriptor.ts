@@ -18,6 +18,7 @@
 import {
   FlagField,
   FlagFormConfig,
+  FlagModalSpec,
   FlagReveal,
   FlagSection,
   ForbiddenControl,
@@ -51,7 +52,67 @@ const whenAny = (field: FlagField, gates: FlagReveal[]): FlagField => ({
 const YES = "YES";
 const NO = "NO";
 const PW_SOURCE = "_section_f_f12_f13_f14_prevailing_wage_question";
+const OES_BRANCH = "f13_is_oes_prevailing_wage";
 const OTHER_SURVEY = "Other/PW Survey";
+const WAGE_FROM = "_section_f_f10_nonimmigrant_wage_from";
+const WAGE_LEVEL = "_section_f_f13a_wage_level";
+const WAGE_PER = "_section_f_f10a_nonimmigrant_wage_per";
+
+/**
+ * FLAG's OES Wage Calculator, as the H-1B extension drove it for years
+ * (paraleagle-ext, src/content/lca-filler.ts `fillSectionF` and the `F_OES`
+ * block of src/mappings/lca-field-map.ts).
+ *
+ * This was previously listed as "manual by decision (2026-09-01)". That
+ * decision predates reading the old path end to end, and it is what left
+ * Section F uncommittable: picking F.13 DISABLES F.7, F.11, F.11a, F.13a and
+ * F.13b, so the fill could neither type them nor obtain them, "Add Place of
+ * Employment" stayed greyed on "Wage Level: This field is required", and the
+ * section saved with no rows.
+ *
+ * THE SELECTORS ARE THE OLD EXTENSION'S, AND THEY MAY HAVE AGED. Its own
+ * comment records that DOL redesigned this modal once already. Everything here
+ * therefore degrades to a reported miss rather than a wrong wage: a field that
+ * is not in the dialog is reported, and the modal is never submitted unless its
+ * result box actually holds a wage.
+ *
+ * THREE CHOICES ARE OURS, NOT THE CASE'S, and the toolbar says so. The old
+ * system carried them as backend fields (OES_collection_type, OES_area_based,
+ * OES_rd_flag) that in practice held these same answers; no question in the
+ * family questionnaire asks them, so inventing a backend field to hold a
+ * constant would only hide where the answer comes from.
+ */
+export const OES_WAGE_CALCULATOR: FlagModalSpec = {
+  openButton: "OES Wage Calculator",
+  onlyWhen: { by: PW_SOURCE, is: [OES_BRANCH] },
+  calculateButton: "Calculate",
+  resultField: "OES_prevailing_wage",
+  submitButton: "Submit",
+  fields: [
+    // The state and the county are the worksite's, already coded to FLAG's own
+    // spelling by the feed (an uppercase full state name).
+    { name: "OES_state", kind: "select", byId: true, from: "_section_f_f8_work_state_id" },
+    { name: "OES_collection_type", kind: "radio", constant: "All Industries" },
+    { name: "OES_area_based", kind: "radio", constant: "County/Township" },
+    { name: "OES_area", kind: "search", byId: true, from: "_section_f_f7_work_county_id" },
+    { name: "OES_rd_flag", kind: "radio", constant: "No" },
+    // Both only become answerable once Calculate has a wage to apply them to.
+    { name: "OES_wage_level", kind: "select", byId: true, from: WAGE_LEVEL, afterCalculate: true },
+    // SOF-643, settled with Sruthi on the old portal and carried here verbatim:
+    // the calculator's per-unit must match the OFFERED wage's unit (F.10a), NOT
+    // the stored prevailing-wage unit. Set to Year against an hourly offer, the
+    // calculator returns an ANNUAL prevailing wage and locks F.10a/F.11a to
+    // Year — so "$43/hr" is then read as "$43/yr", below the state minimum.
+    { name: "OES_per", kind: "select", byId: true, from: WAGE_PER, afterCalculate: true },
+  ],
+  owns: [
+    "_section_f_f7_work_county_id",
+    "_section_f_f11_prevailing_wage",
+    "_section_f_f11a_prevailing_wage_per",
+    WAGE_LEVEL,
+    "_section_f_f13b_source_year",
+  ],
+};
 
 export const ETA9035_SECTIONS: FlagSection[] = [
   {
@@ -158,13 +219,21 @@ export const ETA9035_SECTIONS: FlagSection[] = [
   {
     navLabel: "Employment and Wage Information",
     title: "F — Employment and Wage Information",
+    // Section F is ONE ROW of a table, not a section of boxes. FLAG prints the
+    // warning itself: "If you navigate away from this page without clicking the
+    // 'Add Place of Employment' button, your changes will be lost."
+    repeater: {
+      addButtonText: "Add Place of Employment",
+      entriesLabel: "Entries for Place of Employment",
+    },
+    modal: OES_WAGE_CALCULATOR,
     fields: [
-      // The source question gates F.13 and F.14. F.12a (PWD tracking number) is
-      // filled through FLAG's "PWD Case Lookup" modal and the OES calculator
-      // stays manual, so neither is here.
+      // The source question gates F.13, F.14 and the OES Wage Calculator.
+      // F.12a (PWD tracking number) is filled through FLAG's "PWD Case Lookup"
+      // modal, which this does not drive, so it is not here.
       radio(PW_SOURCE),
-      when(radio("_section_f_f13a_wage_level"), PW_SOURCE, ["f13_is_oes_prevailing_wage"]),
-      when(sel("_section_f_f13b_source_year"), PW_SOURCE, ["f13_is_oes_prevailing_wage"]),
+      when(radio(WAGE_LEVEL), PW_SOURCE, [OES_BRANCH]),
+      when(sel("_section_f_f13b_source_year"), PW_SOURCE, [OES_BRANCH]),
       when(radio("_section_f_f14a_source_type"), PW_SOURCE, ["f14_non_oes_prevailing_wage"]),
       when(sel("_section_f_f14b_source_year_notcba"), "_section_f_f14a_source_type", [OTHER_SURVEY]),
       when(t("_section_f_f14c_survey_publisher"), "_section_f_f14a_source_type", [OTHER_SURVEY]),
@@ -179,9 +248,14 @@ export const ETA9035_SECTIONS: FlagSection[] = [
       // An id and no name. Driven as a search, as paraleagle-ext drives it.
       { name: "_section_f_f7_work_county_id", kind: "search", byId: true },
       t("_section_f_f9_work_zip"),
-      money("_section_f_f10_nonimmigrant_wage_from"),
-      money("_section_f_f10_nonimmigrant_wage_to"),
-      radio("_section_f_f10a_nonimmigrant_wage_per"),
+      money(WAGE_FROM),
+      // F.10 is a RANGE, and FLAG enforces it: "The 'To' must be higher than
+      // the 'From' wage rate". Our feed sends the case's salary max, which on a
+      // single-rate offer comes back equal to the min — typing it leaves that
+      // error standing and "Add Place of Employment" greyed out, so the whole
+      // worksite row is lost over a box that was never a range.
+      { ...money("_section_f_f10_nonimmigrant_wage_to"), onlyAbove: WAGE_FROM },
+      radio(WAGE_PER),
       money("_section_f_f11_prevailing_wage"),
       radio("_section_f_f11a_prevailing_wage_per"),
     ],
@@ -290,7 +364,14 @@ export const ETA9035_FORBIDDEN: ForbiddenControl[] = [
     reason: "The profile pickers matched by their visible label as well as by id.",
   },
   { match: "PWD Case Lookup", reason: "F.12a lookup modal. Manual." },
-  { match: "OES Wage Calculator", reason: "F.13 calculator modal. Manual by decision (2026-09-01)." },
+  // "OES Wage Calculator" was here, refused as manual by a decision of
+  // 2026-09-01. REVERSED on 2026-10-27 after reading the H-1B extension's
+  // Section F path: the calculator is not an optional convenience, it is the
+  // only way F.11 and F.13a can be answered at all once F.12/13/14 says OES,
+  // and without it Section F has no committable row. It is now driven, by
+  // OES_WAGE_CALCULATOR above. Nothing else moved: the modal is never
+  // submitted unless it produced a wage, and the application's own
+  // "Review & Submit" stays refused below.
   { match: "Review & Submit", reason: "Never." },
   {
     match: "g1_read_agree",
@@ -307,7 +388,9 @@ export const ETA9035_NOT_AUTOFILLED: NotAutofilled[] = [
   {
     box: "F.13",
     label: "OES Wage Calculator",
-    reason: "Run the calculator yourself and check the wage it gives.",
+    reason:
+      "Driven for you on All Industries / County-Township / R&D No. " +
+      "Check the prevailing wage it returns before you file.",
   },
   { box: "G.1", label: "Labor condition statements", reason: "An attestation. Tick it yourself." },
   { box: "H.6", label: "Additional statements", reason: "An attestation. Tick it yourself, if shown." },

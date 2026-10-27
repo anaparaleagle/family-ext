@@ -74,6 +74,93 @@ export interface FlagField {
    * required box left blank, and the section then refuses to save.
    */
   revealedBy?: FlagReveal | FlagReveal[];
+  /**
+   * Only typed when its amount is strictly ABOVE the amount in this other box.
+   *
+   * The ETA-9035's F.10 is a wage RANGE, and FLAG validates it: "The 'To' must
+   * be higher than the 'From' wage rate". A case with no range still has a
+   * salary max — ours comes back equal to the min — and typing it leaves that
+   * error standing, which in turn keeps "Add Place of Employment" disabled and
+   * the whole section uncommittable. A max that is not a range is not an answer
+   * to the box, so it is not typed.
+   */
+  onlyAbove?: string;
+}
+
+/**
+ * A field inside a FLAG modal — the OES Wage Calculator being the one.
+ *
+ * Its value is NOT in the feed. The backend's table describes boxes on the
+ * application form, and the calculator is a DOL tool that sits over it; every
+ * input it wants is either one the feed already sends for Section F (`from`) or
+ * a standing choice this extension makes and says out loud (`constant`).
+ */
+export interface FlagModalField {
+  /** `name` for a radio group, otherwise the input's id (see `byId`). */
+  name: string;
+  kind: FieldKind;
+  /** The input has no name; find it by `#id`. */
+  byId?: true;
+  /** Take the value from this Section F field of the feed. */
+  from?: string;
+  /** A standing choice this extension makes, listed in the toolbar. */
+  constant?: string;
+  /**
+   * Filled only AFTER Calculate. FLAG keeps the wage level and the per-unit
+   * disabled until the calculator has an answer to apply them to.
+   */
+  afterCalculate?: true;
+}
+
+/**
+ * A modal the section is driven through before its own boxes are typed.
+ *
+ * Open it, fill it, press its Calculate, check it produced an answer, press its
+ * Submit. Every one of those is a named button rather than a selector, because
+ * FLAG's modal markup has already been redesigned once under the old extension.
+ */
+export interface FlagModalSpec {
+  /** Button on the section that opens it. */
+  openButton: string;
+  /** Run it only when this gate holds one of these values. */
+  onlyWhen: FlagReveal;
+  fields: FlagModalField[];
+  calculateButton: string;
+  /** The box the modal writes its answer into — the proof it worked. */
+  resultField: string;
+  submitButton: string;
+  /**
+   * Boxes on the SECTION that this modal owns and fills itself.
+   *
+   * They are left alone whenever the modal runs. FLAG disables them while the
+   * calculator owns them, and the old extension found that writing to them
+   * anyway replaced a correct hourly prevailing wage with the annual PWD the
+   * case stores — F.10 then reads as below the prevailing wage and the filing
+   * is refused.
+   */
+  owns: string[];
+}
+
+/**
+ * A section whose fields are ONE ROW of a table, committed with its own button.
+ *
+ * The ETA-9035's Section F is this and nothing else made that obvious: the
+ * worksite boxes look like an ordinary section, and FLAG prints the warning
+ * "If you navigate away from this page without clicking the 'Add Place of
+ * Employment' button, your changes will be lost." Typing the boxes and pressing
+ * Continue leaves "0 Entries for Place of Employment" and the error
+ * "Field F: Please enter in at least one row."
+ */
+export interface FlagRepeaterSpec {
+  /** Visible text on the button that commits the row. */
+  addButtonText: string;
+  /**
+   * Text FLAG prints over the table of committed rows, e.g. "Entries for Place
+   * of Employment". The count in front of it is how a commit is PROVEN rather
+   * than assumed — FLAG disables the button until the row validates, and a
+   * click on a disabled button is silent.
+   */
+  entriesLabel: string;
 }
 
 /** A box the extension leaves for a person, said up front in the toolbar. */
@@ -96,6 +183,10 @@ export interface FlagSection {
   title: string;
   /** Fields in fill order. A gate is listed BEFORE the fields it reveals. */
   fields: FlagField[];
+  /** Driven after its gate field and before the rest of the section. */
+  modal?: FlagModalSpec;
+  /** Present when the section's fields are one row of a table. */
+  repeater?: FlagRepeaterSpec;
   /**
    * True when this section legitimately renders nothing until an upstream answer
    * is committed. The walk reports these as skipped rather than as a failure.
@@ -133,10 +224,31 @@ export interface FlagFormConfig {
 }
 
 /** The engine spec for a field: by name, or by id / box label when it has no name. */
-export function flagFieldSpec(field: FlagField): FieldSpec {
+export function flagFieldSpec(field: FlagField | FlagModalField): FieldSpec {
   if (field.byId) return { name: field.name, kind: field.kind, locate: { id: field.name } };
-  if (field.byLabel) return { name: field.name, kind: field.kind, locate: { boxLabel: field.byLabel } };
+  if ("byLabel" in field && field.byLabel) {
+    return { name: field.name, kind: field.kind, locate: { boxLabel: field.byLabel } };
+  }
   return { name: field.name, kind: field.kind };
+}
+
+/**
+ * The value for a modal field: the Section F value the feed sent, or our own
+ * standing choice. Empty when the feed has nothing and we made no choice.
+ */
+export function modalFieldValue(
+  field: FlagModalField,
+  values: Record<string, string>,
+): string {
+  if (field.from) return values[field.from] ?? "";
+  return field.constant ?? "";
+}
+
+/** Is `gate` answered, in `values`, with one of the answers that fires it? */
+export function gateIsAnswered(gate: FlagReveal, values: Record<string, string>): boolean {
+  const answer = values[gate.by];
+  if (answer === undefined || answer === "") return false;
+  return !gate.is || gate.is.includes(answer);
 }
 
 /**

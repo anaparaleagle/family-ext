@@ -13,7 +13,7 @@
 
 import { dbg, resetDebugLog } from "../engine/logger";
 import { apiGet, apiPost } from "../runner/api-transport";
-import { fillAll, fillCurrentSection, WalkReport } from "./fill-chain";
+import { fillAll, fillCurrentSection, SectionOutcome, WalkReport } from "./fill-chain";
 import { flushUnmappedFields } from "../engine/telemetry";
 import { FLAG_CONFIGS } from "./registry";
 import { FlagFormConfig } from "./types";
@@ -229,6 +229,48 @@ async function withLock(what: string, body: () => Promise<void>): Promise<void> 
   }
 }
 
+/**
+ * What the OES calculator and the worksite row did, in a caseworker's words.
+ *
+ * Said out loud rather than left in the log, because both are steps where the
+ * run can do everything else right and still leave the section unfiled: a
+ * calculator that did not open means no prevailing wage, and a row that was
+ * not added means FLAG answers "Please enter in at least one row" however much
+ * was typed above it.
+ */
+function sectionNotes(outcome: SectionOutcome): string {
+  const notes: string[] = [];
+  const modal = outcome.modal;
+  if (modal && modal.status !== "skipped") {
+    if (modal.status === "applied") {
+      notes.push(`OES Wage Calculator: ${modal.result} — check it before you file.`);
+    } else {
+      notes.push(`OES Wage Calculator: ${modal.message ?? modal.status}`);
+    }
+  }
+  const row = outcome.row;
+  if (row) {
+    if (row.status === "added") {
+      notes.push(`Worksite added — the table now holds ${row.rows}.`);
+    } else if (row.status === "disabled") {
+      notes.push(
+        "Could NOT add the worksite — FLAG has the Add button greyed out" +
+          (row.errors.length ? `: ${row.errors.join("; ")}` : ". Read the errors on the page") +
+          ". Nothing was saved for this worksite.",
+      );
+    } else if (row.status === "refused") {
+      notes.push(
+        `Pressed Add, but the table still reads ${row.rows}` +
+          (row.errors.length ? ` — ${row.errors.join("; ")}` : "") +
+          ". Add it yourself before pressing Continue.",
+      );
+    } else {
+      notes.push("No 'Add Place of Employment' button found — add the worksite yourself.");
+    }
+  }
+  return notes.join(" ");
+}
+
 function summarise(report: WalkReport): string {
   const refused = report.sections.flatMap((s) => s.fields).filter((f) => f.status === "refused");
   const unreached = report.sections.filter((s) => !s.reached).map((s) => s.title);
@@ -253,10 +295,14 @@ async function onFillSection(config: FlagFormConfig): Promise<void> {
     void flushUnmappedFields(config.formType, loaded.caseId);
     const filled = outcome.fields.filter((f) => f.status === "filled").length;
     const failed = outcome.fields.filter((f) => f.status === "failed");
+    const skipped = outcome.fields.filter((f) => f.status === "skipped");
+    const notes = sectionNotes(outcome);
     setStatus(
       `${outcome.title}: ${filled} filled` +
         (failed.length ? `, ${failed.length} failed (${failed.map((f) => f.name).join(", ")})` : "") +
-        ". Press FLAG's own Continue to save.",
+        (skipped.length ? `, ${skipped.length} left for a reason (see the log)` : "") +
+        ". Press FLAG's own Continue to save." +
+        (notes ? ` ${notes}` : ""),
     );
   });
 }
@@ -270,8 +316,10 @@ async function onFillAll(config: FlagFormConfig): Promise<void> {
     const report = await fillAll(config, loaded.fieldValues);
     void flushUnmappedFields(config.formType, loaded.caseId);
     const committed = report.sections.filter((s) => s.commit === "committed").length;
+    const notes = report.sections.map(sectionNotes).filter(Boolean).join(" ");
     setStatus(
       summarise(report) +
+        (notes ? ` ${notes}` : "") +
         ` ${committed} section(s) saved with FLAG's own Continue.` +
         (report.blockedAt
           ? ` STOPPED at "${report.blockedAt}" — FLAG would not accept it. Read the ` +

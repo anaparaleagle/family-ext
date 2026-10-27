@@ -545,6 +545,12 @@ function setRadio(name: string, value: string, locate?: LocateSpec): boolean {
     }
   }
   const chosen = pickRadio(radios, value);
+  if (chosen && lockedByPage(chosen)) {
+    // A click on a disabled radio is dropped, but `click()` still returns, so
+    // without this the run reports a wage level FLAG is still asking for.
+    dbg(`value-setter: "${name}" option "${value}" is disabled — leaving it alone`);
+    return false;
+  }
   if (chosen) return clickRadio(chosen);
   dbg(`value-setter: no radio option matched "${value}" for "${name}" (${radios.length} options)`);
   // Name what WAS on the page. A radio miss is either a value we do not send in
@@ -1191,7 +1197,7 @@ async function setValueAs(spec: FieldSpec, value: string): Promise<SetResult> {
   try {
     if (kind === "radio") {
       const ok = setRadio(name, spec.optionValue ?? value, spec.locate);
-      return result(name, ok, ok ? "set radio" : "radio option not found");
+      return result(name, ok, ok ? "set radio" : "radio option not found, or disabled by the page");
     }
 
     // locateElement is findByName plus the declared structural/label fallbacks.
@@ -1201,6 +1207,7 @@ async function setValueAs(spec: FieldSpec, value: string): Promise<SetResult> {
     // not locateElement, which returns one element.
     const el = locateElement(spec);
     if (!el) return result(name, false, "element not on page");
+    if (lockedByPage(el)) return result(name, false, LOCKED_MESSAGE);
 
     switch (kind) {
       case "checkbox": {
@@ -1252,4 +1259,30 @@ async function setValueAs(spec: FieldSpec, value: string): Promise<SetResult> {
 
 function result(name: string, success: boolean, message: string): SetResult {
   return { name, success, message };
+}
+
+export const LOCKED_MESSAGE = "the page has this control disabled";
+
+/**
+ * Is this control one the PAGE has locked — disabled or read-only?
+ *
+ * Writing to one anyway is worse than failing, because most of the ways this
+ * file writes a value still "work" on a locked control: a native assignment
+ * sticks, and a radio click is silently dropped while `click()` still returns.
+ * Either way the run reports a box as filled that the form never accepted, and
+ * on the ETA-9035 that is not hypothetical — choosing the OES prevailing-wage
+ * source disables F.7, F.11, F.11a, F.13a and F.13b, which the calculator owns.
+ * The live page then says "Wage Level: This field is required" while the run
+ * says it typed one.
+ *
+ * DISABLED only — read-only is deliberately NOT locked here. myUSCIS renders
+ * the pick-from-a-list rows (Part 7's employer Country and State) as read-only
+ * inputs that are EMPTY, and refusing those left them blank on a live N-400.
+ * The myUSCIS runner has its own, narrower read-only rule: skip a read-only box
+ * that already holds a value, fill one that does not.
+ */
+export function lockedByPage(el: HTMLElement): boolean {
+  if ((el as HTMLInputElement).disabled) return true;
+  if (el.hasAttribute("disabled")) return true;
+  return el.getAttribute("aria-disabled") === "true";
 }

@@ -192,9 +192,21 @@ describe("refusals", () => {
     }
   });
 
-  it("carries every control the capture forbade", () => {
+  it("carries every control the capture forbade, bar the one reversal", () => {
+    // The capture's `forbidden` list mixes two things: controls that would
+    // destroy what we typed (the three profile pickers) and DECISIONS taken at
+    // the time about what to leave manual. The OES Wage Calculator was the
+    // second kind, and the decision was reversed on 2026-10-27 — F.11 and
+    // F.13a cannot be answered any other way once F.12/13/14 says OES, so a
+    // refused calculator meant a Section F with no committable row.
     const ours = ETA9035_FORBIDDEN.map((f) => f.match);
-    for (const f of CAPTURE.forbidden) expect(ours).toContain(f.id ?? f.text);
+    const reversed = ["OES Wage Calculator"];
+    for (const f of CAPTURE.forbidden) {
+      const match = f.id ?? f.text!;
+      if (reversed.includes(match)) continue;
+      expect(ours).toContain(match);
+    }
+    for (const match of reversed) expect(ours).not.toContain(match);
   });
 
   it("does not refuse an ordinary field", () => {
@@ -408,19 +420,29 @@ describe("Section F wage boxes, against FLAG's currency mask", () => {
   // after the first, leaving $1.00.
   const section = ETA9035_SECTIONS.find((s) => s.title.startsWith("F —"))!;
   const WAGE = "110344";
+  // The To box is a RANGE top, so it is given a real range here — an equal To
+  // is now deliberately not typed, which has its own tests below.
+  const TOP = "120000";
   const WAGE_BOXES = [
     "_section_f_f10_nonimmigrant_wage_from",
     "_section_f_f10_nonimmigrant_wage_to",
     "_section_f_f11_prevailing_wage",
   ];
+  const WRITTEN = ["110344.00", "120000.00", "110344.00"];
+  const SHOWN = ["$110,344.00", "$120,000.00", "$110,344.00"];
 
   const mountWageBoxes = (opts: { disabled?: boolean } = {}) => {
     document.body.innerHTML = "";
     return WAGE_BOXES.map((n) => mountCurrencyBox(n, opts));
   };
 
-  const fillWages = () =>
-    fillSection(section, Object.fromEntries(WAGE_BOXES.map((n) => [n, WAGE])), ETA9035_FORBIDDEN);
+  const WAGES = {
+    _section_f_f10_nonimmigrant_wage_from: WAGE,
+    _section_f_f10_nonimmigrant_wage_to: TOP,
+    _section_f_f11_prevailing_wage: WAGE,
+  };
+
+  const fillWages = () => fillSection(section, WAGES, ETA9035_FORBIDDEN);
 
   it("is declared as money, not as text", () => {
     for (const name of WAGE_BOXES) {
@@ -431,7 +453,7 @@ describe("Section F wage boxes, against FLAG's currency mask", () => {
   it("leaves the right wage in all three boxes", async () => {
     const boxes = mountWageBoxes();
     await fillWages();
-    for (const b of boxes) expect(b.input.value).toBe("$110,344.00");
+    boxes.forEach((b, i) => expect(b.input.value, WAGE_BOXES[i]).toBe(SHOWN[i]));
   });
 
   it("reports them as filled rather than as a false failure", async () => {
@@ -447,7 +469,7 @@ describe("Section F wage boxes, against FLAG's currency mask", () => {
     // The $1.00 came from a second pass, not the first. One write is the fix.
     const boxes = mountWageBoxes();
     await fillWages();
-    for (const b of boxes) expect(b.writes).toEqual(["110344.00"]);
+    boxes.forEach((b, i) => expect(b.writes, WAGE_BOXES[i]).toEqual([WRITTEN[i]]));
   });
 
   it("spells the cents out, for a mask that would read bare digits as cents", async () => {
@@ -473,6 +495,44 @@ describe("Section F wage boxes, against FLAG's currency mask", () => {
     expect(out.filter((o) => WAGE_BOXES.includes(o.name) && o.status !== "filled")).toEqual([]);
     const el = document.querySelector<HTMLInputElement>(`[name="${WAGE_BOXES[0]}"]`)!;
     expect(el.value).toBe("110344.00");
+  });
+
+  it("does not type a To wage that is not above the From wage", async () => {
+    // The live block (FAM-4063, 2026-10-27): the feed sends the case's salary
+    // max, which on a single-rate offer is the SAME number as the min. FLAG
+    // answers "The 'To' must be higher than the 'From' wage rate" and keeps
+    // "Add Place of Employment" greyed out, so the worksite row is lost over a
+    // box that was never a range in the first place.
+    const boxes = mountWageBoxes();
+    const out = await fillSection(
+      section,
+      Object.fromEntries(WAGE_BOXES.map((n) => [n, WAGE])),
+      ETA9035_FORBIDDEN,
+    );
+    const to = out.find((o) => o.name === "_section_f_f10_nonimmigrant_wage_to")!;
+    expect(to.status).toBe("skipped");
+    expect(to.message).toContain("higher than the From");
+    expect(boxes[1].input.value).toBe("");
+    // and the From and the prevailing wage are untouched by the rule.
+    expect(boxes[0].input.value).toBe("$110,344.00");
+    expect(boxes[2].input.value).toBe("$110,344.00");
+  });
+
+  it("does not type a To wage that is BELOW the From wage either", async () => {
+    const boxes = mountWageBoxes();
+    await fillSection(
+      section,
+      { ...WAGES, _section_f_f10_nonimmigrant_wage_to: "90000" },
+      ETA9035_FORBIDDEN,
+    );
+    expect(boxes[1].input.value).toBe("");
+  });
+
+  it("types a To wage that IS a range", async () => {
+    const boxes = mountWageBoxes();
+    const out = await fillWages();
+    expect(out.find((o) => o.name === "_section_f_f10_nonimmigrant_wage_to")?.status).toBe("filled");
+    expect(boxes[1].input.value).toBe("$120,000.00");
   });
 });
 

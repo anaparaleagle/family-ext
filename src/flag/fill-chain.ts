@@ -20,7 +20,15 @@
 import { dbg } from "../engine/logger";
 import { locateElement, setValue } from "../engine/value-setter";
 import { auditUnmappedFields, normalizeName } from "../engine/telemetry";
-import { CommitOutcome, commitSection, goToSection, sectionIsRendered } from "./nav";
+import {
+  CommitOutcome,
+  RowOutcome,
+  commitRepeaterRow,
+  commitSection,
+  goToSection,
+  sectionIsRendered,
+} from "./nav";
+import { ModalOutcome, runModal } from "./modal";
 import {
   FlagField,
   FlagFormConfig,
@@ -28,6 +36,7 @@ import {
   ForbiddenControl,
   flagFieldNames,
   flagFieldSpec,
+  gateIsAnswered,
   revealGates,
 } from "./types";
 
@@ -39,7 +48,13 @@ const REVEAL_POLL_MS = 150;
 
 export interface FieldOutcome {
   name: string;
-  status: "filled" | "no-value" | "not-rendered" | "failed" | "refused";
+  /**
+   * `skipped` is a box this chain DECIDED not to type — a wage range that is
+   * not a range, a box the OES calculator owns. Distinct from `refused`, which
+   * is the descriptor's standing ban on a control, and from `no-value`, which
+   * is the feed having nothing to say.
+   */
+  status: "filled" | "no-value" | "not-rendered" | "failed" | "refused" | "skipped";
   message?: string;
 }
 
@@ -49,6 +64,10 @@ export interface SectionOutcome {
   fields: FieldOutcome[];
   /** What pressing Continue did. Absent when the walk did not try to commit. */
   commit?: CommitOutcome;
+  /** What the section's modal did, when it has one. */
+  modal?: ModalOutcome;
+  /** What pressing the section's Add button did, when it is a repeater. */
+  row?: RowOutcome;
 }
 
 export interface WalkReport {
@@ -88,6 +107,25 @@ export function isForbidden(
     if (haystacks.some((h) => h && h.includes(needle))) return rule;
   }
   return null;
+}
+
+/** An amount as a number, or NaN. Mirrors the money reader in the value-setter. */
+function amount(value: string | undefined): number {
+  return Number((value ?? "").replace(/[^0-9.]/g, ""));
+}
+
+/**
+ * Is `value` strictly above `floor`, both read as money?
+ *
+ * False when either is missing or unreadable, which is the safe answer: the
+ * box is then left alone and the caseworker types the range if there is one.
+ */
+function exceeds(value: string, floor: string | undefined): boolean {
+  const a = amount(value);
+  const b = amount(floor);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
+  if ((floor ?? "").trim() === "") return false;
+  return a > b;
 }
 
 /** Is the input for this field on the page right now? */
@@ -135,6 +173,9 @@ export async function fillSection(
   // When passed, health telemetry records rendered questions on this section
   // whose name isn't in the descriptor's coverage set.
   coverage?: Set<string>,
+  // Boxes another step of the section owns — the OES calculator's, once it has
+  // run. Reported as `skipped` with this reason rather than typed over.
+  owned?: { names: Set<string>; reason: string },
 ): Promise<FieldOutcome[]> {
   const outcomes: FieldOutcome[] = [];
 
@@ -146,6 +187,12 @@ export async function fillSection(
       continue;
     }
 
+    if (owned?.names.has(field.name)) {
+      dbg(`  SKIPPED ${field.name}: ${owned.reason}`);
+      outcomes.push({ name: field.name, status: "skipped", message: owned.reason });
+      continue;
+    }
+
     const value = values[field.name];
     if (value === undefined || value === "") {
       // Nothing to type. Not a failure: about half of both forms is boxes the
@@ -153,6 +200,18 @@ export async function fillSection(
       // the map deliberately leaves for a caseworker.
       outcomes.push({ name: field.name, status: "no-value" });
       continue;
+    }
+
+    if (field.onlyAbove) {
+      const floor = values[field.onlyAbove];
+      if (!exceeds(value, floor)) {
+        const reason =
+          `not typed: ${amount(value)} is not above ${field.onlyAbove} ` +
+          `(${amount(floor)}), and FLAG requires the To wage to be higher than the From`;
+        dbg(`  SKIPPED ${field.name}: ${reason}`);
+        outcomes.push({ name: field.name, status: "skipped", message: reason });
+        continue;
+      }
     }
 
     if (!isRendered(field)) {
@@ -202,6 +261,76 @@ export async function fillSection(
   return outcomes;
 }
 
+/** What `runSection` did: the fields, plus the modal and the row commit. */
+export interface SectionFill {
+  fields: FieldOutcome[];
+  modal?: ModalOutcome;
+  row?: RowOutcome;
+}
+
+/**
+ * Drive one whole section: its gate, its modal, its fields, then its row.
+ *
+ * The ORDER is the ETA-9035's Section F, and each step is there because the one
+ * before it is what makes the next possible:
+ *
+ *   1. the prevailing-wage source. Until it says OES, there is no calculator
+ *      button and no F.13a/F.13b at all;
+ *   2. the OES Wage Calculator, which owns F.7, F.11, F.11a, F.13a and F.13b
+ *      and writes them itself;
+ *   3. the rest of the boxes, with the calculator's own boxes left alone;
+ *   4. "Add Place of Employment", which commits the worksite as a ROW. Without
+ *      it the section holds no rows and FLAG answers "Field F: Please enter in
+ *      at least one row" — the typed boxes are an uncommitted entry form, and
+ *      the page says so in a yellow banner.
+ *
+ * Continue is NOT pressed here. Committing the section is the caller's step, so
+ * that a single-section fill can leave it to the caseworker.
+ */
+export async function runSection(
+  section: FlagSection,
+  values: Record<string, string>,
+  forbidden: ForbiddenControl[],
+  coverage?: Set<string>,
+): Promise<SectionFill> {
+  let modal: ModalOutcome | undefined;
+  let owned: { names: Set<string>; reason: string } | undefined;
+
+  if (section.modal && gateIsAnswered(section.modal.onlyWhen, values)) {
+    // The gate first and on its own: the calculator button does not exist until
+    // the source radio says OES, and neither do the boxes it owns.
+    const gate = section.fields.find((f) => f.name === section.modal!.onlyWhen.by);
+    const gateOutcome = gate
+      ? await fillSection({ ...section, fields: [gate] }, values, forbidden)
+      : [];
+    modal = await runModal(section.modal, values);
+    if (modal.status === "applied") {
+      owned = {
+        names: new Set(section.modal.owns),
+        reason: `filled by the ${section.modal.openButton} and locked by FLAG`,
+      };
+    }
+    const rest = await fillSection(
+      { ...section, fields: section.fields.filter((f) => f !== gate) },
+      values,
+      forbidden,
+      coverage,
+      owned,
+    );
+    return { fields: [...gateOutcome, ...rest], ...(await commitRow(section)), modal };
+  }
+
+  const fields = await fillSection(section, values, forbidden, coverage, owned);
+  return { fields, ...(await commitRow(section)) };
+}
+
+async function commitRow(section: FlagSection): Promise<{ row?: RowOutcome }> {
+  if (!section.repeater) return {};
+  const row = await commitRepeaterRow(section.repeater);
+  dbg(`  row: ${row.status}`);
+  return { row };
+}
+
 /**
  * Walk every section of the form.
  *
@@ -226,13 +355,13 @@ export async function fillAll(
       sections.push({ title: section.title, reached: false, fields: [] });
       continue;
     }
-    const fields = await fillSection(section, values, config.forbidden, coverage);
+    const { fields, modal, row } = await runSection(section, values, config.forbidden, coverage);
 
     // Commit before moving on. A sidebar click is not a save: FLAG persists a
     // section when Continue is pressed and discards it otherwise, so a walk
     // that only navigated would leave every section it typed behind it empty.
     const commit = await commitSection();
-    sections.push({ title: section.title, reached: true, fields, commit });
+    sections.push({ title: section.title, reached: true, fields, commit, modal, row });
 
     if (commit === "blocked") {
       // FLAG is holding this section over a box it wants. Pressing on would
@@ -265,9 +394,6 @@ export async function fillCurrentSection(
   const section = config.sections.find((s) => sectionIsRendered(s));
   if (!section) return null;
   const coverage = new Set(flagFieldNames(config.sections).map(normalizeName));
-  return {
-    title: section.title,
-    reached: true,
-    fields: await fillSection(section, values, config.forbidden, coverage),
-  };
+  const { fields, modal, row } = await runSection(section, values, config.forbidden, coverage);
+  return { title: section.title, reached: true, fields, modal, row };
 }

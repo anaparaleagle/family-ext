@@ -20,7 +20,7 @@
 
 import { dbg } from "../engine/logger";
 import { locateElement } from "../engine/value-setter";
-import { FlagSection, flagFieldSpec } from "./types";
+import { FlagRepeaterSpec, FlagSection, flagFieldSpec } from "./types";
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -183,4 +183,161 @@ export async function commitSection(): Promise<CommitOutcome> {
   }
   dbg(`commit: page unchanged ${NAV_TIMEOUT_MS}ms after Continue — FLAG refused it`);
   return "blocked";
+}
+
+// ── buttons, modals and repeater rows ───────────────────────────────────────
+
+const CLICKABLE = "button, [role='button'], a, input[type='button'], input[type='submit']";
+
+/**
+ * The button whose visible text contains `text`, inside `scope`.
+ *
+ * Text, not a selector, because FLAG's own markup for these controls has
+ * already been redesigned once under the H-1B extension — the labels on the
+ * screen outlived the ids and classes behind them.
+ *
+ * The SHORTEST match wins, for the same reason the sidebar search takes the
+ * shortest: a container that wraps the button also contains its text.
+ */
+export function findButtonByText(text: string, scope: ParentNode = document): HTMLElement | null {
+  const want = normalise(text);
+  let best: HTMLElement | null = null;
+  let bestLength = Infinity;
+  for (const el of scope.querySelectorAll<HTMLElement>(CLICKABLE)) {
+    const label = normalise(el.textContent || (el as HTMLInputElement).value);
+    if (!label || !label.includes(want)) continue;
+    if (NEVER_CLICK_BUTTON.test(label)) continue;
+    if (label.length < bestLength) {
+      best = el;
+      bestLength = label.length;
+    }
+  }
+  return best;
+}
+
+/**
+ * Buttons this file will not press whatever a descriptor asks for.
+ *
+ * "Submit" is NOT here, and that is the one judgement call: the OES Wage
+ * Calculator's own apply button is labelled Submit, and refusing it would mean
+ * never being able to use the calculator at all. The application's Submit is
+ * "Review & Submit" and is caught by `review`; a modal search is also scoped to
+ * the open dialog, so the page's own buttons are out of reach of it.
+ */
+const NEVER_CLICK_BUTTON = /\b(review|sign|certify|declare|delete|withdraw|pay|payment)\b/i;
+
+/** Is this control disabled — by the property, the attribute, or ARIA? */
+export function isDisabled(el: HTMLElement): boolean {
+  if ((el as HTMLButtonElement).disabled) return true;
+  if (el.hasAttribute("disabled")) return true;
+  return el.getAttribute("aria-disabled") === "true";
+}
+
+/** The open modal over the page, if there is one. */
+export function openDialog(): HTMLElement | null {
+  return document.querySelector<HTMLElement>(
+    '[role="dialog"]:not([aria-hidden="true"]), .modal.show, .modal[style*="display: block"]',
+  );
+}
+
+/**
+ * How many rows the repeater's table already holds.
+ *
+ * Read off FLAG's own heading — "0 Entries for Place of Employment" — because
+ * it is the page stating the fact, not us inferring it from markup that could
+ * change. -1 when the heading is not on screen at all, which is reported
+ * separately from "the count did not go up": one is a page we no longer
+ * understand, the other is a row FLAG refused.
+ */
+export function repeaterRowCount(repeater: FlagRepeaterSpec): number {
+  const want = normalise(repeater.entriesLabel);
+  let best = -1;
+  let bestLength = Infinity;
+  for (const el of document.querySelectorAll<HTMLElement>("*")) {
+    const text = normalise(el.textContent);
+    if (!text.includes(want) || text.length > bestLength) continue;
+    // "0 Entries for Place of Employment" is what the live page prints. The
+    // trailing form is accepted too so a DOL reword to "Places of Employment
+    // (1)" does not read as a page we no longer understand.
+    const label = escapeRegExp(want);
+    const match =
+      text.match(new RegExp(`(\\d+)\\s+${label}`)) ??
+      text.match(new RegExp(`${label}[^0-9]{0,4}(\\d+)`));
+    if (!match) continue;
+    best = Number(match[1]);
+    bestLength = text.length;
+  }
+  return best;
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * The validation messages FLAG is showing right now, as a person would read them.
+ *
+ * Only used in reporting. When "Add Place of Employment" is disabled, the page
+ * has already listed exactly which boxes it is unhappy with, and repeating that
+ * in the toolbar is the difference between "the row was not added" and knowing
+ * why without opening the console.
+ */
+export function visibleErrors(limit = 6): string[] {
+  const seen = new Set<string>();
+  for (const el of document.querySelectorAll<HTMLElement>(
+    '[role="alert"], .usa-error-message, [class*="error-message"], [class*="errorMessage"]',
+  )) {
+    const text = (el.textContent ?? "").replace(/\s+/g, " ").trim();
+    if (text && text.length < 200) seen.add(text);
+    if (seen.size >= limit) break;
+  }
+  return [...seen];
+}
+
+/** What pressing the repeater's Add button did. */
+export type RowOutcome =
+  | { status: "added"; rows: number }
+  | { status: "disabled"; errors: string[] }
+  | { status: "refused"; rows: number; errors: string[] }
+  | { status: "no-button" };
+
+/** How long FLAG is given to show the committed row in its table. */
+const ROW_TIMEOUT_MS = 5000;
+
+/**
+ * Commit the typed row with the section's own Add button.
+ *
+ * This is the step that was missing, and it is not Continue: on the ETA-9035
+ * Continue saves the SECTION, while Add saves the ROW, and a section saved with
+ * no rows is the error "Field F: Please enter in at least one row."
+ *
+ * A disabled button is reported, never forced. FLAG disables it while the entry
+ * fails validation, and a click on a disabled button does nothing at all — so
+ * without this check the walk would report a committed worksite that does not
+ * exist.
+ */
+export async function commitRepeaterRow(repeater: FlagRepeaterSpec): Promise<RowOutcome> {
+  const button = findButtonByText(repeater.addButtonText);
+  if (!button) {
+    dbg(`row: no "${repeater.addButtonText}" button on this section`);
+    return { status: "no-button" };
+  }
+  if (isDisabled(button)) {
+    const errors = visibleErrors();
+    dbg(`row: "${repeater.addButtonText}" is disabled — ${errors.join(" | ") || "no message shown"}`);
+    return { status: "disabled", errors };
+  }
+
+  const before = repeaterRowCount(repeater);
+  button.click();
+
+  const deadline = Date.now() + ROW_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    await sleep(POLL_MS);
+    const now = repeaterRowCount(repeater);
+    if (now > before) return { status: "added", rows: now };
+  }
+  const rows = repeaterRowCount(repeater);
+  dbg(`row: table still reads ${rows} after "${repeater.addButtonText}"`);
+  return { status: "refused", rows, errors: visibleErrors() };
 }
