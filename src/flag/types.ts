@@ -94,6 +94,44 @@ export interface FlagField {
    * then refuses as below the state minimum.
    */
   reassert?: true;
+  /** How FLAG's widget has to be driven when the engine's default does not save. */
+  widget?: FlagWidget;
+  /** An autosuggest that takes several picks; the feed value is "a; b". */
+  multi?: true;
+  /** No name and no id: found by the printed box number its label starts with, e.g. "C.13". */
+  boxPrefix?: string;
+  /** Not found by name: the first textarea after this control. */
+  afterName?: string;
+}
+
+export type FlagWidget = "typed-phone" | "label-click" | "autosuggest" | "react-select";
+
+/** FLAG's Appendix A: worksites added one at a time through an "Add Worksite" box. */
+export interface FlagWorksiteTableSpec {
+  onlyWhen: FlagReveal;
+  addButtonText: string;
+  saveButtonText: string;
+  cityField: string;
+  stateField: string;
+  countyField: string;
+  basisRadio: string;
+  basisValue: string;
+}
+
+/** FLAG's Application Documents: one file per "Add Document(s)" box, then a category per row. */
+export interface FlagDocumentsSpec {
+  addButtonText: string;
+  saveButtonText: string;
+  fileInputName: string;
+  categoryName: string;
+  category: string;
+  maxBytes: number;
+  accept: string[];
+}
+
+export interface FlagDocument {
+  url: string;
+  filename: string;
 }
 
 /**
@@ -217,6 +255,10 @@ export interface FlagSection {
    * is committed. The walk reports these as skipped rather than as a failure.
    */
   conditional?: boolean;
+  /** Button text that proves a field-less section is on screen. */
+  marker?: string;
+  worksiteTable?: FlagWorksiteTableSpec;
+  documents?: FlagDocumentsSpec;
 }
 
 /** A control the runner must never touch, and why. Enforced, not advisory. */
@@ -246,6 +288,8 @@ export interface FlagFormConfig {
   forbidden: ForbiddenControl[];
   /** Boxes left for a person, listed in the toolbar. */
   notAutofilled?: NotAutofilled[];
+  /** Sidebar label of the page that lists every error, read after a full fill. */
+  reviewNavLabel?: string;
 }
 
 /** The engine spec for a field: by name, or by id / box label when it has no name. */

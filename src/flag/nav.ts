@@ -19,8 +19,8 @@
 // ===========================================================================
 
 import { dbg } from "../engine/logger";
-import { locateElement } from "../engine/value-setter";
-import { FlagRepeaterSpec, FlagSection, flagFieldSpec } from "./types";
+import { locateFlagField } from "./locate";
+import { FlagRepeaterSpec, FlagSection } from "./types";
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -93,13 +93,9 @@ function fingerprint(): string {
  * reports false and the caller treats it as "nothing to do".
  */
 export function sectionIsRendered(section: FlagSection): boolean {
+  if (section.marker && findButtonByText(section.marker)) return true;
   if (!section.fields.length) return false;
-  return section.fields.some(
-    (f) =>
-      document.querySelector(`[name="${CSS.escape(f.name)}"]`) ||
-      (f.byId && document.getElementById(f.name)) ||
-      (f.byLabel && locateElement(flagFieldSpec(f))),
-  );
+  return section.fields.some((f) => !!locateFlagField(f));
 }
 
 /**
@@ -224,7 +220,8 @@ export function findButtonByText(text: string, scope: ParentNode = document): HT
  * "Review & Submit" and is caught by `review`; a modal search is also scoped to
  * the open dialog, so the page's own buttons are out of reach of it.
  */
-const NEVER_CLICK_BUTTON = /\b(review|sign|certify|declare|delete|withdraw|pay|payment)\b/i;
+const NEVER_CLICK_BUTTON =
+  /\b(review|sign|certify|declare|delete|remove|withdraw|pay|payment|quit|discard)\b|add data/i;
 
 /** Is this control disabled — by the property, the attribute, or ARIA? */
 export function isDisabled(el: HTMLElement): boolean {
@@ -340,4 +337,32 @@ export async function commitRepeaterRow(repeater: FlagRepeaterSpec): Promise<Row
   const rows = repeaterRowCount(repeater);
   dbg(`row: table still reads ${rows} after "${repeater.addButtonText}"`);
   return { status: "refused", rows, errors: visibleErrors() };
+}
+
+/** Every error line FLAG's Review & Submit page lists, grouped under its section heading. */
+export function reviewPageErrors(limit = 80): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const root =
+    document.querySelector<HTMLElement>("#simple-modal main, #simple-modal, main") ?? document.body;
+  let heading = "";
+  for (const el of Array.from(
+    root.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, li, [role='alert'], [class*='error'], p"),
+  )) {
+    if (el.closest("#mk-flag-toolbar, nav, aside")) continue;
+    const text = (el.textContent ?? "").replace(/\s+/g, " ").trim();
+    if (!text || text.length > 250) continue;
+    if (/^H[1-5]$/.test(el.tagName)) {
+      heading = text;
+      continue;
+    }
+    if (el.querySelector("li, p, [class*='error']")) continue;
+    if (!/required|must|please|invalid|error|cannot|missing|select|enter/i.test(text)) continue;
+    const line = heading && !text.startsWith(heading) ? `${heading}: ${text}` : text;
+    if (seen.has(line)) continue;
+    seen.add(line);
+    out.push(line);
+    if (out.length >= limit) break;
+  }
+  return out;
 }

@@ -18,7 +18,11 @@
 // ===========================================================================
 
 import { dbg } from "../engine/logger";
-import { LOCKED_MESSAGE, locateElement, setValue } from "../engine/value-setter";
+import { LOCKED_MESSAGE } from "../engine/value-setter";
+import { locateFlagField } from "./locate";
+import { setFlagValue } from "./widgets";
+import { WorksiteOutcome, WorksiteRow, fillWorksiteTable } from "./worksites";
+import { DocumentOutcome, DownloadFn, uploadDocuments } from "./documents";
 import { auditUnmappedFields, normalizeName } from "../engine/telemetry";
 import {
   CommitOutcome,
@@ -26,17 +30,18 @@ import {
   commitRepeaterRow,
   commitSection,
   goToSection,
+  reviewPageErrors,
   sectionIsRendered,
 } from "./nav";
 import { ModalOutcome, runModal } from "./modal";
 import {
+  FlagDocument,
   FlagField,
   FlagFormConfig,
   FlagRepeaterSpec,
   FlagSection,
   ForbiddenControl,
   flagFieldNames,
-  flagFieldSpec,
   gateIsAnswered,
   revealGates,
 } from "./types";
@@ -111,6 +116,10 @@ export interface SectionOutcome {
   modal?: ModalOutcome;
   /** What each press of the section's Add button did, when it is a repeater. */
   rows?: RowOutcome[];
+  worksites?: WorksiteOutcome[];
+  documents?: DocumentOutcome[];
+  /** Why a section was passed over without being opened. */
+  skipped?: string;
 }
 
 export interface WalkReport {
@@ -121,6 +130,15 @@ export interface WalkReport {
   unclaimed: string[];
   /** The section FLAG refused, if the walk stopped on one. */
   blockedAt?: string;
+  /** What FLAG's Review & Submit page still lists, when the walk read it. */
+  reviewErrors?: string[];
+  reviewReached?: boolean;
+}
+
+/** What a walk needs beyond the field values: the extra steps' data. */
+export interface WalkExtras {
+  documents?: FlagDocument[];
+  download?: DownloadFn;
 }
 
 /**
@@ -137,10 +155,7 @@ export function isForbidden(
   const haystacks = [field.name.toLowerCase()];
   // A label-located field is checked on the element the label resolved to, so
   // a label that lands on a profile picker is refused by the picker's id.
-  const el = field.byLabel
-    ? locateElement(flagFieldSpec(field))
-    : document.querySelector(`[name="${CSS.escape(field.name)}"]`) ??
-      document.getElementById(field.name);
+  const el = locateFlagField(field) ?? document.getElementById(field.name);
   if (el) {
     haystacks.push((el.id || "").toLowerCase());
     haystacks.push((el.getAttribute("aria-label") || "").toLowerCase());
@@ -173,9 +188,7 @@ function exceeds(value: string, floor: string | undefined): boolean {
 
 /** Is the input for this field on the page right now? */
 function isRendered(field: FlagField): boolean {
-  if (field.byId) return !!document.getElementById(field.name);
-  if (field.byLabel) return !!locateElement(flagFieldSpec(field));
-  return !!document.querySelector(`[name="${CSS.escape(field.name)}"]`);
+  return !!locateFlagField(field);
 }
 
 /**
@@ -319,7 +332,7 @@ export async function fillSection(
     }
 
     // `locate` by id or box label when the input has no name.
-    const result = await setValue(flagFieldSpec(field), value);
+    const result = await setFlagValue(field, value);
     outcomes.push(classify(field, result, lockedReason));
 
     // A country or a state REBUILDS the list below it — FLAG filters its
@@ -342,7 +355,7 @@ export async function fillSection(
     );
     if (checked && checked.value.toLowerCase() === want.toLowerCase()) continue;
     dbg(`  re-asserting ${field.name} -> "${want}" (was "${checked?.value ?? "unset"}")`);
-    const again = await setValue(flagFieldSpec(field), want);
+    const again = await setFlagValue(field, want);
     await sleep(REASSERT_SETTLE_MS);
     const outcome = outcomes.find((o) => o.name === field.name);
     if (!outcome) continue;
@@ -376,7 +389,7 @@ export async function fillSection(
       const field = section.fields.find((f) => f.name === o.name);
       const value = field && values[field.name];
       if (!field || !value || !isRendered(field)) continue;
-      const again = await setValue(flagFieldSpec(field), value);
+      const again = await setFlagValue(field, value);
       if (!again.success) continue;
       dbg(`  ${field.name} filled on the retry pass`);
       outcomes[index] = { name: field.name, status: "filled", message: `${again.message} (retry)` };
@@ -561,6 +574,7 @@ export async function fillAll(
   config: FlagFormConfig,
   values: Record<string, string>,
   extraRows?: RowValues[],
+  extras: WalkExtras = {},
 ): Promise<WalkReport> {
   const sections: SectionOutcome[] = [];
   const coverage = new Set(flagFieldNames(config.sections).map(normalizeName));
@@ -569,20 +583,26 @@ export async function fillAll(
 
   for (const section of config.sections) {
     dbg(`section: ${section.title}`);
+    const skipped = specialSkip(section, values, extraRows, extras);
+    if (skipped) {
+      sections.push({ title: section.title, reached: true, fields: [], skipped });
+      continue;
+    }
     const reached = await goToSection(section);
     if (!reached) {
       sections.push({ title: section.title, reached: false, fields: [] });
       continue;
     }
-    const { fields, modal, rows } = await runSection(
-      section, values, config.forbidden, coverage, extraRows,
-    );
+    const special = await runSpecialSection(section, extraRows, extras);
+    const { fields, modal, rows } = special
+      ? { fields: [], modal: undefined, rows: undefined }
+      : await runSection(section, values, config.forbidden, coverage, extraRows);
 
     // Commit before moving on. A sidebar click is not a save: FLAG persists a
     // section when Continue is pressed and discards it otherwise, so a walk
     // that only navigated would leave every section it typed behind it empty.
     const commit = await commitSection();
-    sections.push({ title: section.title, reached: true, fields, commit, modal, rows });
+    sections.push({ title: section.title, reached: true, fields, commit, modal, rows, ...special });
 
     if (commit === "blocked") {
       // FLAG is holding this section over a box it wants. Pressing on would
@@ -590,6 +610,16 @@ export async function fillAll(
       blockedAt = section.title;
       dbg(`walk: stopped at "${section.title}" — FLAG would not take it`);
       break;
+    }
+  }
+
+  let reviewErrors: string[] | undefined;
+  let reviewReached: boolean | undefined;
+  if (config.reviewNavLabel) {
+    reviewReached = await goToSection({ navLabel: config.reviewNavLabel, title: "Review", fields: [] });
+    if (reviewReached) {
+      await sleep(REVIEW_SETTLE_MS);
+      reviewErrors = reviewPageErrors();
     }
   }
 
@@ -604,7 +634,40 @@ export async function fillAll(
     // rather than dropping the value on the floor.
     unclaimed: Object.keys(values).filter((k) => !driven.has(k)),
     blockedAt,
+    reviewErrors,
+    reviewReached,
   };
+}
+
+const REVIEW_SETTLE_MS = 1500;
+
+/** Why a table or upload section has nothing to do on this case, or "". */
+function specialSkip(
+  section: FlagSection,
+  values: Record<string, string>,
+  extraRows: RowValues[] | undefined,
+  extras: WalkExtras,
+): string {
+  if (section.worksiteTable) {
+    if (!gateIsAnswered(section.worksiteTable.onlyWhen, values)) return "no additional worksites on this case";
+    if (!extraRows?.length) return "F.e.7 is Yes but the case sent no additional worksites; add them yourself";
+  }
+  if (section.documents && (!extras.documents?.length || !extras.download)) return "no documents to upload";
+  return "";
+}
+
+async function runSpecialSection(
+  section: FlagSection,
+  extraRows: RowValues[] | undefined,
+  extras: WalkExtras,
+): Promise<Pick<SectionOutcome, "worksites" | "documents"> | null> {
+  if (section.worksiteTable) {
+    return { worksites: await fillWorksiteTable(section.worksiteTable, (extraRows ?? []) as WorksiteRow[]) };
+  }
+  if (section.documents && extras.download) {
+    return { documents: await uploadDocuments(section.documents, extras.documents ?? [], extras.download) };
+  }
+  return null;
 }
 
 /** Fill just the section currently on screen, if the descriptor knows it. */
@@ -612,9 +675,16 @@ export async function fillCurrentSection(
   config: FlagFormConfig,
   values: Record<string, string>,
   extraRows?: RowValues[],
+  extras: WalkExtras = {},
 ): Promise<SectionOutcome | null> {
   const section = config.sections.find((s) => sectionIsRendered(s));
   if (!section) return null;
+  if (section.worksiteTable || section.documents) {
+    const skipped = specialSkip(section, values, extraRows, extras);
+    if (skipped) return { title: section.title, reached: true, fields: [], skipped };
+    const special = await runSpecialSection(section, extraRows, extras);
+    return { title: section.title, reached: true, fields: [], ...special };
+  }
   const coverage = new Set(flagFieldNames(config.sections).map(normalizeName));
   const { fields, modal, rows } = await runSection(
     section, values, config.forbidden, coverage, extraRows,

@@ -34,6 +34,7 @@ export const FLAG_KEYS = {
   extraRowsDone: "flagExtraRowsDone",
   formType: "flagFormType",
   caseId: "flagCaseId",
+  documents: "flagDocuments",
   loadedAt: "flagLoadedAt",
   // SOF-2191 — the FLAG values read back so far for the LCA summary review,
   // accumulated across sections. Cleared whenever a (possibly different) case

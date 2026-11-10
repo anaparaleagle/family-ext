@@ -24,7 +24,7 @@ import {
 import { describeField, unanswered } from "./modal";
 import { flushUnmappedFields } from "../engine/telemetry";
 import { FLAG_CONFIGS } from "./registry";
-import { FlagFormConfig } from "./types";
+import { FlagDocument, FlagFormConfig } from "./types";
 import { scrapeReviewFields } from "./review";
 
 /** Storage keys for the FLAG side. Separate from the myUSCIS payload keys so a
@@ -40,6 +40,7 @@ const KEYS = {
   extraRowsDone: "flagExtraRowsDone",
   formType: "flagFormType",
   caseId: "flagCaseId",
+  documents: "flagDocuments",
   accessToken: "accessToken",
   apiBaseUrl: "apiBaseUrl",
   // SOF-2191 — the FLAG values read back so far this review, accumulated
@@ -59,6 +60,7 @@ interface Loaded {
   fieldValues: Record<string, string>;
   /** Worksites past the first, in the order the case holds them. */
   extraRows: RowValues[];
+  documents: FlagDocument[];
   report: Record<string, unknown>;
   /** Case id (for health telemetry). Empty when loaded from cache without one. */
   caseId: string;
@@ -97,6 +99,7 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
   const stored = await chrome.storage.local.get([
     KEYS.fieldValues,
     KEYS.extraRows,
+    KEYS.documents,
     KEYS.formType,
     KEYS.caseId,
     KEYS.accessToken,
@@ -124,6 +127,7 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
     return {
       fieldValues: cached,
       extraRows: (stored[KEYS.extraRows] as RowValues[]) ?? [],
+      documents: (stored[KEYS.documents] as FlagDocument[]) ?? [],
       report: {},
       caseId: (stored[KEYS.caseId] as string) ?? "",
     };
@@ -144,6 +148,7 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
   const res = await apiGet<{
     field_values: Record<string, string>;
     additional_worksites?: RowValues[];
+    documents?: FlagDocument[];
     autofill_report: Record<string, unknown>;
   }>(path, { apiBaseUrl, accessToken });
 
@@ -153,13 +158,52 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
   }
   const fieldValues = res.data.field_values ?? {};
   const extraRows = res.data.additional_worksites ?? [];
+  const documents = res.data.documents ?? [];
   await chrome.storage.local.set({
     [KEYS.fieldValues]: fieldValues,
     [KEYS.extraRows]: extraRows,
+    [KEYS.documents]: documents,
     [KEYS.formType]: config.formType,
   });
   await chrome.storage.local.remove(KEYS.extraRowsDone);
-  return { fieldValues, extraRows, report: res.data.autofill_report ?? {}, caseId };
+  return { fieldValues, extraRows, documents, report: res.data.autofill_report ?? {}, caseId };
+}
+
+function fromBase64(b64: string): Uint8Array<ArrayBuffer> {
+  const binary = atob(b64);
+  const out = new Uint8Array(new ArrayBuffer(binary.length));
+  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+  return out;
+}
+
+const TYPE_BY_EXT: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+};
+
+/** A feed document's bytes as a File, fetched by the service worker. */
+async function downloadDocument(doc: FlagDocument): Promise<File | string> {
+  const stored = await chrome.storage.local.get([KEYS.accessToken, KEYS.apiBaseUrl]);
+  const accessToken = (stored[KEYS.accessToken] as string) ?? "";
+  const base = ((stored[KEYS.apiBaseUrl] as string) ?? DEFAULT_API_BASE_URL).replace(/\/+$/, "");
+  let url = doc.url;
+  if (!/^https?:\/\//i.test(url)) {
+    url = url.startsWith("/api/") ? new URL(base).origin + url : `${base}/${url.replace(/^\/+/, "")}`;
+  }
+  let res: { success?: boolean; error?: string; dataBase64?: string; contentType?: string } | undefined;
+  try {
+    res = await chrome.runtime.sendMessage({ type: "DOWNLOAD_FILE", url, accessToken });
+  } catch (err) {
+    return `download failed: ${err instanceof Error ? err.message : String(err)}`;
+  }
+  if (!res?.success || !res.dataBase64) return `download failed: ${res?.error ?? "no data"}`;
+  const bytes = fromBase64(res.dataBase64);
+  if (!bytes.length) return "the download was empty";
+  const ext = doc.filename.slice(doc.filename.lastIndexOf(".")).toLowerCase();
+  const type = (res.contentType ?? "").split(";")[0].trim() || TYPE_BY_EXT[ext] || "application/pdf";
+  return new File([bytes], doc.filename, { type });
 }
 
 // ── toolbar ─────────────────────────────────────────────────────────────────
@@ -168,6 +212,7 @@ const TOOLBAR_ID = "mk-flag-toolbar";
 const STATUS_ID = "mk-flag-status";
 const STALE_ID = "mk-flag-stale";
 const REVIEW_PANEL_ID = "mk-flag-review-panel";
+const REPORT_ID = "mk-flag-report";
 
 function setStatus(msg: string): void {
   const el = document.getElementById(STATUS_ID);
@@ -217,6 +262,10 @@ function buildToolbar(config: FlagFormConfig): void {
   const reviewPanel = document.createElement("div");
   reviewPanel.id = REVIEW_PANEL_ID;
   bar.appendChild(reviewPanel);
+
+  const report = document.createElement("div");
+  report.id = REPORT_ID;
+  bar.appendChild(report);
 
   // The fields this extension will not fill, said up front rather than left
   // as blanks a caseworker finds at DOL with the application open.
@@ -302,6 +351,17 @@ function sectionNotes(outcome: SectionOutcome): string {
       notes.push("Its dialog is still open over the section — close it yourself.");
     }
   }
+  for (const w of outcome.worksites ?? []) {
+    if (w.status === "added") notes.push(`Worksite ${w.city} added.`);
+    else if (w.status === "failed") notes.push(`Worksite ${w.city} NOT added: ${w.message ?? "unknown"}.`);
+  }
+  for (const d of outcome.documents ?? []) {
+    if (d.status === "uploaded") notes.push(`Uploaded ${d.filename}${d.message ? ` (${d.message})` : ""}.`);
+    else if (d.status === "failed") notes.push(`${d.filename} NOT uploaded: ${d.message ?? "unknown"}.`);
+  }
+  if (outcome.skipped && /yourself/.test(outcome.skipped)) {
+    notes.push(`${outcome.title}: ${outcome.skipped}.`);
+  }
   const rows = outcome.rows ?? [];
   const added = rows.filter((r) => r.status === "added").length;
   if (rows.length) {
@@ -373,6 +433,7 @@ async function onFillSection(config: FlagFormConfig): Promise<void> {
     if (!loaded) return;
     const outcome = await fillCurrentSection(
       config, loaded.fieldValues, await pendingExtraRows(loaded),
+      { documents: loaded.documents, download: downloadDocument },
     );
     if (!outcome) {
       setStatus(`This is not a section the ${config.formType} descriptor knows.`);
@@ -404,7 +465,11 @@ async function onFillAll(config: FlagFormConfig): Promise<void> {
     const loaded = await loadValues(config);
     if (!loaded) return;
     setStatus("Filling…");
-    const report = await fillAll(config, loaded.fieldValues, await pendingExtraRows(loaded));
+    renderReport([], "");
+    const report = await fillAll(
+      config, loaded.fieldValues, await pendingExtraRows(loaded),
+      { documents: loaded.documents, download: downloadDocument },
+    );
     void flushUnmappedFields(config.formType, loaded.caseId);
     await recordExtraRows(report.sections);
     const committed = report.sections.filter((s) => s.commit === "committed").length;
@@ -420,8 +485,44 @@ async function onFillAll(config: FlagFormConfig): Promise<void> {
           : " Nothing was submitted — the walk never presses Submit, Sign or Certify. " +
             "Check every value before you file."),
     );
+    renderReport(problemLines(report), reviewHeading(report));
     dbg(JSON.stringify(report, null, 1));
   });
+}
+
+/** Every box that did not take, in one list, so nothing hides in the status line. */
+function problemLines(report: WalkReport): string[] {
+  const lines: string[] = [];
+  for (const s of report.sections) {
+    for (const f of s.fields) {
+      if (f.status === "failed" || f.status === "locked") lines.push(`${s.title}: ${withReason(f)}`);
+    }
+  }
+  if (report.unclaimed.length) lines.push(`Sent by the case but not on this form: ${report.unclaimed.join(", ")}`);
+  return lines;
+}
+
+function reviewHeading(report: WalkReport): string {
+  if (report.reviewReached === undefined) return "";
+  if (!report.reviewReached) return "Could not open Review & Submit. Open it and read FLAG's errors yourself.";
+  const errors = report.reviewErrors ?? [];
+  return errors.length
+    ? `Review & Submit still lists ${errors.length} error(s):\n${errors.map((e) => `- ${e}`).join("\n")}`
+    : "Review & Submit lists no errors. Check every value before you submit.";
+}
+
+function renderReport(problems: string[], review: string): void {
+  const panel = document.getElementById(REPORT_ID);
+  if (!panel) return;
+  panel.replaceChildren();
+  if (!problems.length && !review) return;
+  panel.style.cssText =
+    "margin-top:8px;padding-top:6px;border-top:1px solid #eee;max-height:260px;overflow:auto;" +
+    "white-space:pre-line;color:#334;line-height:1.35";
+  const parts: string[] = [];
+  if (problems.length) parts.push(`Did not fill:\n${problems.map((p) => `- ${p}`).join("\n")}`);
+  if (review) parts.push(review);
+  panel.textContent = parts.join("\n\n");
 }
 
 // ── LCA summary review (SOF-2191, porting the old portal's SOF-643) ────────
