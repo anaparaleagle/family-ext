@@ -212,6 +212,8 @@ interface CaseRow {
   status?: string;
   petitioner_name?: string;
   applicant_name?: string;
+  /** The sponsoring employer; PERM has no petitioner party. */
+  client?: string;
   is_draft?: boolean;
 }
 
@@ -220,10 +222,10 @@ let selectedCaseId = "";
 
 function caseLabel(c: CaseRow): string {
   const num = c.case_number || c.id.slice(0, 8);
-  const pet = c.petitioner_name?.trim() || "Petitioner?";
+  const pet = c.petitioner_name?.trim() || c.client?.trim() || "";
   const app = c.applicant_name?.trim() || "Applicant?";
   const type = c.case_type ? ` (${c.case_type})` : "";
-  return `${num} · ${pet} → ${app}${type}${c.is_draft ? " · draft" : ""}`;
+  return `${num} · ${pet ? `${pet} → ` : ""}${app}${type}${c.is_draft ? " · draft" : ""}`;
 }
 
 function selectedLabel(): string {

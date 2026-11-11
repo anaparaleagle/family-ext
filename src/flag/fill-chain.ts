@@ -32,6 +32,7 @@ import {
   goToSection,
   reviewPageErrors,
   reviewPageLoaded,
+  submitState,
   sectionIsRendered,
 } from "./nav";
 import { ModalOutcome, runModal } from "./modal";
@@ -134,6 +135,8 @@ export interface WalkReport {
   /** What FLAG's Review & Submit page still lists, when the walk read it. */
   reviewErrors?: string[];
   reviewReached?: boolean;
+  /** FLAG's Submit button as the walk left it; never pressed. */
+  submit?: { found: boolean; enabled: boolean; incomplete: string[] };
 }
 
 /** What a walk needs beyond the field values: the extra steps' data. */
@@ -593,18 +596,15 @@ export async function fillAll(
 
   for (const section of config.sections) {
     dbg(`section: ${section.title}`);
-    const skipped = specialSkip(section, values, extraRows, extras);
-    if (skipped) {
-      sections.push({ title: section.title, reached: true, fields: [], skipped });
-      continue;
-    }
+    // Table and upload sections are still opened and Continued with nothing to add, or FLAG never marks them complete.
+    const skipped = specialSkip(section, values, extraRows, extras) || undefined;
     const reached = await goToSection(section);
     if (!reached) {
-      sections.push({ title: section.title, reached: false, fields: [] });
+      sections.push({ title: section.title, reached: false, fields: [], skipped });
       continue;
     }
-    const special = await runSpecialSection(section, extraRows, extras);
-    const { fields, modal, rows } = special
+    const special = skipped ? null : await runSpecialSection(section, extraRows, extras);
+    const { fields, modal, rows } = special || section.worksiteTable || section.documents
       ? { fields: [], modal: undefined, rows: undefined }
       : await runSection(section, values, config.forbidden, coverage, extraRows);
 
@@ -612,7 +612,7 @@ export async function fillAll(
     // section when Continue is pressed and discards it otherwise, so a walk
     // that only navigated would leave every section it typed behind it empty.
     const commit = await commitSection();
-    sections.push({ title: section.title, reached: true, fields, commit, modal, rows, ...special });
+    sections.push({ title: section.title, reached: true, fields, commit, modal, rows, skipped, ...special });
 
     if (commit === "blocked") {
       // FLAG is holding this section over a box it wants. Pressing on would
@@ -625,13 +625,17 @@ export async function fillAll(
 
   let reviewErrors: string[] | undefined;
   let reviewReached: boolean | undefined;
+  let submit: WalkReport["submit"];
   if (config.reviewNavLabel) {
-    reviewReached = await goToSection({ navLabel: config.reviewNavLabel, title: "Review", fields: [] });
+    reviewReached =
+      reviewPageLoaded() ||
+      (await goToSection({ navLabel: config.reviewNavLabel, title: "Review", fields: [] }));
     if (reviewReached) {
       const deadline = Date.now() + REVIEW_WAIT_MS;
       while (!reviewPageLoaded() && Date.now() < deadline) await sleep(250);
       await sleep(REVIEW_SETTLE_MS);
       reviewErrors = reviewPageErrors() ?? [];
+      submit = submitState();
     }
   }
 
@@ -648,6 +652,7 @@ export async function fillAll(
     blockedAt,
     reviewErrors,
     reviewReached,
+    submit,
   };
 }
 

@@ -505,6 +505,7 @@ async function onFillAll(config: FlagFormConfig): Promise<void> {
     setStatus(
       summarise(report) +
         (report.reviewErrors?.length ? ` Review still lists ${report.reviewErrors.length} error(s).` : "") +
+        submitNote(report) +
         (notes ? ` ${notes}` : "") +
         ` ${committed} section(s) saved with FLAG's own Continue.` +
         (report.blockedAt
@@ -529,6 +530,13 @@ function problemLines(report: WalkReport): string[] {
   }
   if (report.unclaimed.length) lines.push(`Sent by the case but not on this form: ${report.unclaimed.join(", ")}`);
   return lines;
+}
+
+function submitNote(report: WalkReport): string {
+  const submit = report.submit;
+  if (!submit?.found) return "";
+  if (submit.enabled) return " FLAG will let you submit.";
+  return ` Submit is still greyed out${submit.incomplete.length ? `: ${submit.incomplete.join(", ")} not complete` : ""}.`;
 }
 
 function reviewHeading(report: WalkReport): string {

@@ -395,3 +395,15 @@ export function reviewPageErrors(): string[] | null {
   if (!out.length && block.trim()) out.push(block.split(SECTION_MARK).join(" ").trim().slice(0, 300));
   return out;
 }
+
+/** Whether FLAG's own Submit is clickable, and which sidebar items it still counts as incomplete. Read only. */
+export function submitState(): { found: boolean; enabled: boolean; incomplete: string[] } {
+  const button = Array.from(document.querySelectorAll<HTMLElement>("button, input[type='submit']")).find(
+    (el) => normalise(el.textContent || (el as HTMLInputElement).value) === "submit",
+  );
+  const incomplete = Array.from(document.querySelectorAll<HTMLElement>("[class*='page-item-title']"))
+    .filter((el) => !/page-item-title--complete/.test(el.className))
+    .map((el) => (el.textContent ?? "").replace(/\s+/g, " ").trim())
+    .filter((text) => text && !/review/i.test(text));
+  return { found: !!button, enabled: !!button && !isDisabled(button), incomplete: [...new Set(incomplete)] };
+}
