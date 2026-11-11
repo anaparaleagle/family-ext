@@ -1,6 +1,7 @@
 import { dbg } from "../engine/logger";
 import { LOCKED_MESSAGE, lockedByPage, setValue } from "../engine/value-setter";
 import { SetResult } from "../engine/types";
+import { bridge } from "./bridge-client";
 import { fieldContainer, locateFlagField } from "./locate";
 import { FlagField, flagFieldSpec } from "./types";
 
@@ -89,6 +90,25 @@ function press(el: HTMLElement, key: string): void {
     Object.defineProperty(evt, "which", { get: () => KEY_CODES[key] ?? 0 });
     el.dispatchEvent(evt);
   }
+}
+
+/** Put text in a box through the page's own world, falling back to typing here. */
+async function enterText(el: HTMLInputElement, text: string): Promise<void> {
+  if (await bridge("setInput", { value: text }, el)) return;
+  if (text) await typeText(el, text);
+  else clear(el);
+}
+
+async function pressKey(el: HTMLElement, key: string, times = 1): Promise<void> {
+  if (await bridge("key", { key, times }, el)) return;
+  for (let i = 0; i < times; i++) {
+    press(el, key);
+    await sleep(60);
+  }
+}
+
+async function clickControl(el: HTMLElement): Promise<void> {
+  if (!(await bridge("click", {}, el))) el.click();
 }
 
 function digits(s: string): string {
@@ -181,6 +201,11 @@ function realClick(el: HTMLElement): void {
 }
 
 export async function setLabelRadio(name: string, value: string): Promise<SetResult> {
+  const via = await bridge("radio", { name, value });
+  if (via) {
+    if (via.ok) return ok(name, via.message);
+    return fail(name, via.message === "locked" ? LOCKED_MESSAGE : via.message);
+  }
   const radios = radiosNamed(name);
   if (!radios.length) return fail(name, "element not on page");
   const matches = () => matchingOptions(radiosNamed(name), value);
@@ -214,6 +239,11 @@ async function setLabelCheckbox(field: FlagField, el: HTMLInputElement, value: s
   const tick = want === "true" || want === "1" || want === "yes" || want === "on";
   if (!tick && want !== "false") return ok(field.name, "left as it is");
   if (el.checked === tick) return ok(field.name, "already set");
+  const via = await bridge("checkbox", { want: tick }, el);
+  if (via) {
+    if (via.ok) return ok(field.name, via.message);
+    return fail(field.name, via.message === "locked" ? LOCKED_MESSAGE : via.message);
+  }
   if (lockedByPage(el)) return fail(field.name, LOCKED_MESSAGE);
   const find = () => locateFlagField(field) as HTMLInputElement | null;
   for (let attempt = 1; attempt <= RADIO_ATTEMPTS; attempt++) {
@@ -311,7 +341,8 @@ function codesNear(control: HTMLElement): string[] {
 async function emptyInput(field: FlagField, el: HTMLInputElement): Promise<HTMLInputElement> {
   let box = (locateFlagField(field) as HTMLInputElement | null) ?? el;
   focus(box);
-  clear(box);
+  await enterText(box, "");
+  if (box.value) clear(box);
   if (box.value) {
     nativeSet(box, "");
     box.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "deleteContentBackward" }));
@@ -337,7 +368,7 @@ async function clearOldPicks(field: FlagField, el: HTMLInputElement, keep: strin
     });
     if (!control) break;
     dropped.push(codesNear(control).join("/") || "previous pick");
-    control.click();
+    await clickControl(control);
     await sleep(300);
   }
   return dropped;
@@ -357,7 +388,7 @@ async function pickCode(field: FlagField, code: string): Promise<SetResult> {
 
   if (!field.multi) await clearOldPicks(field, el, []);
   const box = await emptyInput(field, el);
-  await typeText(box, code);
+  await enterText(box, code);
   const options = await waitForSuggestions(box, code);
   const index = bestSuggestion(options, code);
   if (index < 0) {
@@ -367,11 +398,8 @@ async function pickCode(field: FlagField, code: string): Promise<SetResult> {
     return fail(field.name, `FLAG offered no option starting with ${code}${seen ? ` (saw: ${seen})` : ""}`);
   }
   const typed = (locateFlagField(field) as HTMLInputElement | null) ?? box;
-  for (let i = 0; i <= index; i++) {
-    press(typed, "ArrowDown");
-    await sleep(60);
-  }
-  press(typed, "Enter");
+  await pressKey(typed, "ArrowDown", index + 1);
+  await pressKey(typed, "Enter");
   await sleep(500);
 
   const now = (locateFlagField(field) as HTMLInputElement | null) ?? typed;
@@ -437,11 +465,14 @@ function optionMatches(text: string, name: string): number {
   return -1;
 }
 
-function committedSelectValue(container: HTMLElement): string {
-  const hidden = container.querySelector<HTMLInputElement>('input[type="hidden"]');
-  if (hidden?.value) return hidden.value;
+function shownSelectValue(container: HTMLElement): string {
   const single = container.querySelector<HTMLElement>('[class*="singleValue"], [class*="single-value"]');
   return (single?.textContent ?? "").trim();
+}
+
+function committedSelectValue(container: HTMLElement): string {
+  const hidden = container.querySelector<HTMLInputElement>('input[type="hidden"]');
+  return hidden?.value || shownSelectValue(container);
 }
 
 export async function setReactSelect(name: string, target: HTMLElement, value: string): Promise<SetResult> {
@@ -450,9 +481,17 @@ export async function setReactSelect(name: string, target: HTMLElement, value: s
   if (lockedByPage(input)) return fail(name, LOCKED_MESSAGE);
   const container = selectContainer(input);
   const current = committedSelectValue(container);
-  if (current && optionMatches(current, value) >= 0) return ok(name, `already ${current}`);
+  const shownNow = shownSelectValue(container);
+  if (shownNow && optionMatches(shownNow, value) >= 0) return ok(name, `already ${shownNow}`);
+  const took = () => {
+    const box = selectContainer(input);
+    const shown = shownSelectValue(box);
+    if (shown) return optionMatches(shown, value) >= 0;
+    const now = committedSelectValue(box);
+    return !!now && now !== current;
+  };
 
-  await typeText(input, value);
+  await enterText(input, value);
   const deadline = Date.now() + SUGGEST_TIMEOUT_MS;
   let options: HTMLElement[] = [];
   let index = -1;
@@ -471,18 +510,19 @@ export async function setReactSelect(name: string, target: HTMLElement, value: s
     await sleep(POLL_MS);
   }
   if (index < 0) {
-    press(input, "Escape");
+    await pressKey(input, "Escape");
     const seen = options.slice(0, 3).map((o) => (o.textContent ?? "").trim()).join(" | ");
     return fail(name, `no "${value}" in FLAG's list${seen ? ` (saw: ${seen})` : " (is the state set?)"}`);
   }
-  for (let i = 0; i < index; i++) {
-    press(input, "ArrowDown");
-    await sleep(60);
-  }
-  press(input, "Enter");
+  if (index > 0) await pressKey(input, "ArrowDown", index);
+  await pressKey(input, "Enter");
   await sleep(500);
+  if (!took() && options[index].isConnected) {
+    await clickControl(options[index]);
+    await sleep(500);
+  }
   const committed = committedSelectValue(selectContainer(input));
-  if (!committed) return fail(name, `chose "${value}" but FLAG kept no value`);
+  if (!took()) return fail(name, `chose "${value}" but FLAG kept no value`);
   return ok(name, `picked ${(options[index].textContent ?? "").trim()} (${committed})`);
 }
 

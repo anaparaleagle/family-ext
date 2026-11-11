@@ -58,6 +58,16 @@
         "flag-content.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://flag.dol.gov/*"
+      ],
+      "js": [
+        "flag-bridge.js"
+      ],
+      "run_at": "document_idle",
+      "world": "MAIN"
     }
   ],
   "icons": {
