@@ -278,7 +278,16 @@ export async function fillSection(
       continue;
     }
 
-    const value = values[field.name];
+    let value = values[field.name];
+    // A box in an answered checkbox group that the case does not ask for is unticked.
+    if (
+      (value === undefined || value === "") &&
+      field.kind === "checkbox" &&
+      field.widget &&
+      revealGates(field).some((g) => gateIsAnswered(g, values))
+    ) {
+      value = "false";
+    }
     if (value === undefined || value === "") {
       // Nothing to type. Not a failure: about half of both forms is boxes the
       // backend map documents as having no source, plus every standing default

@@ -157,14 +157,18 @@ function optionText(input: HTMLInputElement): string {
   return (labelFor(input)?.textContent ?? "").replace(/\s+/g, " ").trim().toLowerCase();
 }
 
-function pickOption(radios: HTMLInputElement[], value: string): HTMLInputElement | null {
+function matchingOptions(radios: HTMLInputElement[], value: string): HTMLInputElement[] {
   const want = value.trim().toLowerCase();
-  return (
-    radios.find((r) => r.value === value) ??
-    radios.find((r) => r.value.toLowerCase() === want) ??
-    radios.find((r) => optionText(r) === want) ??
-    null
-  );
+  const byValue = radios.filter((r) => r.value.trim().toLowerCase() === want);
+  return byValue.length ? byValue : radios.filter((r) => optionText(r) === want);
+}
+
+function isOn(input: HTMLInputElement): boolean {
+  return input.checked || input.getAttribute("aria-checked") === "true";
+}
+
+function visible(el: HTMLElement): boolean {
+  return el.offsetParent !== null || el.getClientRects().length > 0;
 }
 
 function realClick(el: HTMLElement): void {
@@ -176,35 +180,33 @@ function realClick(el: HTMLElement): void {
   el.dispatchEvent(new MouseEvent("click", opts));
 }
 
-/** Tick an option by its label, re-reading the group each time because FLAG re-renders it. */
-async function clickUntilChecked(find: () => HTMLInputElement | null): Promise<boolean> {
+export async function setLabelRadio(name: string, value: string): Promise<SetResult> {
+  const radios = radiosNamed(name);
+  if (!radios.length) return fail(name, "element not on page");
+  const matches = () => matchingOptions(radiosNamed(name), value);
+  const done = () => matches().some(isOn);
+  if (!matches().length) {
+    const offered = radios.map((r) => r.value).join(", ");
+    return fail(name, `no option "${value}" (FLAG offers ${offered})`);
+  }
+  if (done()) return ok(name, "already set");
+  const target = () => {
+    const all = matches();
+    return all.find((r) => !lockedByPage(r) && visible(labelFor(r) ?? r)) ?? all.find((r) => !lockedByPage(r)) ?? null;
+  };
+  if (!target()) return fail(name, LOCKED_MESSAGE);
+
   for (let attempt = 1; attempt <= RADIO_ATTEMPTS; attempt++) {
-    const input = find();
-    if (!input) return false;
-    if (input.checked) return true;
+    const input = target();
+    if (!input) break;
     const label = labelFor(input);
     if (attempt === 1 && label) label.click();
     else if (attempt === 2 && label) realClick(label);
     else input.click();
     await sleep(200);
-    if (find()?.checked) return true;
+    if (done()) return ok(name, "set radio");
   }
-  return !!find()?.checked;
-}
-
-export async function setLabelRadio(name: string, value: string): Promise<SetResult> {
-  const radios = radiosNamed(name);
-  if (!radios.length) return fail(name, "element not on page");
-  const chosen = pickOption(radios, value);
-  if (!chosen) {
-    const offered = radios.map((r) => r.value).join(", ");
-    return fail(name, `no option "${value}" (FLAG offers ${offered})`);
-  }
-  if (chosen.checked) return ok(name, "already set");
-  if (lockedByPage(chosen)) return fail(name, LOCKED_MESSAGE);
-  const want = chosen.value;
-  const done = await clickUntilChecked(() => pickOption(radiosNamed(name), want));
-  return done ? ok(name, "set radio") : fail(name, `clicked "${value}" ${RADIO_ATTEMPTS} times, FLAG did not take it`);
+  return done() ? ok(name, "set radio") : fail(name, `clicked "${value}" ${RADIO_ATTEMPTS} times, FLAG did not take it`);
 }
 
 async function setLabelCheckbox(field: FlagField, el: HTMLInputElement, value: string): Promise<SetResult> {
@@ -276,38 +278,106 @@ function shownWithoutInput(container: HTMLElement, input: HTMLInputElement): str
   return ((container.textContent ?? "") + " " + input.value).toLowerCase();
 }
 
+const CODE_PATTERN = /\b\d{2}-\d{4}(?:\.\d{2})?\b|\b\d{6}\b/g;
+
+function bareCode(code: string): string {
+  return code.trim().replace(/\.00$/, "").toLowerCase();
+}
+
+/** The "x" controls FLAG draws next to a pick, inside this field only. */
+function clearControls(container: HTMLElement): HTMLElement[] {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>("button, [role='button'], [aria-label], [title]"),
+  ).filter((b) => {
+    if (b.closest('[id^="react-autowhatever"]') || b.tagName === "INPUT") return false;
+    const hint = `${b.getAttribute("aria-label") ?? ""} ${b.getAttribute("title") ?? ""}`;
+    const text = (b.textContent ?? "").trim();
+    return /\b(clear|remove)\b/i.test(hint) || ["×", "x", "X", "✕", "✖"].includes(text);
+  });
+}
+
+/** The codes shown on the line an "x" control belongs to. */
+function codesNear(control: HTMLElement): string[] {
+  let node: HTMLElement | null = control.parentElement;
+  for (let depth = 0; node && depth < 3; depth++, node = node.parentElement) {
+    const text = node.textContent ?? "";
+    if (text.length > 300) break;
+    const codes = text.match(CODE_PATTERN);
+    if (codes) return codes.map(bareCode);
+  }
+  return [];
+}
+
+async function emptyInput(field: FlagField, el: HTMLInputElement): Promise<HTMLInputElement> {
+  let box = (locateFlagField(field) as HTMLInputElement | null) ?? el;
+  focus(box);
+  clear(box);
+  if (box.value) {
+    nativeSet(box, "");
+    box.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "deleteContentBackward" }));
+  }
+  const deadline = Date.now() + 1500;
+  while (Date.now() < deadline) {
+    box = (locateFlagField(field) as HTMLInputElement | null) ?? box;
+    if (!box.value) break;
+    await sleep(POLL_MS);
+  }
+  return box;
+}
+
+/** Drop what the box already holds: the whole pick, or for a multi box the picks the case does not list. */
+async function clearOldPicks(field: FlagField, el: HTMLInputElement, keep: string[]): Promise<string[]> {
+  const dropped: string[] = [];
+  for (let round = 0; round < 10; round++) {
+    const box = (locateFlagField(field) as HTMLInputElement | null) ?? el;
+    const control = clearControls(fieldContainer(box, field.boxPrefix)).find((c) => {
+      if (!field.multi) return true;
+      const codes = codesNear(c);
+      return codes.length > 0 && !codes.some((code) => keep.includes(code));
+    });
+    if (!control) break;
+    dropped.push(codesNear(control).join("/") || "previous pick");
+    control.click();
+    await sleep(300);
+  }
+  return dropped;
+}
+
+function alreadyShows(field: FlagField, el: HTMLInputElement, bare: string): boolean {
+  if (suggestions(el).length) return false;
+  return shownWithoutInput(fieldContainer(el, field.boxPrefix), el).includes(bare);
+}
+
 async function pickCode(field: FlagField, code: string): Promise<SetResult> {
   const el = locateFlagField(field) as HTMLInputElement | null;
   if (!el) return fail(field.name, "element not on page");
   if (lockedByPage(el)) return fail(field.name, LOCKED_MESSAGE);
-  const container = fieldContainer(el, field.boxPrefix);
-  const bare = code.replace(/\.00$/, "").toLowerCase();
-  if (!field.multi && el.value.toLowerCase().startsWith(bare)) return ok(field.name, `already ${el.value}`);
-  if (field.multi && (container.textContent ?? "").toLowerCase().includes(bare)) {
-    return ok(field.name, `${code} already picked`);
-  }
+  const bare = bareCode(code);
+  if (alreadyShows(field, el, bare)) return ok(field.name, `${code} already picked`);
 
-  await typeText(el, code);
-  const options = await waitForSuggestions(el, code);
+  if (!field.multi) await clearOldPicks(field, el, []);
+  const box = await emptyInput(field, el);
+  await typeText(box, code);
+  const options = await waitForSuggestions(box, code);
   const index = bestSuggestion(options, code);
   if (index < 0) {
     const seen = options.slice(0, 3).map((o) => (o.textContent ?? "").trim()).join(" | ");
-    clear(el);
-    blur(el);
+    clear(box);
+    blur(box);
     return fail(field.name, `FLAG offered no option starting with ${code}${seen ? ` (saw: ${seen})` : ""}`);
   }
-  const box = (locateFlagField(field) as HTMLInputElement | null) ?? el;
+  const typed = (locateFlagField(field) as HTMLInputElement | null) ?? box;
   for (let i = 0; i <= index; i++) {
-    press(box, "ArrowDown");
+    press(typed, "ArrowDown");
     await sleep(60);
   }
-  press(box, "Enter");
+  press(typed, "Enter");
   await sleep(500);
 
-  const now = (locateFlagField(field) as HTMLInputElement | null) ?? box;
+  const now = (locateFlagField(field) as HTMLInputElement | null) ?? typed;
   const closed = suggestions(now).length === 0;
   const shown = shownWithoutInput(fieldContainer(now, field.boxPrefix), now);
-  const took = field.multi ? closed && shown.includes(bare) : closed && (shown.includes(bare) || !!now.value);
+  const took = closed && (shown.includes(bare) || (!field.multi && !!now.value));
   if (!took) {
     return fail(field.name, `picked ${code} with the keyboard but FLAG does not show it`);
   }
@@ -317,6 +387,14 @@ async function pickCode(field: FlagField, code: string): Promise<SetResult> {
 
 async function setAutosuggest(field: FlagField, value: string): Promise<SetResult> {
   const codes = field.multi ? value.split(/[;,]/).map((c) => c.trim()).filter(Boolean) : [value.trim()];
+  const notes: string[] = [];
+  if (field.multi) {
+    const el = locateFlagField(field) as HTMLInputElement | null;
+    if (el) {
+      const dropped = await clearOldPicks(field, el, codes.map(bareCode));
+      if (dropped.length) notes.push(`removed ${dropped.join(", ")}`);
+    }
+  }
   const done: string[] = [];
   for (const code of codes) {
     const res = await pickCode(field, code);
@@ -325,7 +403,8 @@ async function setAutosuggest(field: FlagField, value: string): Promise<SetResul
     }
     done.push(code);
   }
-  return ok(field.name, field.multi ? `picked ${done.join(", ")}` : `picked ${done[0]}`);
+  notes.unshift(`picked ${done.join(", ")}`);
+  return ok(field.name, notes.join("; "));
 }
 
 // ── react-select (county, BLS area) ─────────────────────────────────────────
