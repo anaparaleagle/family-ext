@@ -40,6 +40,7 @@ const KEYS = {
   extraRowsDone: "flagExtraRowsDone",
   formType: "flagFormType",
   caseId: "flagCaseId",
+  caseLabel: "flagCaseLabel",
   documents: "flagDocuments",
   accessToken: "accessToken",
   apiBaseUrl: "apiBaseUrl",
@@ -213,6 +214,27 @@ const STATUS_ID = "mk-flag-status";
 const STALE_ID = "mk-flag-stale";
 const REVIEW_PANEL_ID = "mk-flag-review-panel";
 const REPORT_ID = "mk-flag-report";
+const LOADED_ID = "mk-flag-loaded";
+
+/** Which case's values a Fill would type, read fresh from storage. */
+async function showLoadedCase(config: FlagFormConfig): Promise<void> {
+  const el = document.getElementById(LOADED_ID);
+  if (!el || !contextAlive()) return;
+  const stored = await chrome.storage.local.get([KEYS.caseLabel, KEYS.caseId, KEYS.formType, KEYS.fieldValues]);
+  const values = stored[KEYS.fieldValues] as Record<string, string> | undefined;
+  const form = stored[KEYS.formType] as string | undefined;
+  const label = (stored[KEYS.caseLabel] as string) || (stored[KEYS.caseId] as string) || "";
+  if (!values || !Object.keys(values).length || !label) {
+    el.textContent = "No case loaded. Pick one in the extension popup.";
+    el.style.color = "#7c2d12";
+  } else if (form && form !== config.formType) {
+    el.textContent = `Loaded: ${label}, but for ${form}, not ${config.formType}.`;
+    el.style.color = "#7c2d12";
+  } else {
+    el.textContent = `Loaded: ${label}`;
+    el.style.color = "#14532d";
+  }
+}
 
 function setStatus(msg: string): void {
   const el = document.getElementById(STATUS_ID);
@@ -244,6 +266,11 @@ function buildToolbar(config: FlagFormConfig): void {
   title.textContent = config.label;
   title.style.cssText = "font-weight:600;margin-bottom:4px";
   bar.appendChild(title);
+
+  const loaded = document.createElement("div");
+  loaded.id = LOADED_ID;
+  loaded.style.cssText = "margin-bottom:4px;line-height:1.35";
+  bar.appendChild(loaded);
 
   bar.appendChild(button("Fill this section", () => void onFillSection(config)));
   bar.appendChild(button("Fill all sections", () => void onFillAll(config)));
@@ -280,6 +307,7 @@ function buildToolbar(config: FlagFormConfig): void {
   }
 
   document.body.appendChild(bar);
+  void showLoadedCase(config);
 }
 
 // ── actions ─────────────────────────────────────────────────────────────────
@@ -664,6 +692,14 @@ function boot(): void {
   const config = currentConfig();
   if (!config) return;
   buildToolbar(config);
+}
+
+if (contextAlive()) {
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !(KEYS.caseLabel in changes || KEYS.fieldValues in changes)) return;
+    const config = currentConfig();
+    if (config) void showLoadedCase(config);
+  });
 }
 
 /**
