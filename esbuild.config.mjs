@@ -49,6 +49,7 @@ const entries = [
   { in: "src/popup/popup.ts", out: "dist/popup.js" },
   { in: "src/runner/content.ts", out: "dist/content.js" },
   { in: "src/flag/content.ts", out: "dist/flag-content.js" },
+  { in: "src/flag/bridge.ts", out: "dist/flag-bridge.js" },
   { in: "src/engine/formik-bridge.ts", out: "dist/formik-bridge.js" },
   { in: "src/engine/download-proxy.ts", out: "dist/download-proxy.js" },
 ];

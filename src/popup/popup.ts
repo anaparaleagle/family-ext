@@ -73,6 +73,8 @@ const logoutBtn = $<HTMLButtonElement>("logout-btn");
 const userEmailEl = $("user-email");
 const caseList = $("case-list");
 const caseSearch = $<HTMLInputElement>("case-search");
+const selectedCaseEl = $("selected-case");
+const SELECTED_CASE_KEY = "popupSelectedCase";
 const loadBtn = $<HTMLButtonElement>("load-btn");
 const apiEnvSelect = $<HTMLSelectElement>("api-env");
 const formTypeSelect = $<HTMLSelectElement>("form-type");
@@ -210,6 +212,9 @@ interface CaseRow {
   status?: string;
   petitioner_name?: string;
   applicant_name?: string;
+  /** The sponsoring employer; PERM has no petitioner party. */
+  client?: string;
+  is_draft?: boolean;
 }
 
 let cases: CaseRow[] = [];
@@ -217,10 +222,31 @@ let selectedCaseId = "";
 
 function caseLabel(c: CaseRow): string {
   const num = c.case_number || c.id.slice(0, 8);
-  const pet = c.petitioner_name?.trim() || "Petitioner?";
+  const pet = c.petitioner_name?.trim() || c.client?.trim() || "";
   const app = c.applicant_name?.trim() || "Applicant?";
   const type = c.case_type ? ` (${c.case_type})` : "";
-  return `${num} · ${pet} → ${app}${type}`;
+  return `${num} · ${pet ? `${pet} → ` : ""}${app}${type}${c.is_draft ? " · draft" : ""}`;
+}
+
+function selectedLabel(): string {
+  const c = cases.find((row) => row.id === selectedCaseId);
+  return c ? caseLabel(c) : "";
+}
+
+function showSelected(): void {
+  const label = selectedLabel();
+  selectedCaseEl.textContent = label ? `Selected: ${label}` : "";
+}
+
+function selectCase(id: string, persist: boolean): void {
+  selectedCaseId = id;
+  const label = selectedLabel();
+  caseSearch.value = label;
+  renderCases(label);
+  showSelected();
+  followCaseType(cases.find((c) => c.id === id)?.case_type);
+  void loadPeople(id);
+  if (persist) void chrome.storage.local.set({ [SELECTED_CASE_KEY]: { id, label } });
 }
 
 function setEmpty(msg: string): void {
@@ -242,6 +268,7 @@ function renderCases(query: string): void {
   // here stops Load case firing against a case no longer on screen.
   if (selectedCaseId && !eligible.some((c) => c.id === selectedCaseId)) {
     selectedCaseId = "";
+    showSelected();
   }
 
   let shown = 0;
@@ -268,19 +295,32 @@ function renderCases(query: string): void {
 
 async function loadCases(): Promise<void> {
   selectedCaseId = "";
+  showSelected();
   setEmpty("Loading…");
   try {
-    // The family list returns every case in the firm; which form we resolve is
-    // chosen separately (the form picker). No status filter — a draft can be
-    // filled at any stage.
-    const res = await apiRequest("/cases/?page_size=500");
+    // The plain list leaves out drafts (a case whose invite has not gone out); they only come with is_draft=true.
+    const [res, drafts] = await Promise.all([
+      apiRequest("/cases/?page_size=500"),
+      apiRequest("/cases/?page_size=500&is_draft=true"),
+    ]);
     if (!res.ok) {
       cases = [];
       return setEmpty(res.status === 401 ? SESSION_EXPIRED : `Failed to load cases (${res.status})`);
     }
     const data = await res.json();
-    cases = (data.results || data) as CaseRow[];
-    renderCases(caseSearch.value || "");
+    const merged = new Map<string, CaseRow>();
+    for (const c of (data.results || data) as CaseRow[]) merged.set(c.id, c);
+    if (drafts.ok) {
+      const draftData = await drafts.json();
+      for (const c of (draftData.results || draftData) as CaseRow[]) {
+        merged.set(c.id, { ...merged.get(c.id), ...c, is_draft: true });
+      }
+    }
+    cases = [...merged.values()];
+    const stored = await chrome.storage.local.get(SELECTED_CASE_KEY);
+    const saved = stored[SELECTED_CASE_KEY] as { id?: string } | undefined;
+    if (saved?.id && cases.some((c) => c.id === saved.id)) selectCase(saved.id, false);
+    else renderCases(caseSearch.value || "");
   } catch {
     cases = [];
     setEmpty("Error loading cases");
@@ -306,6 +346,8 @@ async function loadFlagCase(formType: string): Promise<void> {
   }
   const payload = (await res.json()) as {
     field_values?: Record<string, string>;
+    additional_worksites?: Record<string, string>[];
+    documents?: { url: string; filename: string }[];
     autofill_report?: {
       typed_count?: number;
       typed_needs_confirming?: string[];
@@ -320,9 +362,14 @@ async function loadFlagCase(formType: string): Promise<void> {
   await chrome.storage.local.set({
     [FLAG_KEYS.fieldValues]: fieldValues,
     [FLAG_KEYS.caseId]: selectedCaseId,
+    [FLAG_KEYS.caseLabel]: selectedLabel(),
     [FLAG_KEYS.formType]: formType,
     [FLAG_KEYS.loadedAt]: Date.now(),
+    // The LCA's extra-row replay has never been walked live, so only the 9141 gets rows here.
+    [FLAG_KEYS.extraRows]: formType === "ETA-9141" ? payload.additional_worksites ?? [] : [],
+    [FLAG_KEYS.documents]: payload.documents ?? [],
   });
+  await chrome.storage.local.remove(FLAG_KEYS.extraRowsDone);
   // SOF-2191: a case switch must not carry the PREVIOUS case's partial LCA
   // summary review into this one's compare.
   await chrome.storage.local.remove(FLAG_KEYS.reviewValues);
@@ -330,7 +377,7 @@ async function loadFlagCase(formType: string): Promise<void> {
   const confirm = report.typed_needs_confirming?.length ?? 0;
   const refused = report.refused_fields?.length ?? 0;
   setStatus(
-    `Loaded ${Object.keys(fieldValues).length} ${formType} fields.` +
+    `Loaded ${Object.keys(fieldValues).length} ${formType} fields for ${selectedLabel()}.` +
       (confirm ? ` ${confirm} standing answer(s) to check before you save.` : "") +
       (refused ? ` ${refused} you must tick yourself.` : ""),
   );
@@ -385,7 +432,8 @@ async function handleLoadCase(): Promise<void> {
     // form is invisible otherwise - both N-400s look identical on screen.
     setStatus(
       `Loaded ${n} ${formType} fields + ${u} upload pages` +
-        (personName ? ` for ${personName}` : ""),
+        ` for ${selectedLabel()}` +
+        (personName ? ` (${personName})` : ""),
     );
     loadBtn.textContent = "Loaded!";
     setTimeout(() => (loadBtn.textContent = "Load case"), 1500);
@@ -408,11 +456,7 @@ caseSearch.addEventListener("input", () => renderCases(caseSearch.value));
 caseList.addEventListener("click", (e) => {
   const row = (e.target as HTMLElement).closest<HTMLElement>(".case-row");
   if (!row?.dataset.id) return;
-  selectedCaseId = row.dataset.id;
-  caseList.querySelectorAll(".case-row.selected").forEach((r) => r.classList.remove("selected"));
-  row.classList.add("selected");
-  followCaseType(cases.find((c) => c.id === selectedCaseId)?.case_type);
-  void loadPeople(selectedCaseId);
+  selectCase(row.dataset.id, true);
 });
 /**
  * Load the people on the chosen case into the applicant picker.

@@ -19,8 +19,8 @@
 // ===========================================================================
 
 import { dbg } from "../engine/logger";
-import { locateElement } from "../engine/value-setter";
-import { FlagRepeaterSpec, FlagSection, flagFieldSpec } from "./types";
+import { locateFlagField } from "./locate";
+import { FlagRepeaterSpec, FlagSection } from "./types";
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -93,13 +93,9 @@ function fingerprint(): string {
  * reports false and the caller treats it as "nothing to do".
  */
 export function sectionIsRendered(section: FlagSection): boolean {
+  if (section.marker && findButtonByText(section.marker)) return true;
   if (!section.fields.length) return false;
-  return section.fields.some(
-    (f) =>
-      document.querySelector(`[name="${CSS.escape(f.name)}"]`) ||
-      (f.byId && document.getElementById(f.name)) ||
-      (f.byLabel && locateElement(flagFieldSpec(f))),
-  );
+  return section.fields.some((f) => !!locateFlagField(f));
 }
 
 /**
@@ -224,7 +220,8 @@ export function findButtonByText(text: string, scope: ParentNode = document): HT
  * "Review & Submit" and is caught by `review`; a modal search is also scoped to
  * the open dialog, so the page's own buttons are out of reach of it.
  */
-const NEVER_CLICK_BUTTON = /\b(review|sign|certify|declare|delete|withdraw|pay|payment)\b/i;
+const NEVER_CLICK_BUTTON =
+  /\b(review|sign|certify|declare|delete|remove|withdraw|pay|payment|quit|discard)\b|add data/i;
 
 /** Is this control disabled — by the property, the attribute, or ARIA? */
 export function isDisabled(el: HTMLElement): boolean {
@@ -340,4 +337,73 @@ export async function commitRepeaterRow(repeater: FlagRepeaterSpec): Promise<Row
   const rows = repeaterRowCount(repeater);
   dbg(`row: table still reads ${rows} after "${repeater.addButtonText}"`);
   return { status: "refused", rows, errors: visibleErrors() };
+}
+
+const ERRORS_START = "Submission Errors:";
+const ERRORS_END = "Select what form/section you would like to view";
+const SECTION_COUNT = /There (?:is|are) \d+ errors? on this page/g;
+const SECTION_MARK = "\u0001";
+
+function reviewText(): string {
+  const root = document.querySelector<HTMLElement>("#simple-modal") ?? document.body;
+  return (root.innerText || root.textContent || "").replace(/\s+/g, " ");
+}
+
+/** True once FLAG's Review & Submit page has rendered its section picker. */
+export function reviewPageLoaded(): boolean {
+  const text = reviewText();
+  return text.includes(ERRORS_END) || text.includes(ERRORS_START);
+}
+
+/** Where the last section heading ("F.d: Other Information") starts in `s`, or s.length. */
+function lastHeadingStart(s: string): number {
+  const re = /(?:^|\s)((?:APX [A-Z]|[A-Z]{1,3}(?:[./][A-Za-z0-9]+)*):\s)/g;
+  let at = -1;
+  for (let m = re.exec(s); m; m = re.exec(s)) at = m.index + (m[0].length - m[1].length);
+  return at < 0 ? s.length : at;
+}
+
+/** FLAG's "Submission Errors" block, one line per field; null when the page shows no such block. */
+export function reviewPageErrors(): string[] | null {
+  const text = reviewText();
+  const start = text.indexOf(ERRORS_START);
+  if (start < 0) return null;
+  let block = text.slice(start + ERRORS_START.length);
+  const end = block.indexOf(ERRORS_END);
+  if (end >= 0) block = block.slice(0, end);
+  block = block.replace(SECTION_COUNT, SECTION_MARK);
+
+  const out: string[] = [];
+  let heading = "";
+  for (const piece of block.split(/(?=Field [A-Za-z0-9./]+:)/)) {
+    let body = piece;
+    let next = "";
+    const mark = body.indexOf(SECTION_MARK);
+    if (mark >= 0) {
+      const before = body.slice(0, mark);
+      const at = lastHeadingStart(before);
+      next = before.slice(at).trim();
+      body = before.slice(0, at);
+    }
+    const field = body.match(/^Field ([A-Za-z0-9./]+):\s*(.*)$/);
+    if (field) {
+      const message = field[2].trim().replace(/\.$/, "");
+      out.push(`${heading ? `${heading} - ` : ""}${field[1]}: ${message}`);
+    }
+    if (next) heading = next;
+  }
+  if (!out.length && block.trim()) out.push(block.split(SECTION_MARK).join(" ").trim().slice(0, 300));
+  return out;
+}
+
+/** Whether FLAG's own Submit is clickable, and which sidebar items it still counts as incomplete. Read only. */
+export function submitState(): { found: boolean; enabled: boolean; incomplete: string[] } {
+  const button = Array.from(document.querySelectorAll<HTMLElement>("button, input[type='submit']")).find(
+    (el) => normalise(el.textContent || (el as HTMLInputElement).value) === "submit",
+  );
+  const incomplete = Array.from(document.querySelectorAll<HTMLElement>("[class*='page-item-title']"))
+    .filter((el) => !/page-item-title--complete/.test(el.className))
+    .map((el) => (el.textContent ?? "").replace(/\s+/g, " ").trim())
+    .filter((text) => text && !/review/i.test(text));
+  return { found: !!button, enabled: !!button && !isDisabled(button), incomplete: [...new Set(incomplete)] };
 }
