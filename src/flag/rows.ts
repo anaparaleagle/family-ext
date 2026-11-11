@@ -56,7 +56,7 @@ function addControl(text?: string): HTMLElement | null {
     const label = normalise(el.textContent);
     if (!label || label.length > 60 || NEVER.test(label) || !visible(el)) continue;
     if (want ? !label.startsWith(want) : !ADD_TEXT.test(label)) continue;
-    if (label.length < bestLength) {
+    if (label.length <= bestLength) {
       best = el;
       bestLength = label.length;
     }
