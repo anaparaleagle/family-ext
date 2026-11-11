@@ -347,6 +347,7 @@ async function loadFlagCase(formType: string): Promise<void> {
   const payload = (await res.json()) as {
     field_values?: Record<string, string>;
     additional_worksites?: Record<string, string>[];
+    appendix_rows?: Record<string, Record<string, string>[]>;
     documents?: { url: string; filename: string }[];
     autofill_report?: {
       typed_count?: number;
@@ -365,9 +366,10 @@ async function loadFlagCase(formType: string): Promise<void> {
     [FLAG_KEYS.caseLabel]: selectedLabel(),
     [FLAG_KEYS.formType]: formType,
     [FLAG_KEYS.loadedAt]: Date.now(),
-    // The LCA's extra-row replay has never been walked live, so only the 9141 gets rows here.
-    [FLAG_KEYS.extraRows]: formType === "ETA-9141" ? payload.additional_worksites ?? [] : [],
+    // The LCA's extra-row replay has never been walked live, so only the PERM forms get rows here.
+    [FLAG_KEYS.extraRows]: formType === "ETA-9035E" ? [] : payload.additional_worksites ?? [],
     [FLAG_KEYS.documents]: payload.documents ?? [],
+    [FLAG_KEYS.appendixRows]: payload.appendix_rows ?? {},
   });
   await chrome.storage.local.remove(FLAG_KEYS.extraRowsDone);
   // SOF-2191: a case switch must not carry the PREVIOUS case's partial LCA
