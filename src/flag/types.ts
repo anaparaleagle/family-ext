@@ -102,8 +102,8 @@ export interface FlagField {
   boxPrefix?: string;
   /** Not found by name: the first textarea after this control. */
   afterName?: string;
-  /** A select inside an Add box with no value of its own: take its first option. */
-  firstOption?: true;
+  /** A select inside an Add box with no value of its own: pick the option naming this row's keyword. */
+  optionFor?: { from: string; keywords: Record<string, string> };
 }
 
 export type FlagWidget = "typed-phone" | "label-click" | "autosuggest" | "react-select";

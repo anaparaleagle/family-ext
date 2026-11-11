@@ -538,6 +538,10 @@ function problemLines(report: WalkReport): string[] {
     for (const f of s.fields) {
       if (f.status === "failed" || f.status === "locked") lines.push(`${s.title}: ${withReason(f)}`);
     }
+    for (const a of s.appendix ?? []) {
+      if (a.status === "failed") lines.push(`${s.title}: ${a.label} NOT added (${a.message ?? "unknown"})`);
+    }
+    if (!s.reached) lines.push(`${s.title}: section not reached${s.skipped ? ` (${s.skipped})` : ""}`);
   }
   if (report.unclaimed.length) lines.push(`Sent by the case but not on this form: ${report.unclaimed.join(", ")}`);
   return lines;

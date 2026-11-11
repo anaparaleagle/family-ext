@@ -55,7 +55,7 @@ function addControl(text?: string): HTMLElement | null {
     if (el.closest("#mk-flag-toolbar") || el.closest("nav, aside")) continue;
     const label = normalise(el.textContent);
     if (!label || label.length > 60 || NEVER.test(label) || !visible(el)) continue;
-    if (want ? !label.includes(want) : !ADD_TEXT.test(label)) continue;
+    if (want ? !label.startsWith(want) : !ADD_TEXT.test(label)) continue;
     if (label.length < bestLength) {
       best = el;
       bestLength = label.length;
@@ -87,10 +87,14 @@ function tableText(): string[] {
   return Array.from(document.querySelectorAll<HTMLElement>("table tbody tr")).map((tr) => normalise(tr.textContent));
 }
 
-function pickFirstOption(name: string): boolean {
-  const el = document.querySelector<HTMLSelectElement>(`select[name="${CSS.escape(name)}"]`);
-  if (!el || el.disabled) return false;
-  const opt = Array.from(el.options).find((o) => o.value && !o.disabled);
+async function pickOptionNaming(name: string, keyword: string): Promise<boolean> {
+  const want = normalise(keyword);
+  const el = await waitFor(() => {
+    const s = document.querySelector<HTMLSelectElement>(`select[name="${CSS.escape(name)}"]`);
+    return s && !s.disabled && Array.from(s.options).some((o) => o.value) ? s : null;
+  }, REVEAL_TIMEOUT_MS);
+  if (!el) return false;
+  const opt = Array.from(el.options).find((o) => o.value && !o.disabled && normalise(o.textContent).includes(want));
   if (!opt) return false;
   if (el.value === opt.value) return true;
   const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set;
@@ -101,8 +105,8 @@ function pickFirstOption(name: string): boolean {
 }
 
 async function addOne(spec: FlagAddRowsSpec, row: RowValues, label: string): Promise<AddRowOutcome> {
-  const control = addControl(spec.addText);
-  if (!control) return { label, status: "failed", message: "no + Add control on this section" };
+  const control = addControl(spec.addText) ?? addControl();
+  if (!control) return { label, status: "failed", message: `no "${spec.addText ?? "+ Add"}" control on this section` };
   await press(control);
   const first = spec.fields[0];
   const anchor = await waitFor(() => domName(first.name));
@@ -110,15 +114,20 @@ async function addOne(spec: FlagAddRowsSpec, row: RowValues, label: string): Pro
 
   const notes: string[] = [];
   for (const field of spec.fields) {
+    const keyword = field.optionFor?.keywords[row[field.optionFor.from] ?? ""];
     const want = row[field.name];
-    if (!want && !field.firstOption) continue;
+    if (!want && !keyword) continue;
     const name = await waitFor(() => domName(field.name), field === first ? BOX_TIMEOUT_MS : REVEAL_TIMEOUT_MS);
     if (!name) {
       notes.push(`${field.name}: not on the box`);
       continue;
     }
     if (!want) {
-      if (!pickFirstOption(name)) notes.push(`${field.name}: no option to pick`);
+      if (!(await pickOptionNaming(name, keyword ?? ""))) {
+        const fail = `${field.name}: no option naming "${keyword}"`;
+        closeBox(boxScope(anchor, spec.saveText));
+        return { label, status: "failed", message: [...notes, fail].join("; ") };
+      }
       continue;
     }
     const res = await setFlagValue({ ...field, name } as FlagField, want);

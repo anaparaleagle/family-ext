@@ -81,7 +81,7 @@ async function typeText(el: HTMLInputElement | HTMLTextAreaElement, text: string
   await sleep(50);
 }
 
-const KEY_CODES: Record<string, number> = { ArrowDown: 40, Enter: 13, Escape: 27 };
+const KEY_CODES: Record<string, number> = { ArrowDown: 40, Enter: 13 };
 
 function press(el: HTMLElement, key: string): void {
   for (const type of ["keydown", "keyup"]) {
@@ -100,11 +100,17 @@ async function enterText(el: HTMLInputElement, text: string): Promise<void> {
 }
 
 async function pressKey(el: HTMLElement, key: string, times = 1): Promise<void> {
+  if (key === "Escape") return;
   if (await bridge("key", { key, times }, el)) return;
   for (let i = 0; i < times; i++) {
     press(el, key);
     await sleep(60);
   }
+}
+
+/** Autosuggest only lists options while it believes its input is focused; the page itself may not have focus. */
+async function focusIn(el: HTMLElement): Promise<void> {
+  if (!(await bridge("focusIn", {}, el))) focus(el);
 }
 
 async function clickControl(el: HTMLElement): Promise<void> {
@@ -388,8 +394,17 @@ async function pickCode(field: FlagField, code: string): Promise<SetResult> {
 
   if (!field.multi) await clearOldPicks(field, el, []);
   const box = await emptyInput(field, el);
+  await focusIn(box);
   await enterText(box, code);
-  const options = await waitForSuggestions(box, code);
+  let options = await waitForSuggestions(box, code);
+  for (let attempt = 0; attempt < 2 && bestSuggestion(options, code) < 0; attempt++) {
+    const again = (locateFlagField(field) as HTMLInputElement | null) ?? box;
+    await focusIn(again);
+    await enterText(again, code.slice(0, -1));
+    await enterText(again, code);
+    await pressKey(again, "ArrowDown");
+    options = await waitForSuggestions(again, code);
+  }
   const index = bestSuggestion(options, code);
   if (index < 0) {
     const seen = options.slice(0, 3).map((o) => (o.textContent ?? "").trim()).join(" | ");
@@ -510,7 +525,7 @@ export async function setReactSelect(name: string, target: HTMLElement, value: s
     await sleep(POLL_MS);
   }
   if (index < 0) {
-    await pressKey(input, "Escape");
+    blur(input);
     const seen = options.slice(0, 3).map((o) => (o.textContent ?? "").trim()).join(" | ");
     return fail(name, `no "${value}" in FLAG's list${seen ? ` (saw: ${seen})` : " (is the state set?)"}`);
   }
