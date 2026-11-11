@@ -42,6 +42,7 @@ const KEYS = {
   caseId: "flagCaseId",
   caseLabel: "flagCaseLabel",
   documents: "flagDocuments",
+  appendixRows: "flagAppendixRows",
   accessToken: "accessToken",
   apiBaseUrl: "apiBaseUrl",
   // SOF-2191 — the FLAG values read back so far this review, accumulated
@@ -62,6 +63,7 @@ interface Loaded {
   /** Worksites past the first, in the order the case holds them. */
   extraRows: RowValues[];
   documents: FlagDocument[];
+  appendixRows: Record<string, RowValues[]>;
   report: Record<string, unknown>;
   /** Case id (for health telemetry). Empty when loaded from cache without one. */
   caseId: string;
@@ -101,6 +103,7 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
     KEYS.fieldValues,
     KEYS.extraRows,
     KEYS.documents,
+    KEYS.appendixRows,
     KEYS.formType,
     KEYS.caseId,
     KEYS.accessToken,
@@ -129,6 +132,7 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
       fieldValues: cached,
       extraRows: (stored[KEYS.extraRows] as RowValues[]) ?? [],
       documents: (stored[KEYS.documents] as FlagDocument[]) ?? [],
+      appendixRows: (stored[KEYS.appendixRows] as Record<string, RowValues[]>) ?? {},
       report: {},
       caseId: (stored[KEYS.caseId] as string) ?? "",
     };
@@ -149,6 +153,7 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
   const res = await apiGet<{
     field_values: Record<string, string>;
     additional_worksites?: RowValues[];
+    appendix_rows?: Record<string, RowValues[]>;
     documents?: FlagDocument[];
     autofill_report: Record<string, unknown>;
   }>(path, { apiBaseUrl, accessToken });
@@ -160,14 +165,16 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
   const fieldValues = res.data.field_values ?? {};
   const extraRows = res.data.additional_worksites ?? [];
   const documents = res.data.documents ?? [];
+  const appendixRows = res.data.appendix_rows ?? {};
   await chrome.storage.local.set({
     [KEYS.fieldValues]: fieldValues,
     [KEYS.extraRows]: extraRows,
     [KEYS.documents]: documents,
+    [KEYS.appendixRows]: appendixRows,
     [KEYS.formType]: config.formType,
   });
   await chrome.storage.local.remove(KEYS.extraRowsDone);
-  return { fieldValues, extraRows, documents, report: res.data.autofill_report ?? {}, caseId };
+  return { fieldValues, extraRows, documents, appendixRows, report: res.data.autofill_report ?? {}, caseId };
 }
 
 function fromBase64(b64: string): Uint8Array<ArrayBuffer> {
@@ -383,6 +390,10 @@ function sectionNotes(outcome: SectionOutcome): string {
     if (w.status === "added") notes.push(`Worksite ${w.city} added.`);
     else if (w.status === "failed") notes.push(`Worksite ${w.city} NOT added: ${w.message ?? "unknown"}.`);
   }
+  for (const a of outcome.appendix ?? []) {
+    if (a.status === "added") notes.push(`${outcome.title}: added ${a.label}.`);
+    else if (a.status === "failed") notes.push(`${outcome.title}: ${a.label} NOT added: ${a.message ?? "unknown"}.`);
+  }
   for (const d of outcome.documents ?? []) {
     if (d.status === "uploaded") notes.push(`Uploaded ${d.filename}${d.message ? ` (${d.message})` : ""}.`);
     else if (d.status === "failed") notes.push(`${d.filename} NOT uploaded: ${d.message ?? "unknown"}.`);
@@ -461,7 +472,7 @@ async function onFillSection(config: FlagFormConfig): Promise<void> {
     if (!loaded) return;
     const outcome = await fillCurrentSection(
       config, loaded.fieldValues, await pendingExtraRows(loaded),
-      { documents: loaded.documents, download: downloadDocument },
+      { documents: loaded.documents, download: downloadDocument, appendixRows: loaded.appendixRows },
     );
     if (!outcome) {
       setStatus(`This is not a section the ${config.formType} descriptor knows.`);
@@ -496,7 +507,7 @@ async function onFillAll(config: FlagFormConfig): Promise<void> {
     renderReport([], "");
     const report = await fillAll(
       config, loaded.fieldValues, await pendingExtraRows(loaded),
-      { documents: loaded.documents, download: downloadDocument },
+      { documents: loaded.documents, download: downloadDocument, appendixRows: loaded.appendixRows },
     );
     void flushUnmappedFields(config.formType, loaded.caseId);
     await recordExtraRows(report.sections);

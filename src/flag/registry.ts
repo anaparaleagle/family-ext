@@ -6,10 +6,11 @@
 // bundle.
 
 import { ETA9035_CONFIG } from "./eta9035-descriptor";
+import { ETA9089_CONFIG } from "./eta9089-descriptor";
 import { ETA9141_CONFIG } from "./eta9141-descriptor";
 import { FlagFormConfig } from "./types";
 
-export const FLAG_CONFIGS: FlagFormConfig[] = [ETA9141_CONFIG, ETA9035_CONFIG];
+export const FLAG_CONFIGS: FlagFormConfig[] = [ETA9141_CONFIG, ETA9089_CONFIG, ETA9035_CONFIG];
 
 /**
  * Storage keys for the FLAG side.
@@ -36,6 +37,7 @@ export const FLAG_KEYS = {
   caseId: "flagCaseId",
   caseLabel: "flagCaseLabel",
   documents: "flagDocuments",
+  appendixRows: "flagAppendixRows",
   loadedAt: "flagLoadedAt",
   // SOF-2191 — the FLAG values read back so far for the LCA summary review,
   // accumulated across sections. Cleared whenever a (possibly different) case

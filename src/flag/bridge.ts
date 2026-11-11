@@ -177,6 +177,15 @@ async function click(req: Request): Promise<Reply> {
   return { ok: true, message: "click" };
 }
 
+async function clickUp(req: Request): Promise<Reply> {
+  let el: Element | null = target(req.target);
+  if (!el) return { ok: false, message: "element not on page" };
+  for (let depth = 0; el && depth < 6; depth++, el = el.parentElement) {
+    if (call(el, "onClick", synthetic(el, "click"))) return { ok: true, message: `onClick at depth ${depth}` };
+  }
+  return { ok: false, message: "no React onClick" };
+}
+
 function blur(req: Request): Promise<Reply> {
   const el = target(req.target);
   if (!el) return Promise.resolve({ ok: false, message: "element not on page" });
@@ -185,7 +194,7 @@ function blur(req: Request): Promise<Reply> {
   return Promise.resolve({ ok: true, message: "blurred" });
 }
 
-const OPS: Record<string, (req: Request) => Promise<Reply>> = { radio, checkbox, setInput, key, click, blur };
+const OPS: Record<string, (req: Request) => Promise<Reply>> = { radio, checkbox, setInput, key, click, clickUp, blur };
 
 document.addEventListener(REQUEST, (e: Event) => {
   let req: Request;

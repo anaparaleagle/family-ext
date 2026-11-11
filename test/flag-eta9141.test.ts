@@ -150,10 +150,9 @@ describe("descriptor vs the backend table", () => {
       for (const field of section.fields) {
         const backendKind = byName.get(field.name);
         if (!backendKind) continue;
-        // `search` is this side's word for a combobox the backend calls text —
-        // the county. Everything else must match exactly.
-        const ours = field.kind === "search" ? "text" : field.kind;
-        const theirs = backendKind === "textarea" ? "textarea" : backendKind;
+        // Both sides now call the search boxes `search`; a textarea takes a plain text value.
+        const ours = field.kind === "textarea" ? "text" : field.kind;
+        const theirs = backendKind === "textarea" ? "text" : backendKind;
         if (ours !== theirs && !(ours === "phone" && theirs === "text")) {
           mismatches.push(`${field.name}: descriptor=${field.kind} backend=${backendKind}`);
         }

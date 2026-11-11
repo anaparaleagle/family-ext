@@ -102,6 +102,8 @@ export interface FlagField {
   boxPrefix?: string;
   /** Not found by name: the first textarea after this control. */
   afterName?: string;
+  /** A select inside an Add box with no value of its own: take its first option. */
+  firstOption?: true;
 }
 
 export type FlagWidget = "typed-phone" | "label-click" | "autosuggest" | "react-select";
@@ -127,6 +129,26 @@ export interface FlagDocumentsSpec {
   category: string;
   maxBytes: number;
   accept: string[];
+}
+
+/** Rows typed through FLAG's "+ Add ..." box, one box per row (ETA-9089 Appendix A.B-A.E, C). */
+export interface FlagAddRowsSpec {
+  /** Key of the feed's `appendix_rows` this section types. */
+  rowsKey: string;
+  /** Text of the add control, when the generic "+ Add" match is not enough. */
+  addText?: string;
+  saveText: string;
+  /** In typing order; the first is the box FLAG shows before the rest appear. */
+  fields: FlagField[];
+  /** Row value that names the row in FLAG's table, to skip one already added. */
+  labelField: string;
+}
+
+/** A pick-list of rows FLAG already holds (ETA-9089 Appendix B: the PWD's worksites). */
+export interface FlagPickRowsSpec {
+  onlyWhen: FlagReveal;
+  addButtonText: string;
+  saveTexts: string[];
 }
 
 export interface FlagDocument {
@@ -259,6 +281,8 @@ export interface FlagSection {
   marker?: string;
   worksiteTable?: FlagWorksiteTableSpec;
   documents?: FlagDocumentsSpec;
+  addRows?: FlagAddRowsSpec;
+  pickRows?: FlagPickRowsSpec;
 }
 
 /** A control the runner must never touch, and why. Enforced, not advisory. */
