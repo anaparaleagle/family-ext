@@ -350,6 +350,92 @@ function setPhone(el: HTMLInputElement, value: string): boolean {
   return true;
 }
 
+// ── Currency ──────────────────────────────────────────────────────────────
+//
+// FLAG's ETA-9035E wage boxes (F.10 from, F.10 to, F.11) are masked money
+// inputs: whatever is written lands as "$110,344.00". The text waterfall above
+// gets both halves of that wrong, and the two faults compound.
+//
+//   * It reads the box back with `matchesValue`, which compares DIGITS. The
+//     mask's own ".00" makes "11034400", the payload says "110344", so a write
+//     that landed perfectly is declared a failure.
+//   * Having declared it failed, the waterfall carries on to its last resort,
+//     which clears the box and types one character at a time. The mask pins two
+//     decimals, so every character after the first is discarded ("$1.001" ->
+//     "$1.00") and the box ends holding $1.00. That is the value found in a
+//     live DOM read on 2026-10-26, and the walk still reported it as a failure.
+//
+// So the report was a false negative AND the retry then destroyed the good
+// value. One write and a numeric read-back fix both: this is the H-1B
+// extension's own `fillCurrencyField` (paraleagle-ext lca-filler.ts), which
+// drove these three boxes for years.
+
+/**
+ * "110344" -> "110344.00". The dollars.cents form the H-1B extension wrote.
+ *
+ * Spelling the cents out matters: a mask that counts what it is given in CENTS
+ * would read a bare "110344" as $1,103.44. Both mask styles agree on
+ * "110344.00", so the explicit form is the safe one to hand over.
+ */
+export function asDollarsAndCents(value: string): string {
+  const cleaned = (value ?? "").replace(/[^0-9.]/g, "");
+  if (!cleaned) return "";
+  const [dollars, cents = ""] = cleaned.split(".");
+  return `${dollars || "0"}.${(cents + "00").slice(0, 2)}`;
+}
+
+/**
+ * Do these two spellings mean the same money? "$110,344.00" == "110344".
+ *
+ * Mirrors the backend's currency normalizer in
+ * `family_visa/cases/lca_summary_compare.py` (strip to digits and the point,
+ * compare as a number) so the extension and the sign-off diff cannot disagree
+ * about whether a wage box holds the right wage.
+ */
+export function sameMoney(a: string, b: string): boolean {
+  const num = (s: string): number => Number((s ?? "").replace(/[^0-9.]/g, ""));
+  const x = num(a);
+  const y = num(b);
+  return Number.isFinite(x) && Number.isFinite(y) && x === y && (a ?? "") !== "";
+}
+
+/**
+ * Write one masked money box: a single native assignment, then read it back as
+ * a NUMBER rather than as a string.
+ *
+ * Deliberately has no retry. A mask reformats on every input event, so a second
+ * attempt types on top of the first one's output — which is exactly how the
+ * text waterfall turned a correct $110,344.00 into $1.00.
+ */
+async function setCurrency(el: HTMLInputElement, value: string): Promise<boolean> {
+  const amount = asDollarsAndCents(value);
+  if (!amount) return false;
+  if (el.disabled || el.readOnly) {
+    // FLAG disables F.11/F.13a once the OES calculator owns them. Writing
+    // straight to .value would still stick — and would report a fill that the
+    // page never accepted — so refuse it instead.
+    dbg(`value-setter: ${el.getAttribute("name")} is disabled — leaving the wage alone`);
+    return false;
+  }
+
+  el.focus();
+  el.dispatchEvent(new FocusEvent("focus", { bubbles: true }));
+  setNativeValue(el, amount);
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+  el.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+  setViaFormik(el, amount);
+
+  // The mask reformats on its own schedule; give it a turn before reading.
+  await sleep(300);
+  if (sameMoney(el.value, amount)) return true;
+
+  dbg(
+    `value-setter: currency "${el.getAttribute("name")}" wanted ${amount}, box holds "${el.value}"`,
+  );
+  return false;
+}
+
 // ── Radio / checkbox ──────────────────────────────────────────────────────
 
 /** Yes/No <-> true/false aliases, so a backend "true" matches a radio whose
@@ -444,7 +530,18 @@ function locateRadios(locate: LocateSpec): HTMLInputElement[] {
   return best?.radios ?? [];
 }
 
-function setRadio(name: string, value: string, locate?: LocateSpec): boolean {
+/**
+ * "set" / "miss" / "locked" — a radio group's three outcomes.
+ *
+ * `locked` is split out so a group FLAG has greyed out is not reported as a
+ * value we could not find. On the ETA-9035E's OES branch that distinction is
+ * the whole story: FLAG disables the offered-wage unit (F.10a) until its own
+ * Wage Calculator has applied a prevailing wage, and a live run read those
+ * dropped clicks as two failed fields.
+ */
+type RadioResult = "set" | "miss" | "locked";
+
+function setRadio(name: string, value: string, locate?: LocateSpec): RadioResult {
   let radios = Array.from(
     document.querySelectorAll<HTMLInputElement>(
       `input[type="radio"][name="${cssEscape(name)}"]`,
@@ -459,7 +556,13 @@ function setRadio(name: string, value: string, locate?: LocateSpec): boolean {
     }
   }
   const chosen = pickRadio(radios, value);
-  if (chosen) return clickRadio(chosen);
+  if (chosen && lockedByPage(chosen)) {
+    // A click on a disabled radio is dropped, but `click()` still returns, so
+    // without this the run reports a wage level FLAG is still asking for.
+    dbg(`value-setter: "${name}" option "${value}" is disabled — leaving it alone`);
+    return "locked";
+  }
+  if (chosen) return clickRadio(chosen) ? "set" : "miss";
   dbg(`value-setter: no radio option matched "${value}" for "${name}" (${radios.length} options)`);
   // Name what WAS on the page. A radio miss is either a value we do not send in
   // the page's vocabulary (fix the backend map) or a group that is not really
@@ -471,15 +574,34 @@ function setRadio(name: string, value: string, locate?: LocateSpec): boolean {
     for (const radio of radios) {
       dbg(`  option value=${JSON.stringify(radio.value)} label=${JSON.stringify(radioLabel(radio))}`);
     }
+    // Every option greyed out is the PAGE's answer, not a vocabulary mismatch
+    // — the group is there, it is simply not answerable yet.
+    if (radios.every((r) => lockedByPage(r))) return "locked";
   }
-  return false;
+  return "miss";
 }
 
 function clickRadio(radio: HTMLInputElement): boolean {
   radio.click();
   radio.dispatchEvent(new Event("change", { bubbles: true }));
   radio.dispatchEvent(new Event("input", { bubbles: true }));
-  return true;
+  if (radio.checked) return true;
+
+  // The input did not take the click. FLAG's forms are built on USWDS, which
+  // hides the real input under a styled label and listens on the LABEL — and
+  // the H-1B extension found it had to click that label to select the
+  // prevailing-wage source at all. Tried only as a fallback, so an ordinary
+  // radio is unaffected.
+  const label =
+    (radio.id && document.querySelector<HTMLElement>(`label[for="${cssEscape(radio.id)}"]`)) ||
+    (radio.nextElementSibling?.tagName === "LABEL"
+      ? (radio.nextElementSibling as HTMLElement)
+      : null);
+  if (!label) return radio.checked;
+  dbg(`value-setter: radio "${radio.name}" ignored its own click — clicking its label`);
+  label.click();
+  radio.dispatchEvent(new Event("change", { bubbles: true }));
+  return radio.checked;
 }
 
 function radioLabel(radio: HTMLInputElement): string {
@@ -527,15 +649,124 @@ function setSelect(el: HTMLSelectElement, value: string): boolean {
       return true;
     }
   }
+  if (selectWageYear(el, value)) return true;
   dbg(`value-setter: option "${value}" not in select "${el.getAttribute("name")}"`);
+  return false;
+}
+
+/**
+ * Last resort for a DOL WAGE-YEAR select: "2026-27" against "7/1/2026 - 6/30/2027".
+ *
+ * Carried from the H-1B extension, which needed it because its feed sent the
+ * compact year while FLAG's F.13b lists the OFLC wage window. Ours sends the
+ * window already, so this fires for nothing we currently emit — it is here
+ * because an unmatched source year is not a cosmetic miss: F.13b is required
+ * on the OES branch, and a blank one keeps "Add Place of Employment" disabled
+ * and costs the whole worksite row.
+ */
+function selectWageYear(el: HTMLSelectElement, value: string): boolean {
+  const compact = value.trim().match(/^(\d{4})\s*[-/]\s*(\d{2,4})$/);
+  if (!compact) return false;
+  const start = compact[1];
+  const end = compact[2].length === 2 ? String(Number(start) + 1) : compact[2];
+  for (const opt of Array.from(el.options)) {
+    if (opt.disabled) continue;
+    const txt = opt.textContent ?? "";
+    if (txt.includes(start) && txt.includes(end)) {
+      el.value = opt.value;
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      dbg(`value-setter: matched wage year "${value}" to "${txt.trim()}"`);
+      return true;
+    }
+  }
   return false;
 }
 
 // ── Search (MUI Autocomplete: country / state) ────────────────────────────
 
+/** The open modal over the page, if there is one. */
+function openDialogScope(): HTMLElement | null {
+  return document.querySelector<HTMLElement>(
+    '[role="dialog"]:not([aria-hidden="true"]), .modal.show',
+  );
+}
+
+/**
+ * The listbox ARIA says belongs to THIS input, wherever it is in the document.
+ *
+ * Carried from the H-1B extension's `fillSearchField`, which followed
+ * `aria-controls` / `aria-owns` before it scanned anything. This is the pointer
+ * that survives a PORTAL: a combobox inside a dialog routinely renders its
+ * option list at <body> level, outside the dialog node, and a dialog-clamped
+ * scan then sees nothing at all while the list is plainly on screen.
+ *
+ * LIVE, 2026-10-27, flag.dol.gov ETA-9035E Section F: the OES Wage Calculator
+ * opened and five of its six inputs landed; AREA stayed empty with "This field
+ * is required", which left Calculate greyed, the calculator with no wage, and
+ * the whole worksite row uncommittable.
+ */
+function ariaListboxFor(el: HTMLElement | null): HTMLElement | null {
+  if (!el) return null;
+  const id = el.getAttribute("aria-controls") ?? el.getAttribute("aria-owns");
+  if (!id) return null;
+  // aria-controls may name several ids; the listbox is whichever one exists.
+  for (const one of id.split(/\s+/)) {
+    const node = one && document.getElementById(one);
+    if (node) return node;
+  }
+  return null;
+}
+
+/**
+ * Where to look for an autocomplete's rendered options, widest confidence first.
+ *
+ * Ordered, not single, and that ordering is the fix for the Area combobox:
+ *
+ *   1. the listbox ARIA links to the input. Exact, O(1), and portal-proof.
+ *   2. the open modal. The H-1B extension learnt this clamp the hard way —
+ *      FLAG's Area combobox froze the renderer outright (RESULT_CODE_HUNG)
+ *      because the scan walked the whole document and read `.textContent` off
+ *      huge subtrees with the modal layered over the application's own.
+ *   3. `document`, LAST and only because step 2 found nothing. MUI portals its
+ *      listbox to <body>, outside the input's own parent chain, and so does
+ *      FLAG's. Reaching it is the difference between an answered box and a
+ *      required one left blank; the caps below are what keep it bounded.
+ */
+function optionScopes(el?: HTMLElement | null): ParentNode[] {
+  const scopes: ParentNode[] = [];
+  const aria = ariaListboxFor(el ?? null);
+  if (aria) scopes.push(aria);
+  const dialog = openDialogScope();
+  if (dialog) scopes.push(dialog);
+  scopes.push(document);
+  return scopes;
+}
+
+/** Hard cap on options examined per selector, so a stale match cannot turn
+ * into a whole-page walk. The old extension's own bound. */
+const MAX_OPTIONS_SCANNED = 150;
+
+/**
+ * What an option looks like, across the widgets this extension meets.
+ *
+ * The first three are MUI's, which myUSCIS renders. The rest are the H-1B
+ * extension's own list, carried over verbatim: FLAG is not a MUI site, and a
+ * list that renders `<li class="dropdown-item">` matches none of the first
+ * three. Narrow, role- and class-prefixed selectors only — a broad
+ * `[class*="option"]` wildcard was the old file's largest source of
+ * false-positive matches, and it is kept last for that reason.
+ */
 const OPTION_SELECTORS = [
   '[role="option"]',
   ".MuiAutocomplete-option",
+  '[role="listbox"] > li',
+  ".usa-combo-box__list-option",
+  ".autocomplete-result",
+  ".search-result",
+  ".dropdown-item",
+  ".suggestion",
+  ".mat-option",
+  "ul.results > li",
   '[class*="option"]',
 ];
 
@@ -597,14 +828,22 @@ async function typeInto(el: HTMLInputElement, text: string): Promise<void> {
   el.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-/** Every option currently rendered by the open listbox, de-duplicated. */
-function renderedOptions(): string[] {
+/**
+ * Every option currently rendered by the open listbox, de-duplicated.
+ *
+ * `el` is the input being driven: its ARIA pointer is the first place looked,
+ * so a list portalled outside the open dialog is still read.
+ */
+function renderedOptions(el?: HTMLElement | null): string[] {
   const seen = new Set<string>();
-  for (const sel of OPTION_SELECTORS) {
-    for (const opt of Array.from(document.querySelectorAll<HTMLElement>(sel))) {
-      const text = (opt.textContent ?? "").trim();
-      if (text) seen.add(text);
+  for (const scope of optionScopes(el)) {
+    for (const sel of OPTION_SELECTORS) {
+      for (const opt of Array.from(scope.querySelectorAll<HTMLElement>(sel)).slice(0, MAX_OPTIONS_SCANNED)) {
+        const text = (opt.textContent ?? "").trim();
+        if (text) seen.add(text);
+      }
     }
+    if (seen.size) break;
   }
   return [...seen];
 }
@@ -680,8 +919,8 @@ function reportOptionsVerdict(value: string, options: string[], label: string): 
  *     genuinely is not there (wrong value entirely).
  */
 async function diagnoseAutocompleteMiss(el: HTMLInputElement, value: string): Promise<void> {
-  const name = el.getAttribute("name") ?? "(unnamed)";
-  const shown = renderedOptions();
+  const name = el.getAttribute("name") ?? el.id ?? "(unnamed)";
+  const shown = renderedOptions(el);
   dbg(`value-setter: DIAGNOSTIC for "${name}"`);
   dbg(`  we typed: ${JSON.stringify(value)} (${value.length} chars)`);
   dbg(`  options rendered after typing that: ${shown.length}`);
@@ -699,7 +938,7 @@ async function diagnoseAutocompleteMiss(el: HTMLInputElement, value: string): Pr
   dbg(`  Re-typing just ${JSON.stringify(firstWord)} to read the real labels (selects nothing):`);
   await typeInto(el, firstWord);
   await sleep(1500);
-  reportOptionsVerdict(value, renderedOptions(), `options for ${JSON.stringify(firstWord)}`);
+  reportOptionsVerdict(value, renderedOptions(el), `options for ${JSON.stringify(firstWord)}`);
   // Restore the input to exactly what it held on failure, so this diagnostic
   // leaves no trace in the form state.
   await typeInto(el, value);
@@ -723,11 +962,40 @@ function withoutCodePrefix(label: string): string {
  * MUI Select path needs the ELEMENT (its data-value is the fallback commit
  * check), and every boolean caller reads truthiness unchanged.
  */
-async function selectRenderedOption(wanted: string): Promise<HTMLElement | null> {
+async function selectRenderedOption(
+  wanted: string,
+  el?: HTMLElement | null,
+): Promise<HTMLElement | null> {
+  for (const scope of optionScopes(el)) {
+    const picked = await selectWithin(scope, wanted);
+    if (picked) return picked;
+    // This scope DID render a list and none of it matched. Widening now would
+    // only let a narrow, correct scope be overruled by whatever is behind it —
+    // which with a modal open means clicking an option off the page
+    // underneath. A list that rendered is the list; the answer is not there.
+    if (countOptions(scope) > 0) return null;
+  }
+  return null;
+}
+
+/** How many option-shaped elements this scope is showing right now. */
+function countOptions(scope: ParentNode): number {
+  let n = 0;
+  for (const sel of OPTION_SELECTORS) {
+    n += scope.querySelectorAll(sel).length;
+    if (n > 0) break;
+  }
+  return n;
+}
+
+/** One scope's worth of the ranked passes above. */
+async function selectWithin(scope: ParentNode, wanted: string): Promise<HTMLElement | null> {
   const want = wanted.trim().toLowerCase();
   const wantKey = labelKey(wanted);
   for (const sel of OPTION_SELECTORS) {
-    const options = Array.from(document.querySelectorAll<HTMLElement>(sel));
+    const options = Array.from(scope.querySelectorAll<HTMLElement>(sel)).slice(
+      0, MAX_OPTIONS_SCANNED,
+    );
     if (options.length === 0) continue;
     const text = (o: HTMLElement): string => (o.textContent ?? "").trim();
 
@@ -783,6 +1051,10 @@ const LISTBOX_SELECTORS = [
   '[role="listbox"]',
   ".MuiAutocomplete-listbox",
   ".MuiAutocomplete-popper",
+  ".usa-combo-box__list",
+  ".autocomplete-results",
+  ".dropdown-menu",
+  "ul.results",
 ].join(", ");
 
 /**
@@ -793,11 +1065,20 @@ const LISTBOX_SELECTORS = [
  * options, and they need opposite fixes: type the SAME thing again, or type LESS.
  * Only the first is worth a second pass, so a genuine over-filter pays nothing.
  */
-function noListboxMounted(): boolean {
+function noListboxMounted(el?: HTMLElement | null): boolean {
+  // The input's own ARIA-linked list counts even when it is not shaped like
+  // one of the containers above — it IS the list, by the page's own say-so.
+  if (ariaListboxFor(el ?? null)) return false;
   return document.querySelector(LISTBOX_SELECTORS) === null;
 }
 
 async function click(opt: HTMLElement): Promise<HTMLElement> {
+  // mousedown/mouseup before the click, as the H-1B extension sent them. A MUI
+  // option commits on click, but a USWDS/FLAG list item commits on MOUSEDOWN
+  // and drops a bare click — which is one way an option can be "clicked"
+  // without the box ever taking the value.
+  opt.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+  opt.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
   opt.click();
   await sleep(150);
   return opt;
@@ -822,6 +1103,27 @@ function typingProbes(value: string): string[] {
   return [...new Set(probes)];
 }
 
+/**
+ * Click the option the widget has itself highlighted for the current query.
+ *
+ * `aria-activedescendant` names it by id, so this needs no scan, no scope and
+ * no guess about markup — and it reaches a list rendered anywhere in the
+ * document. Straight from the H-1B extension's `fillSearchField`, which tried
+ * it before any DOM walk. Mouse events as well as `click()`, because a
+ * combobox that commits on mousedown ignores a bare click.
+ */
+async function clickActiveDescendant(el: HTMLElement): Promise<boolean> {
+  const id = el.getAttribute("aria-activedescendant");
+  if (!id) return false;
+  const opt = document.getElementById(id);
+  if (!opt) return false;
+  opt.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+  opt.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+  opt.click();
+  await sleep(200);
+  return true;
+}
+
 async function setSearch(el: HTMLInputElement, value: string): Promise<boolean> {
   // What the client already had. Nothing is committed until an option is CLICKED,
   // so on every failure path below the box is still holding our query text and
@@ -829,16 +1131,23 @@ async function setSearch(el: HTMLInputElement, value: string): Promise<boolean> 
   const committed = el.value;
   await typeInto(el, value);
   await sleep(1500);
-  if (await selectRenderedOption(value)) return true;
+  // The ACTIVE DESCENDANT, before anything is scanned. The H-1B extension
+  // checked this first and it is the cheapest possible answer: the widget has
+  // already told us, by id, which option it has highlighted for this query.
+  if (await clickActiveDescendant(el)) {
+    dbg(`value-setter: took ${JSON.stringify(value)} from aria-activedescendant`);
+    return true;
+  }
+  if (await selectRenderedOption(value, el)) return true;
 
   // NOT a recovery — the query was fine. An EMPTY list here means the widget had
   // not rendered it when we looked, so type the same thing again and look once
   // more. A list that DID render and simply lacks the value falls straight
   // through to the shorter probes below, so a genuine miss pays nothing.
-  if (renderedOptions().length === 0 && noListboxMounted()) {
+  if (renderedOptions(el).length === 0 && noListboxMounted(el)) {
     await typeInto(el, value);
     await sleep(RETYPE_SETTLE_MS);
-    if (await selectRenderedOption(value)) {
+    if (await selectRenderedOption(value, el)) {
       dbg(`value-setter: matched ${JSON.stringify(value)} on a second pass — the list was late`);
       return true;
     }
@@ -849,13 +1158,13 @@ async function setSearch(el: HTMLInputElement, value: string): Promise<boolean> 
   for (const probe of typingProbes(value)) {
     await typeInto(el, probe);
     await sleep(1200);
-    if (await selectRenderedOption(value)) {
+    if (await selectRenderedOption(value, el)) {
       dbg(`value-setter: matched "${value}" after typing just ${JSON.stringify(probe)}`);
       return true;
     }
   }
 
-  dbg(`value-setter: no autocomplete option matched "${value}" for "${el.getAttribute("name")}"`);
+  dbg(`value-setter: no autocomplete option matched "${value}" for "${el.getAttribute("name") ?? el.id}"`);
   await diagnoseAutocompleteMiss(el, value);
   // Diagnosed FIRST (it reads the options our query rendered), then undone. Typing
   // a query is not an answer, so a miss must leave the field exactly as the client
@@ -979,11 +1288,11 @@ async function diagnoseMuiSelectMiss(
   const name = el.getAttribute("name") ?? "(unnamed)";
   dbg(`value-setter: DIAGNOSTIC for "${name}" (MUI Select)`);
   dbg(`  we wanted to click: ${JSON.stringify(value)} (${value.length} chars)`);
-  let shown = renderedOptions();
+  let shown = renderedOptions(combo);
   if (shown.length === 0) {
     dbg(`  no options on screen — opening the popup to read the labels (typing cannot open a Select):`);
     await openMuiSelectPopup(combo);
-    shown = renderedOptions();
+    shown = renderedOptions(combo);
   }
   if (shown.length === 0) {
     dbg(`  the popup rendered NOTHING even after mouse + keyboard opens — the control may be disabled`);
@@ -1040,7 +1349,7 @@ async function pickMuiSelectOption(
     return "fail";
   }
 
-  const picked = await selectRenderedOption(value);
+  const picked = await selectRenderedOption(value, combo);
   if (!picked) {
     dbg(`value-setter: no select option matched "${value}" for "${name}"`);
     await diagnoseMuiSelectMiss(el, combo, value);
@@ -1104,8 +1413,12 @@ async function setValueAs(spec: FieldSpec, value: string): Promise<SetResult> {
   const { name, kind } = spec;
   try {
     if (kind === "radio") {
-      const ok = setRadio(name, spec.optionValue ?? value, spec.locate);
-      return result(name, ok, ok ? "set radio" : "radio option not found");
+      const outcome = setRadio(name, spec.optionValue ?? value, spec.locate);
+      if (outcome === "set") return result(name, true, "set radio");
+      // LOCKED_MESSAGE exactly, so the fill chain classifies a greyed-out
+      // radio the same way it classifies a greyed-out select or text box.
+      if (outcome === "locked") return result(name, false, LOCKED_MESSAGE);
+      return result(name, false, "radio option not found");
     }
 
     // locateElement is findByName plus the declared structural/label fallbacks.
@@ -1115,6 +1428,7 @@ async function setValueAs(spec: FieldSpec, value: string): Promise<SetResult> {
     // not locateElement, which returns one element.
     const el = locateElement(spec);
     if (!el) return result(name, false, "element not on page");
+    if (lockedByPage(el)) return result(name, false, LOCKED_MESSAGE);
 
     switch (kind) {
       case "checkbox": {
@@ -1129,6 +1443,11 @@ async function setValueAs(spec: FieldSpec, value: string): Promise<SetResult> {
       case "phone": {
         if (!(el instanceof HTMLInputElement)) return result(name, false, "not an input");
         return result(name, setPhone(el, value), "set phone");
+      }
+      case "currency": {
+        if (!(el instanceof HTMLInputElement)) return result(name, false, "not an input");
+        const ok = await setCurrency(el, value);
+        return result(name, ok, ok ? "set currency" : "could not set the amount");
       }
       case "search": {
         if (!(el instanceof HTMLInputElement)) return result(name, false, "not an input");
@@ -1161,4 +1480,30 @@ async function setValueAs(spec: FieldSpec, value: string): Promise<SetResult> {
 
 function result(name: string, success: boolean, message: string): SetResult {
   return { name, success, message };
+}
+
+export const LOCKED_MESSAGE = "the page has this control disabled";
+
+/**
+ * Is this control one the PAGE has locked — disabled or read-only?
+ *
+ * Writing to one anyway is worse than failing, because most of the ways this
+ * file writes a value still "work" on a locked control: a native assignment
+ * sticks, and a radio click is silently dropped while `click()` still returns.
+ * Either way the run reports a box as filled that the form never accepted, and
+ * on the ETA-9035 that is not hypothetical — choosing the OES prevailing-wage
+ * source disables F.7, F.11, F.11a, F.13a and F.13b, which the calculator owns.
+ * The live page then says "Wage Level: This field is required" while the run
+ * says it typed one.
+ *
+ * DISABLED only — read-only is deliberately NOT locked here. myUSCIS renders
+ * the pick-from-a-list rows (Part 7's employer Country and State) as read-only
+ * inputs that are EMPTY, and refusing those left them blank on a live N-400.
+ * The myUSCIS runner has its own, narrower read-only rule: skip a read-only box
+ * that already holds a value, fill one that does not.
+ */
+export function lockedByPage(el: HTMLElement): boolean {
+  if ((el as HTMLInputElement).disabled) return true;
+  if (el.hasAttribute("disabled")) return true;
+  return el.getAttribute("aria-disabled") === "true";
 }

@@ -19,8 +19,8 @@
 // ===========================================================================
 
 import { dbg } from "../engine/logger";
-import { locateElement } from "../engine/value-setter";
-import { FlagSection, flagFieldSpec } from "./types";
+import { locateFlagField } from "./locate";
+import { FlagRepeaterSpec, FlagSection } from "./types";
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -93,13 +93,9 @@ function fingerprint(): string {
  * reports false and the caller treats it as "nothing to do".
  */
 export function sectionIsRendered(section: FlagSection): boolean {
+  if (section.marker && findButtonByText(section.marker)) return true;
   if (!section.fields.length) return false;
-  return section.fields.some(
-    (f) =>
-      document.querySelector(`[name="${CSS.escape(f.name)}"]`) ||
-      (f.byId && document.getElementById(f.name)) ||
-      (f.byLabel && locateElement(flagFieldSpec(f))),
-  );
+  return section.fields.some((f) => !!locateFlagField(f));
 }
 
 /**
@@ -183,4 +179,231 @@ export async function commitSection(): Promise<CommitOutcome> {
   }
   dbg(`commit: page unchanged ${NAV_TIMEOUT_MS}ms after Continue — FLAG refused it`);
   return "blocked";
+}
+
+// ── buttons, modals and repeater rows ───────────────────────────────────────
+
+const CLICKABLE = "button, [role='button'], a, input[type='button'], input[type='submit']";
+
+/**
+ * The button whose visible text contains `text`, inside `scope`.
+ *
+ * Text, not a selector, because FLAG's own markup for these controls has
+ * already been redesigned once under the H-1B extension — the labels on the
+ * screen outlived the ids and classes behind them.
+ *
+ * The SHORTEST match wins, for the same reason the sidebar search takes the
+ * shortest: a container that wraps the button also contains its text.
+ */
+export function findButtonByText(text: string, scope: ParentNode = document): HTMLElement | null {
+  const want = normalise(text);
+  let best: HTMLElement | null = null;
+  let bestLength = Infinity;
+  for (const el of scope.querySelectorAll<HTMLElement>(CLICKABLE)) {
+    const label = normalise(el.textContent || (el as HTMLInputElement).value);
+    if (!label || !label.includes(want)) continue;
+    if (NEVER_CLICK_BUTTON.test(label)) continue;
+    if (label.length < bestLength) {
+      best = el;
+      bestLength = label.length;
+    }
+  }
+  return best;
+}
+
+/**
+ * Buttons this file will not press whatever a descriptor asks for.
+ *
+ * "Submit" is NOT here, and that is the one judgement call: the OES Wage
+ * Calculator's own apply button is labelled Submit, and refusing it would mean
+ * never being able to use the calculator at all. The application's Submit is
+ * "Review & Submit" and is caught by `review`; a modal search is also scoped to
+ * the open dialog, so the page's own buttons are out of reach of it.
+ */
+const NEVER_CLICK_BUTTON =
+  /\b(review|sign|certify|declare|delete|remove|withdraw|pay|payment|quit|discard)\b|add data/i;
+
+/** Is this control disabled — by the property, the attribute, or ARIA? */
+export function isDisabled(el: HTMLElement): boolean {
+  if ((el as HTMLButtonElement).disabled) return true;
+  if (el.hasAttribute("disabled")) return true;
+  return el.getAttribute("aria-disabled") === "true";
+}
+
+/** The open modal over the page, if there is one. */
+export function openDialog(): HTMLElement | null {
+  return document.querySelector<HTMLElement>(
+    '[role="dialog"]:not([aria-hidden="true"]), .modal.show, .modal[style*="display: block"]',
+  );
+}
+
+/**
+ * How many rows the repeater's table already holds.
+ *
+ * Read off FLAG's own heading — "0 Entries for Place of Employment" — because
+ * it is the page stating the fact, not us inferring it from markup that could
+ * change. -1 when the heading is not on screen at all, which is reported
+ * separately from "the count did not go up": one is a page we no longer
+ * understand, the other is a row FLAG refused.
+ */
+export function repeaterRowCount(repeater: FlagRepeaterSpec): number {
+  const want = normalise(repeater.entriesLabel);
+  let best = -1;
+  let bestLength = Infinity;
+  for (const el of document.querySelectorAll<HTMLElement>("*")) {
+    const text = normalise(el.textContent);
+    if (!text.includes(want) || text.length > bestLength) continue;
+    // "0 Entries for Place of Employment" is what the live page prints. The
+    // trailing form is accepted too so a DOL reword to "Places of Employment
+    // (1)" does not read as a page we no longer understand.
+    const label = escapeRegExp(want);
+    const match =
+      text.match(new RegExp(`(\\d+)\\s+${label}`)) ??
+      text.match(new RegExp(`${label}[^0-9]{0,4}(\\d+)`));
+    if (!match) continue;
+    best = Number(match[1]);
+    bestLength = text.length;
+  }
+  return best;
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * The validation messages FLAG is showing right now, as a person would read them.
+ *
+ * Only used in reporting. When "Add Place of Employment" is disabled, the page
+ * has already listed exactly which boxes it is unhappy with, and repeating that
+ * in the toolbar is the difference between "the row was not added" and knowing
+ * why without opening the console.
+ */
+export function visibleErrors(limit = 6): string[] {
+  const seen = new Set<string>();
+  for (const el of document.querySelectorAll<HTMLElement>(
+    '[role="alert"], .usa-error-message, [class*="error-message"], [class*="errorMessage"]',
+  )) {
+    const text = (el.textContent ?? "").replace(/\s+/g, " ").trim();
+    if (text && text.length < 200) seen.add(text);
+    if (seen.size >= limit) break;
+  }
+  return [...seen];
+}
+
+/** What pressing the repeater's Add button did. */
+export type RowOutcome =
+  | { status: "added"; rows: number }
+  | { status: "disabled"; errors: string[] }
+  | { status: "refused"; rows: number; errors: string[] }
+  | { status: "no-button" };
+
+/** How long FLAG is given to show the committed row in its table. */
+const ROW_TIMEOUT_MS = 5000;
+
+/**
+ * Commit the typed row with the section's own Add button.
+ *
+ * This is the step that was missing, and it is not Continue: on the ETA-9035
+ * Continue saves the SECTION, while Add saves the ROW, and a section saved with
+ * no rows is the error "Field F: Please enter in at least one row."
+ *
+ * A disabled button is reported, never forced. FLAG disables it while the entry
+ * fails validation, and a click on a disabled button does nothing at all — so
+ * without this check the walk would report a committed worksite that does not
+ * exist.
+ */
+export async function commitRepeaterRow(repeater: FlagRepeaterSpec): Promise<RowOutcome> {
+  const button = findButtonByText(repeater.addButtonText);
+  if (!button) {
+    dbg(`row: no "${repeater.addButtonText}" button on this section`);
+    return { status: "no-button" };
+  }
+  if (isDisabled(button)) {
+    const errors = visibleErrors();
+    dbg(`row: "${repeater.addButtonText}" is disabled — ${errors.join(" | ") || "no message shown"}`);
+    return { status: "disabled", errors };
+  }
+
+  const before = repeaterRowCount(repeater);
+  button.click();
+
+  const deadline = Date.now() + ROW_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    await sleep(POLL_MS);
+    const now = repeaterRowCount(repeater);
+    if (now > before) return { status: "added", rows: now };
+  }
+  const rows = repeaterRowCount(repeater);
+  dbg(`row: table still reads ${rows} after "${repeater.addButtonText}"`);
+  return { status: "refused", rows, errors: visibleErrors() };
+}
+
+const ERRORS_START = "Submission Errors:";
+const ERRORS_END = "Select what form/section you would like to view";
+const SECTION_COUNT = /There (?:is|are) \d+ errors? on this page/g;
+const SECTION_MARK = "\u0001";
+
+function reviewText(): string {
+  const root = document.querySelector<HTMLElement>("#simple-modal") ?? document.body;
+  return (root.innerText || root.textContent || "").replace(/\s+/g, " ");
+}
+
+/** True once FLAG's Review & Submit page has rendered its section picker. */
+export function reviewPageLoaded(): boolean {
+  const text = reviewText();
+  return text.includes(ERRORS_END) || text.includes(ERRORS_START);
+}
+
+/** Where the last section heading ("F.d: Other Information") starts in `s`, or s.length. */
+function lastHeadingStart(s: string): number {
+  const re = /(?:^|\s)((?:APX [A-Z]|[A-Z]{1,3}(?:[./][A-Za-z0-9]+)*):\s)/g;
+  let at = -1;
+  for (let m = re.exec(s); m; m = re.exec(s)) at = m.index + (m[0].length - m[1].length);
+  return at < 0 ? s.length : at;
+}
+
+/** FLAG's "Submission Errors" block, one line per field; null when the page shows no such block. */
+export function reviewPageErrors(): string[] | null {
+  const text = reviewText();
+  const start = text.indexOf(ERRORS_START);
+  if (start < 0) return null;
+  let block = text.slice(start + ERRORS_START.length);
+  const end = block.indexOf(ERRORS_END);
+  if (end >= 0) block = block.slice(0, end);
+  block = block.replace(SECTION_COUNT, SECTION_MARK);
+
+  const out: string[] = [];
+  let heading = "";
+  for (const piece of block.split(/(?=Field [A-Za-z0-9./]+:)/)) {
+    let body = piece;
+    let next = "";
+    const mark = body.indexOf(SECTION_MARK);
+    if (mark >= 0) {
+      const before = body.slice(0, mark);
+      const at = lastHeadingStart(before);
+      next = before.slice(at).trim();
+      body = before.slice(0, at);
+    }
+    const field = body.match(/^Field ([A-Za-z0-9./]+):\s*(.*)$/);
+    if (field) {
+      const message = field[2].trim().replace(/\.$/, "");
+      out.push(`${heading ? `${heading} - ` : ""}${field[1]}: ${message}`);
+    }
+    if (next) heading = next;
+  }
+  if (!out.length && block.trim()) out.push(block.split(SECTION_MARK).join(" ").trim().slice(0, 300));
+  return out;
+}
+
+/** Whether FLAG's own Submit is clickable, and which sidebar items it still counts as incomplete. Read only. */
+export function submitState(): { found: boolean; enabled: boolean; incomplete: string[] } {
+  const button = Array.from(document.querySelectorAll<HTMLElement>("button, input[type='submit']")).find(
+    (el) => normalise(el.textContent || (el as HTMLInputElement).value) === "submit",
+  );
+  const incomplete = Array.from(document.querySelectorAll<HTMLElement>("[class*='page-item-title']"))
+    .filter((el) => !/page-item-title--complete/.test(el.className))
+    .map((el) => (el.textContent ?? "").replace(/\s+/g, " ").trim())
+    .filter((text) => text && !/review/i.test(text));
+  return { found: !!button, enabled: !!button && !isDisabled(button), incomplete: [...new Set(incomplete)] };
 }

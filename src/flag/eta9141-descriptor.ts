@@ -18,14 +18,23 @@
 // the fields it reveals so the chain drives the reveal first.
 // ===========================================================================
 
-import { FlagField, FlagFormConfig, FlagSection } from "./types";
+import { FlagField, FlagFormConfig, FlagSection, NotAutofilled } from "./types";
 
 // ── authoring helpers ───────────────────────────────────────────────────────
 const t = (name: string): FlagField => ({ name, kind: "text" });
 const area = (name: string): FlagField => ({ name, kind: "textarea" });
 const sel = (name: string): FlagField => ({ name, kind: "select" });
-const phone = (name: string): FlagField => ({ name, kind: "phone" });
-const radio = (name: string): FlagField => ({ name, kind: "radio" });
+const date = (name: string): FlagField => ({ name, kind: "date" });
+const phone = (name: string): FlagField => ({ name, kind: "phone", widget: "typed-phone" });
+const radio = (name: string): FlagField => ({ name, kind: "radio", widget: "label-click" });
+const box = (name: string): FlagField => ({ name, kind: "checkbox", widget: "label-click" });
+const code = (name: string, boxPrefix: string, multi?: true): FlagField => ({
+  name,
+  kind: "search",
+  widget: "autosuggest",
+  boxPrefix,
+  ...(multi ? { multi } : {}),
+});
 /** A field revealed by an upstream answer. `is` carries FLAG's own option values. */
 const when = (field: FlagField, by: string, is?: string[]): FlagField => ({
   ...field,
@@ -35,6 +44,19 @@ const when = (field: FlagField, by: string, is?: string[]): FlagField => ({
 // FLAG's Yes on THIS form is "1". Not "Yes" — see NOTES-flag-perm.md. Named so a
 // reveal spec reads as the answer rather than as a magic string.
 const YES = "1";
+const TICKED = "true";
+const WITH_MAJOR = ["ASSOCIATES", "BACHELORS", "MASTERS", "DOCTORATEPHD", "OTHERDEGREE"];
+
+/** The four special-requirement checkboxes, each opening its own textarea. */
+function specialRequirements(gate: string, boxPrefix: string, areaPrefix: string): FlagField[] {
+  return ["LicenseCert", "ForeignLang", "ResFellow", "Other"].flatMap((kind) => {
+    const tick = `${boxPrefix}${kind}`;
+    return [
+      when(box(tick), gate, [YES]),
+      { ...when(area(`${areaPrefix}${kind}`), tick, [TICKED]), afterName: tick },
+    ];
+  });
+}
 
 // ── the attorney block ──────────────────────────────────────────────────────
 // Section D renders nothing but the representation radio until it is answered
@@ -90,7 +112,7 @@ export const ETA9141_SECTIONS: FlagSection[] = [
       phone("empPhone"),
       t("empPhoneext"),
       t("empFein"),
-      // C.13 NAICS is deliberately absent — see NOT_AUTOFILLED below.
+      code("naicsCode", "C.13"),
     ],
   },
 
@@ -117,51 +139,62 @@ export const ETA9141_SECTIONS: FlagSection[] = [
   },
 
   {
-    // E.1-E.5 are the wage-source questions. Every one of them is a standing
-    // "No unless the case says otherwise" in the backend map, so the feed
-    // deliberately sends no value for any of them and this section normally
-    // fills nothing. They are listed because a descriptor that omitted them
-    // would make the section look complete when a caseworker still has five
-    // questions to answer.
     navLabel: "Wage Source Information",
     title: "E — Wage Source Information",
     fields: [
       radio("coveredByAcwia"),
+      when(box("acwiaHigherEdu"), "coveredByAcwia", [YES]),
+      when(box("acwiaAffiliated"), "coveredByAcwia", [YES]),
+      when(box("acwiaNonprofit"), "coveredByAcwia", [YES]),
+      when(radio("acwiaStatusChange"), "coveredByAcwia", [YES]),
       radio("sportsLeague"),
       radio("cba"),
       radio("pre_dbaSca"),
+      when(radio("dbaSca"), "pre_dbaSca", [YES]),
       radio("dbaSurvey"),
+      when(t("surveyName"), "dbaSurvey", [YES]),
+      when(date("surveyPublicationDate"), "dbaSurvey", [YES]),
     ],
   },
 
   {
     navLabel: "Job Description",
     title: "F.a — Job Description",
-    fields: [t("jobTitle"), area("jobDuties"), radio("superviseOtherEmp")],
+    fields: [
+      t("jobTitle"),
+      area("jobDuties"),
+      radio("superviseOtherEmp"),
+      when(code("supervisedSocCodes", "F.a.3.a", true), "superviseOtherEmp", [YES]),
+    ],
   },
 
   {
     navLabel: "Minimum Job Requirements",
     title: "F.b/F.c — Minimum and Alternative Job Requirements",
     fields: [
-      // The education level gates both text boxes below it, so it goes first.
       radio("primaryEducationLevel"),
-      // `major` appears for ASSOCIATES and above and NOT for NONE or
-      // HIGHSCHOOLGED; `otherEducation` appears ONLY for OTHERDEGREE. Both
-              // observed in run 3 with the negatives.
-      when(area("major"), "primaryEducationLevel", [
-        "ASSOCIATES",
-        "BACHELORS",
-        "MASTERS",
-        "DOCTORATEPHD",
-        "OTHERDEGREE",
-      ]),
+      when(area("major"), "primaryEducationLevel", WITH_MAJOR),
       when(area("otherEducation"), "primaryEducationLevel", ["OTHERDEGREE"]),
       radio("secondDiploma"),
+      when(area("secondDiplomaMajor"), "secondDiploma", [YES]),
       radio("trainingRequired"),
+      when(t("numberOfMonthsTraining"), "trainingRequired", [YES]),
+      when(area("nameRequiredTraining"), "trainingRequired", [YES]),
       radio("empExperienceRequired"),
+      when(t("empExperienceMonths"), "empExperienceRequired", [YES]),
+      when(area("occupationRequired"), "empExperienceRequired", [YES]),
       radio("isSpecialRequirements"),
+      ...specialRequirements("isSpecialRequirements", "isSpecReq", "specReq"),
       radio("altJobRequirement"),
+      when(radio("altEducationLevel"), "altJobRequirement", [YES]),
+      when(area("altMajor"), "altEducationLevel", WITH_MAJOR),
+      when(radio("altTrainingReq"), "altJobRequirement", [YES]),
+      when(t("altNumMonthsTraining"), "altTrainingReq", [YES]),
+      when(area("altNameReqdTraining"), "altTrainingReq", [YES]),
+      when(radio("altEmpExperienceReqd"), "altJobRequirement", [YES]),
+      when(t("altEmpExpNumMonths"), "altEmpExperienceReqd", [YES]),
+      when(radio("isAltSpecialReq"), "altJobRequirement", [YES]),
+      ...specialRequirements("isAltSpecialReq", "isAltSpecReq", "altSpecReq"),
     ],
   },
 
@@ -169,10 +202,10 @@ export const ETA9141_SECTIONS: FlagSection[] = [
     navLabel: "Other Information",
     title: "F.d — Other Information",
     fields: [
-      // F.d.1 SOC code is deliberately absent — see NOT_AUTOFILLED below.
+      code("socCode", "F.d.1"),
       t("supervisorJobTitle"),
       radio("travelRequired"),
-      when(area("travelDetails"), "travelRequired", [YES]),
+      area("travelDetails"),
     ],
   },
 
@@ -184,12 +217,7 @@ export const ETA9141_SECTIONS: FlagSection[] = [
       t("primaryWorksiteAddr2"),
       t("primaryWorksiteCity"),
       sel("primaryWorksiteState"),
-      // No `name` attribute at all, only an id. The H-1B extension hit the same
-      // field on the LCA. The feed does not currently send a county — the map
-      // holds it as a suggestion for a person to confirm, because a ZIP can
-      // straddle two counties and the county picks the wage area — so this entry
-      // exists to be found, not yet to be filled.
-      { name: "primaryWorksiteCounty", kind: "search", byId: true },
+      { name: "primaryWorksiteCounty", kind: "search", byId: true, widget: "react-select" },
       t("primaryWorksitePostalCode"),
       radio("otherWorksiteLocation"),
     ],
@@ -200,6 +228,34 @@ export const ETA9141_SECTIONS: FlagSection[] = [
     title: "APX A — Additional Worksites",
     fields: [],
     conditional: true,
+    marker: "Add Worksite",
+    worksiteTable: {
+      onlyWhen: { by: "otherWorksiteLocation", is: [YES] },
+      addButtonText: "Add Worksite",
+      saveButtonText: "Save",
+      cityField: "add_values_field[0].worksiteCity",
+      stateField: "add_values_field[0].worksiteState",
+      countyField: "add_values_field[0].worksiteCountyTownship",
+      basisRadio: "add_values_field[0]worksiteCountyOrBlsArea",
+      basisValue: "County",
+    },
+  },
+
+  {
+    navLabel: "Application Documents",
+    title: "Application Documents",
+    fields: [],
+    conditional: true,
+    marker: "Add Document",
+    documents: {
+      addButtonText: "Add Document",
+      saveButtonText: "Save",
+      fileInputName: "application_documents",
+      categoryName: "typeOfFile",
+      category: "Other Supporting Documentation",
+      maxBytes: 30 * 1024 * 1024,
+      accept: [".pdf", ".png", ".jpg", ".jpeg"],
+    },
   },
 ];
 
@@ -233,24 +289,12 @@ export const ETA9141_FORBIDDEN = [
       "The profile pickers are unnamed comboboxes; this matches them by their " +
       "visible label as well as by id.",
   },
+  { match: "Add Data", reason: "Opens FLAG's quit box, which offers Delete Case." },
+  { match: "Delete Case", reason: "Never." },
+  { match: "Review & Submit", reason: "Read only; never submitted." },
 ];
 
-/**
- * The two fields this extension will not fill, and why. Surfaced in the toolbar
- * so a caseworker knows to type them rather than discovering the blanks at DOL.
- *
- * Both are MUI comboboxes with NO name and NO id. The only selector the captures
- * could produce for them is a twelve-deep `nth-of-type` chain, which will not
- * survive a FLAG release — and the NAICS widget sits in Section C directly below
- * the employer PROFILE PICKER, which is also an unnamed combobox with a near
- * identical accessible label. A label- or position-based guess that lands on the
- * picker instead does not fail: it repopulates the entire section from DOL's
- * stored employer. Two fields typed by hand is a much better trade than that.
- */
-export const ETA9141_NOT_AUTOFILLED = [
-  { box: "C.13", label: "NAICS code", reason: "Unnamed combobox, adjacent to the employer profile picker." },
-  { box: "F.d.1", label: "Suggested SOC (O*NET/OEWS) code", reason: "Unnamed combobox." },
-];
+export const ETA9141_NOT_AUTOFILLED: NotAutofilled[] = [];
 
 export const ETA9141_CONFIG: FlagFormConfig = {
   formType: "ETA-9141",
@@ -263,4 +307,5 @@ export const ETA9141_CONFIG: FlagFormConfig = {
   sections: ETA9141_SECTIONS,
   forbidden: ETA9141_FORBIDDEN,
   notAutofilled: ETA9141_NOT_AUTOFILLED,
+  reviewNavLabel: "Review & Submit",
 };

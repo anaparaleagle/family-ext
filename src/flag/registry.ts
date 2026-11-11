@@ -23,9 +23,25 @@ export const FLAG_CONFIGS: FlagFormConfig[] = [ETA9141_CONFIG, ETA9035_CONFIG];
  */
 export const FLAG_KEYS = {
   fieldValues: "flagFieldValues",
+  // The ETA-9035's Section F takes SEVERAL places of employment, one committed
+  // row each. The feed sends every worksite past the first as its own patch of
+  // Section F names, and the fill chain replays the section once per row —
+  // which is what the H-1B extension did with `lcaAdditionalWorksites`.
+  extraRows: "flagExtraRows",
+  // Set once the extra worksites have been typed for this load, so a second
+  // Fill cannot restart the loop and wipe the rows already committed. The old
+  // extension's `lcaExtrasFilled`, kept for the same reason.
+  extraRowsDone: "flagExtraRowsDone",
   formType: "flagFormType",
   caseId: "flagCaseId",
+  caseLabel: "flagCaseLabel",
+  documents: "flagDocuments",
   loadedAt: "flagLoadedAt",
+  // SOF-2191 — the FLAG values read back so far for the LCA summary review,
+  // accumulated across sections. Cleared whenever a (possibly different) case
+  // is loaded, so switching cases never carries a stale review into the new
+  // one's compare.
+  reviewValues: "lcaReviewValues",
 } as const;
 
 /** Is this form code one of the DOL forms (as opposed to a myUSCIS one)? */

@@ -12,21 +12,44 @@
 // ===========================================================================
 
 import { dbg, resetDebugLog } from "../engine/logger";
-import { apiGet } from "../runner/api-transport";
-import { fillAll, fillCurrentSection, WalkReport } from "./fill-chain";
+import { apiGet, apiPost } from "../runner/api-transport";
+import {
+  FieldOutcome,
+  fillAll,
+  fillCurrentSection,
+  RowValues,
+  SectionOutcome,
+  WalkReport,
+} from "./fill-chain";
+import { describeField, unanswered } from "./modal";
 import { flushUnmappedFields } from "../engine/telemetry";
 import { FLAG_CONFIGS } from "./registry";
-import { FlagFormConfig } from "./types";
+import { FlagDocument, FlagFormConfig } from "./types";
+import { scrapeReviewFields } from "./review";
 
 /** Storage keys for the FLAG side. Separate from the myUSCIS payload keys so a
  * loaded DOL form cannot be mistaken for a loaded I-130 or vice versa. */
 const KEYS = {
   fieldValues: "flagFieldValues",
+  // Worksites past the first, each a patch of Section F names. The ETA-9035
+  // takes several places of employment, one committed row each.
+  extraRows: "flagExtraRows",
+  // Set once those rows have been typed for this load, so a second press of
+  // Fill cannot restart the loop and type worksite 2 over worksite 1. This is
+  // the old extension's `lcaExtrasFilled`, and it exists for the same reason.
+  extraRowsDone: "flagExtraRowsDone",
   formType: "flagFormType",
   caseId: "flagCaseId",
+  caseLabel: "flagCaseLabel",
+  documents: "flagDocuments",
   accessToken: "accessToken",
   apiBaseUrl: "apiBaseUrl",
+  // SOF-2191 — the FLAG values read back so far this review, accumulated
+  // across every section visited (FLAG shows one section at a time).
+  reviewValues: "lcaReviewValues",
 } as const;
+
+const DEFAULT_API_BASE_URL = "http://localhost:8001/api/v1";
 
 function currentConfig(): FlagFormConfig | null {
   return FLAG_CONFIGS.find((c) => c.urlPattern.test(window.location.pathname)) ?? null;
@@ -36,6 +59,9 @@ function currentConfig(): FlagFormConfig | null {
 
 interface Loaded {
   fieldValues: Record<string, string>;
+  /** Worksites past the first, in the order the case holds them. */
+  extraRows: RowValues[];
+  documents: FlagDocument[];
   report: Record<string, unknown>;
   /** Case id (for health telemetry). Empty when loaded from cache without one. */
   caseId: string;
@@ -73,6 +99,8 @@ function contextAlive(): boolean {
 async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
   const stored = await chrome.storage.local.get([
     KEYS.fieldValues,
+    KEYS.extraRows,
+    KEYS.documents,
     KEYS.formType,
     KEYS.caseId,
     KEYS.accessToken,
@@ -97,12 +125,18 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
       );
       return null;
     }
-    return { fieldValues: cached, report: {}, caseId: (stored[KEYS.caseId] as string) ?? "" };
+    return {
+      fieldValues: cached,
+      extraRows: (stored[KEYS.extraRows] as RowValues[]) ?? [],
+      documents: (stored[KEYS.documents] as FlagDocument[]) ?? [],
+      report: {},
+      caseId: (stored[KEYS.caseId] as string) ?? "",
+    };
   }
 
   const caseId = stored[KEYS.caseId] as string | undefined;
   const accessToken = (stored[KEYS.accessToken] as string) ?? "";
-  const apiBaseUrl = (stored[KEYS.apiBaseUrl] as string) ?? "http://localhost:8001/api/v1";
+  const apiBaseUrl = (stored[KEYS.apiBaseUrl] as string) ?? DEFAULT_API_BASE_URL;
 
   if (!caseId) {
     setStatus(`No case loaded — open the popup and pick a case for the ${config.formType}.`);
@@ -114,6 +148,8 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
     `?form=${encodeURIComponent(config.formType)}`;
   const res = await apiGet<{
     field_values: Record<string, string>;
+    additional_worksites?: RowValues[];
+    documents?: FlagDocument[];
     autofill_report: Record<string, unknown>;
   }>(path, { apiBaseUrl, accessToken });
 
@@ -122,11 +158,53 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
     return null;
   }
   const fieldValues = res.data.field_values ?? {};
+  const extraRows = res.data.additional_worksites ?? [];
+  const documents = res.data.documents ?? [];
   await chrome.storage.local.set({
     [KEYS.fieldValues]: fieldValues,
+    [KEYS.extraRows]: extraRows,
+    [KEYS.documents]: documents,
     [KEYS.formType]: config.formType,
   });
-  return { fieldValues, report: res.data.autofill_report ?? {}, caseId };
+  await chrome.storage.local.remove(KEYS.extraRowsDone);
+  return { fieldValues, extraRows, documents, report: res.data.autofill_report ?? {}, caseId };
+}
+
+function fromBase64(b64: string): Uint8Array<ArrayBuffer> {
+  const binary = atob(b64);
+  const out = new Uint8Array(new ArrayBuffer(binary.length));
+  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+  return out;
+}
+
+const TYPE_BY_EXT: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+};
+
+/** A feed document's bytes as a File, fetched by the service worker. */
+async function downloadDocument(doc: FlagDocument): Promise<File | string> {
+  const stored = await chrome.storage.local.get([KEYS.accessToken, KEYS.apiBaseUrl]);
+  const accessToken = (stored[KEYS.accessToken] as string) ?? "";
+  const base = ((stored[KEYS.apiBaseUrl] as string) ?? DEFAULT_API_BASE_URL).replace(/\/+$/, "");
+  let url = doc.url;
+  if (!/^https?:\/\//i.test(url)) {
+    url = url.startsWith("/api/") ? new URL(base).origin + url : `${base}/${url.replace(/^\/+/, "")}`;
+  }
+  let res: { success?: boolean; error?: string; dataBase64?: string; contentType?: string } | undefined;
+  try {
+    res = await chrome.runtime.sendMessage({ type: "DOWNLOAD_FILE", url, accessToken });
+  } catch (err) {
+    return `download failed: ${err instanceof Error ? err.message : String(err)}`;
+  }
+  if (!res?.success || !res.dataBase64) return `download failed: ${res?.error ?? "no data"}`;
+  const bytes = fromBase64(res.dataBase64);
+  if (!bytes.length) return "the download was empty";
+  const ext = doc.filename.slice(doc.filename.lastIndexOf(".")).toLowerCase();
+  const type = (res.contentType ?? "").split(";")[0].trim() || TYPE_BY_EXT[ext] || "application/pdf";
+  return new File([bytes], doc.filename, { type });
 }
 
 // ── toolbar ─────────────────────────────────────────────────────────────────
@@ -134,6 +212,29 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
 const TOOLBAR_ID = "mk-flag-toolbar";
 const STATUS_ID = "mk-flag-status";
 const STALE_ID = "mk-flag-stale";
+const REVIEW_PANEL_ID = "mk-flag-review-panel";
+const REPORT_ID = "mk-flag-report";
+const LOADED_ID = "mk-flag-loaded";
+
+/** Which case's values a Fill would type, read fresh from storage. */
+async function showLoadedCase(config: FlagFormConfig): Promise<void> {
+  const el = document.getElementById(LOADED_ID);
+  if (!el || !contextAlive()) return;
+  const stored = await chrome.storage.local.get([KEYS.caseLabel, KEYS.caseId, KEYS.formType, KEYS.fieldValues]);
+  const values = stored[KEYS.fieldValues] as Record<string, string> | undefined;
+  const form = stored[KEYS.formType] as string | undefined;
+  const label = (stored[KEYS.caseLabel] as string) || (stored[KEYS.caseId] as string) || "";
+  if (!values || !Object.keys(values).length || !label) {
+    el.textContent = "No case loaded. Pick one in the extension popup.";
+    el.style.color = "#7c2d12";
+  } else if (form && form !== config.formType) {
+    el.textContent = `Loaded: ${label}, but for ${form}, not ${config.formType}.`;
+    el.style.color = "#7c2d12";
+  } else {
+    el.textContent = `Loaded: ${label}`;
+    el.style.color = "#14532d";
+  }
+}
 
 function setStatus(msg: string): void {
   const el = document.getElementById(STATUS_ID);
@@ -166,14 +267,32 @@ function buildToolbar(config: FlagFormConfig): void {
   title.style.cssText = "font-weight:600;margin-bottom:4px";
   bar.appendChild(title);
 
+  const loaded = document.createElement("div");
+  loaded.id = LOADED_ID;
+  loaded.style.cssText = "margin-bottom:4px;line-height:1.35";
+  bar.appendChild(loaded);
+
   bar.appendChild(button("Fill this section", () => void onFillSection(config)));
   bar.appendChild(button("Fill all sections", () => void onFillAll(config)));
+  // SOF-2191: the LCA summary sign-off only applies to the ETA-9035E — the
+  // PERM forms this same toolbar drives have no equivalent review.
+  if (config.formType === "ETA-9035E") {
+    bar.appendChild(button("Review Summary", () => void onReviewSummary()));
+  }
 
   const status = document.createElement("div");
   status.id = STATUS_ID;
   status.style.cssText = "margin-top:6px;color:#334;line-height:1.35";
   status.textContent = "Ready.";
   bar.appendChild(status);
+
+  const reviewPanel = document.createElement("div");
+  reviewPanel.id = REVIEW_PANEL_ID;
+  bar.appendChild(reviewPanel);
+
+  const report = document.createElement("div");
+  report.id = REPORT_ID;
+  bar.appendChild(report);
 
   // The fields this extension will not fill, said up front rather than left
   // as blanks a caseworker finds at DOL with the application open.
@@ -188,6 +307,7 @@ function buildToolbar(config: FlagFormConfig): void {
   }
 
   document.body.appendChild(bar);
+  void showLoadedCase(config);
 }
 
 // ── actions ─────────────────────────────────────────────────────────────────
@@ -213,15 +333,125 @@ async function withLock(what: string, body: () => Promise<void>): Promise<void> 
   }
 }
 
+/**
+ * A box and WHY it did not take.
+ *
+ * The toolbar used to print bare field names — "2 failed
+ * (_section_f_f8_work_state_id, _section_f_f10a_nonimmigrant_wage_per)" — which
+ * is the one thing a caseworker cannot act on. The reason is already in the
+ * outcome; it was only ever being dropped on the way to the screen.
+ */
+function withReason(f: FieldOutcome): string {
+  return f.message ? `${f.name}: ${f.message}` : f.name;
+}
+
+/**
+ * What the OES calculator and the worksite row did, in a caseworker's words.
+ *
+ * Said out loud rather than left in the log, because both are steps where the
+ * run can do everything else right and still leave the section unfiled: a
+ * calculator that did not open means no prevailing wage, and a row that was
+ * not added means FLAG answers "Please enter in at least one row" however much
+ * was typed above it.
+ */
+function sectionNotes(outcome: SectionOutcome): string {
+  const notes: string[] = [];
+  const modal = outcome.modal;
+  if (modal && modal.status !== "skipped") {
+    if (modal.status === "applied") {
+      notes.push(`OES Wage Calculator: ${modal.result} — check it before you file.`);
+    } else {
+      notes.push(`OES Wage Calculator: ${modal.message ?? modal.status}`);
+    }
+    // WHICH of its inputs did not land. This was in the debug log and nowhere
+    // else, so the live run of 2026-10-27 reported "no prevailing wage" with
+    // no hint that the one empty box was Area — and Area is the box FLAG makes
+    // Calculate wait on, so it was the whole story.
+    const missed = unanswered(modal.fields);
+    if (missed.length) {
+      notes.push(
+        `Its ${missed.length === 1 ? "input" : "inputs"} ` +
+          `${missed.map(describeField).join(", ")} ` +
+          `${missed.length === 1 ? "was" : "were"} not answered.`,
+      );
+    }
+    if (modal.stillOpen) {
+      notes.push("Its dialog is still open over the section — close it yourself.");
+    }
+  }
+  for (const w of outcome.worksites ?? []) {
+    if (w.status === "added") notes.push(`Worksite ${w.city} added.`);
+    else if (w.status === "failed") notes.push(`Worksite ${w.city} NOT added: ${w.message ?? "unknown"}.`);
+  }
+  for (const d of outcome.documents ?? []) {
+    if (d.status === "uploaded") notes.push(`Uploaded ${d.filename}${d.message ? ` (${d.message})` : ""}.`);
+    else if (d.status === "failed") notes.push(`${d.filename} NOT uploaded: ${d.message ?? "unknown"}.`);
+  }
+  if (outcome.skipped && /yourself/.test(outcome.skipped)) {
+    notes.push(`${outcome.title}: ${outcome.skipped}.`);
+  }
+  const rows = outcome.rows ?? [];
+  const added = rows.filter((r) => r.status === "added").length;
+  if (rows.length) {
+    const last = rows[rows.length - 1];
+    if (last.status === "added") {
+      notes.push(
+        `${added} worksite(s) added — FLAG's table now holds ${last.rows}.`,
+      );
+    } else if (last.status === "disabled") {
+      notes.push(
+        `Worksite ${rows.length} was NOT added — FLAG has the Add button greyed out` +
+          (last.errors.length ? `: ${last.errors.join("; ")}` : ". Read the errors on the page") +
+          ". Nothing was saved for it.",
+      );
+    } else if (last.status === "refused") {
+      notes.push(
+        `Pressed Add for worksite ${rows.length}, but the table still reads ${last.rows}` +
+          (last.errors.length ? ` — ${last.errors.join("; ")}` : "") +
+          ". Add it yourself before pressing Continue.",
+      );
+    } else {
+      notes.push("No 'Add Place of Employment' button found — add the worksite yourself.");
+    }
+  }
+  return notes.join(" ");
+}
+
 function summarise(report: WalkReport): string {
-  const refused = report.sections.flatMap((s) => s.fields).filter((f) => f.status === "refused");
+  const all = report.sections.flatMap((s) => s.fields);
+  const refused = all.filter((f) => f.status === "refused");
+  const locked = all.filter((f) => f.status === "locked");
   const unreached = report.sections.filter((s) => !s.reached).map((s) => s.title);
   const parts = [`${report.filled} filled`];
   if (report.failed) parts.push(`${report.failed} failed`);
+  if (locked.length) parts.push(`${locked.length} greyed out by FLAG`);
   if (refused.length) parts.push(`${refused.length} refused`);
   if (unreached.length) parts.push(`${unreached.length} section(s) not reached`);
   if (report.unclaimed.length) parts.push(`${report.unclaimed.length} value(s) unclaimed`);
   return parts.join(", ") + ".";
+}
+
+/**
+ * The extra worksites, unless they have already been typed for this load.
+ *
+ * The guard is the old extension's `lcaExtrasFilled` and exists for its
+ * reason: a second press of Fill must not restart the loop, because it would
+ * type worksite 2 over worksite 1's boxes while FLAG's table already holds
+ * worksite 1 — leaving the application with the same site twice and one
+ * missing. It is recorded AFTER the run rather than before it (see
+ * `recordExtraRows`), so a fill of some OTHER section cannot spend them.
+ */
+async function pendingExtraRows(loaded: Loaded): Promise<RowValues[]> {
+  if (!loaded.extraRows.length) return [];
+  const stored = await chrome.storage.local.get(KEYS.extraRowsDone);
+  if (stored[KEYS.extraRowsDone] === true) return [];
+  return loaded.extraRows;
+}
+
+/** Mark the extra worksites spent, once a run has actually typed rows. */
+async function recordExtraRows(sections: SectionOutcome[]): Promise<void> {
+  const rows = sections.flatMap((s) => s.rows ?? []);
+  if (rows.length > 1) await chrome.storage.local.set({ [KEYS.extraRowsDone]: true });
 }
 
 async function onFillSection(config: FlagFormConfig): Promise<void> {
@@ -229,18 +459,30 @@ async function onFillSection(config: FlagFormConfig): Promise<void> {
     resetDebugLog();
     const loaded = await loadValues(config);
     if (!loaded) return;
-    const outcome = await fillCurrentSection(config, loaded.fieldValues);
+    const outcome = await fillCurrentSection(
+      config, loaded.fieldValues, await pendingExtraRows(loaded),
+      { documents: loaded.documents, download: downloadDocument },
+    );
     if (!outcome) {
       setStatus(`This is not a section the ${config.formType} descriptor knows.`);
       return;
     }
     void flushUnmappedFields(config.formType, loaded.caseId);
+    await recordExtraRows([outcome]);
     const filled = outcome.fields.filter((f) => f.status === "filled").length;
     const failed = outcome.fields.filter((f) => f.status === "failed");
+    const locked = outcome.fields.filter((f) => f.status === "locked");
+    const skipped = outcome.fields.filter((f) => f.status === "skipped");
+    const notes = sectionNotes(outcome);
     setStatus(
       `${outcome.title}: ${filled} filled` +
-        (failed.length ? `, ${failed.length} failed (${failed.map((f) => f.name).join(", ")})` : "") +
-        ". Press FLAG's own Continue to save.",
+        (failed.length ? `, ${failed.length} failed (${failed.map(withReason).join("; ")})` : "") +
+        (locked.length
+          ? `, ${locked.length} greyed out by FLAG (${locked.map(withReason).join("; ")})`
+          : "") +
+        (skipped.length ? `, ${skipped.length} left for a reason (see the log)` : "") +
+        ". Press FLAG's own Continue to save." +
+        (notes ? ` ${notes}` : ""),
     );
   });
 }
@@ -251,11 +493,20 @@ async function onFillAll(config: FlagFormConfig): Promise<void> {
     const loaded = await loadValues(config);
     if (!loaded) return;
     setStatus("Filling…");
-    const report = await fillAll(config, loaded.fieldValues);
+    renderReport([], "");
+    const report = await fillAll(
+      config, loaded.fieldValues, await pendingExtraRows(loaded),
+      { documents: loaded.documents, download: downloadDocument },
+    );
     void flushUnmappedFields(config.formType, loaded.caseId);
+    await recordExtraRows(report.sections);
     const committed = report.sections.filter((s) => s.commit === "committed").length;
+    const notes = report.sections.map(sectionNotes).filter(Boolean).join(" ");
     setStatus(
       summarise(report) +
+        (report.reviewErrors?.length ? ` Review still lists ${report.reviewErrors.length} error(s).` : "") +
+        submitNote(report) +
+        (notes ? ` ${notes}` : "") +
         ` ${committed} section(s) saved with FLAG's own Continue.` +
         (report.blockedAt
           ? ` STOPPED at "${report.blockedAt}" — FLAG would not accept it. Read the ` +
@@ -264,8 +515,184 @@ async function onFillAll(config: FlagFormConfig): Promise<void> {
           : " Nothing was submitted — the walk never presses Submit, Sign or Certify. " +
             "Check every value before you file."),
     );
+    renderReport(problemLines(report), reviewHeading(report));
     dbg(JSON.stringify(report, null, 1));
   });
+}
+
+/** Every box that did not take, in one list, so nothing hides in the status line. */
+function problemLines(report: WalkReport): string[] {
+  const lines: string[] = [];
+  for (const s of report.sections) {
+    for (const f of s.fields) {
+      if (f.status === "failed" || f.status === "locked") lines.push(`${s.title}: ${withReason(f)}`);
+    }
+  }
+  if (report.unclaimed.length) lines.push(`Sent by the case but not on this form: ${report.unclaimed.join(", ")}`);
+  return lines;
+}
+
+function submitNote(report: WalkReport): string {
+  const submit = report.submit;
+  if (!submit?.found) return "";
+  if (submit.enabled) return " FLAG will let you submit.";
+  return ` Submit is still greyed out${submit.incomplete.length ? `: ${submit.incomplete.join(", ")} not complete` : ""}.`;
+}
+
+function reviewHeading(report: WalkReport): string {
+  if (report.reviewReached === undefined) return "";
+  if (!report.reviewReached) return "Could not open Review & Submit. Open it and read FLAG's errors yourself.";
+  const errors = report.reviewErrors ?? [];
+  return errors.length
+    ? `Review & Submit still lists ${errors.length} error(s):\n${errors.map((e) => `- ${e}`).join("\n")}`
+    : "Review & Submit lists no errors. Check every value before you submit.";
+}
+
+function renderReport(problems: string[], review: string): void {
+  const panel = document.getElementById(REPORT_ID);
+  if (!panel) return;
+  panel.replaceChildren();
+  if (!problems.length && !review) return;
+  panel.style.cssText =
+    "margin-top:8px;padding-top:6px;border-top:1px solid #eee;max-height:260px;overflow:auto;" +
+    "white-space:pre-line;color:#334;line-height:1.35";
+  const parts: string[] = [];
+  if (problems.length) parts.push(`Did not fill:\n${problems.map((p) => `- ${p}`).join("\n")}`);
+  if (review) parts.push(review);
+  panel.textContent = parts.join("\n\n");
+}
+
+// ── LCA summary review (SOF-2191, porting the old portal's SOF-643) ────────
+
+interface LcaDiscrepancy {
+  field: string;
+  label: string;
+  questionnaire_value: string;
+  flag_value: string;
+}
+
+interface ReviewContext {
+  apiBaseUrl: string;
+  caseId: string;
+  accessToken: string;
+}
+
+async function reviewContext(): Promise<ReviewContext | null> {
+  const stored = await chrome.storage.local.get([
+    KEYS.caseId, KEYS.accessToken, KEYS.apiBaseUrl,
+  ]);
+  const caseId = stored[KEYS.caseId] as string | undefined;
+  if (!caseId) return null;
+  return {
+    apiBaseUrl: (stored[KEYS.apiBaseUrl] as string) ?? DEFAULT_API_BASE_URL,
+    caseId,
+    accessToken: (stored[KEYS.accessToken] as string) ?? "",
+  };
+}
+
+function renderReviewPanel(discrepancies: LcaDiscrepancy[], readCount: number): void {
+  const panel = document.getElementById(REVIEW_PANEL_ID);
+  if (!panel) return;
+  panel.replaceChildren();
+  panel.style.cssText = "margin-top:8px;padding-top:8px;border-top:1px solid #eee";
+
+  const summary = document.createElement("div");
+  summary.style.cssText = `font-weight:600;margin-bottom:4px;color:${discrepancies.length ? "#7c2d12" : "#14532d"}`;
+  summary.textContent = discrepancies.length
+    ? `${discrepancies.length} difference(s) found (${readCount} field(s) read so far).`
+    : `No differences in the ${readCount} field(s) read so far.`;
+  panel.appendChild(summary);
+
+  if (discrepancies.length) {
+    const list = document.createElement("ul");
+    list.style.cssText = "margin:4px 0 6px;padding-left:18px;color:#334";
+    for (const d of discrepancies) {
+      const li = document.createElement("li");
+      li.textContent = `${d.label}: FLAG has "${d.flag_value}", the questionnaire has "${d.questionnaire_value}"`;
+      list.appendChild(li);
+    }
+    panel.appendChild(list);
+  }
+
+  panel.appendChild(button("Sign Off", () => void onSignOff(discrepancies)));
+}
+
+/** "Review Summary" — read whatever LCA compare fields are on the current
+ * FLAG page, merge with any already read on earlier pages, diff against the
+ * questionnaire, and show the panel. Visit every section that carries a
+ * compared box (B, C, F) before trusting a clean result. */
+async function onReviewSummary(): Promise<void> {
+  await withLock("Review Summary", async () => {
+    const ctx = await reviewContext();
+    if (!ctx) {
+      setStatus(
+        "Load a case's LCA data from the ParaLeagle extension popup first — " +
+          "the review needs to know which case (and be signed in) to compare against.",
+      );
+      return;
+    }
+
+    const read = scrapeReviewFields();
+    const stored = await chrome.storage.local.get(KEYS.reviewValues);
+    const accumulated: Record<string, string> = {
+      ...((stored[KEYS.reviewValues] as Record<string, string>) || {}),
+      ...read,
+    };
+    await chrome.storage.local.set({ [KEYS.reviewValues]: accumulated });
+
+    if (Object.keys(accumulated).length === 0) {
+      setStatus(
+        "Couldn't read any LCA values on this page. Open the section with the " +
+          "job, employer, worksite or wage boxes and try again.",
+      );
+      return;
+    }
+
+    setStatus("Comparing against the questionnaire…");
+    const resp = await apiPost<{ discrepancies: LcaDiscrepancy[] }>(
+      `/cases/${encodeURIComponent(ctx.caseId)}/lca-summary/compare/`,
+      { flag_values: accumulated },
+      ctx,
+    );
+    if (!resp.ok || !resp.data) {
+      setStatus(`Review failed: ${resp.error ?? "unknown error"}`);
+      return;
+    }
+    const discrepancies = resp.data.discrepancies ?? [];
+    setStatus(`Reviewed ${Object.keys(accumulated).length} field(s) read so far.`);
+    renderReviewPanel(discrepancies, Object.keys(accumulated).length);
+  });
+}
+
+async function onSignOff(discrepancies: LcaDiscrepancy[]): Promise<void> {
+  const ctx = await reviewContext();
+  if (!ctx) return;
+
+  let overrideReason = "";
+  if (discrepancies.length) {
+    const entered = prompt(
+      `There ${discrepancies.length === 1 ? "is" : "are"} still ${discrepancies.length} ` +
+        "unresolved difference(s). To sign off anyway, enter a reason (recorded on the case):",
+    );
+    if (entered === null) return; // cancelled
+    if (!entered.trim()) {
+      alert("An override reason is required to sign off with unresolved differences.");
+      return;
+    }
+    overrideReason = entered.trim();
+  }
+
+  const resp = await apiPost(
+    `/cases/${encodeURIComponent(ctx.caseId)}/lca-summary/sign-off/`,
+    { override_reason: overrideReason },
+    ctx,
+  );
+  if (!resp.ok) {
+    setStatus(`Sign-off failed: ${resp.error ?? "unknown error"}`);
+    return;
+  }
+  document.getElementById(REVIEW_PANEL_ID)?.replaceChildren();
+  setStatus("LCA summary signed off. The in-process LCA upload is now unlocked.");
 }
 
 // ── boot ────────────────────────────────────────────────────────────────────
@@ -274,6 +701,14 @@ function boot(): void {
   const config = currentConfig();
   if (!config) return;
   buildToolbar(config);
+}
+
+if (contextAlive()) {
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !(KEYS.caseLabel in changes || KEYS.fieldValues in changes)) return;
+    const config = currentConfig();
+    if (config) void showLoadedCase(config);
+  });
 }
 
 /**

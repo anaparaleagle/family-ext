@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 // ===========================================================================
-// FLAG FIELD CAPTURE — a live DOM scraper for the two DOL PERM forms
-// (ETA-9141 and ETA-9089) on flag.dol.gov.
+// FLAG FIELD CAPTURE — a live DOM scraper for the DOL forms on flag.dol.gov:
+// the two PERM forms (ETA-9141 and ETA-9089) and the H-1B LCA (ETA-9035).
 //
 // WHY THIS EXISTS
 // ---------------
@@ -19,7 +19,8 @@
 //
 // HOW TO RUN
 // ----------
-//   1. Open a THROWAWAY 9141 or 9089 draft on flag.dol.gov. Not a real filing:
+//   1. Open a THROWAWAY 9141, 9089 or 9035 draft on flag.dol.gov. Not a real
+//      filing:
 //      this types junk answers into every gating question. FLAG autosaves.
 //   2. Paste this whole file into the DevTools console on that page.
 //   3. await __flagCapture.run()
@@ -503,7 +504,11 @@
 
   const capture = {
     url: location.href,
-    form: /\/(9141|9089)\//.exec(location.pathname)?.[1] ?? "unknown",
+    // The 9035 reads /dashboard/application/9035/<hex id>, the same shape as the
+    // other two. It was left out when this was written for PERM, which meant an
+    // LCA capture saved itself as "unknown" and could not be told apart from a
+    // capture taken on a page nobody recognised.
+    form: /\/(9141|9089|9035)\//.exec(location.pathname)?.[1] ?? "unknown",
     capturedAt: null,
     navItems: [],
     sections: [],

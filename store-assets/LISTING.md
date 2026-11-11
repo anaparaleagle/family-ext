@@ -1,11 +1,11 @@
-# Chrome Web Store listing — ParaLeagle Family Form Autofill
+# Chrome Web Store listing — ParaLeagle Form Autofill
 
 Everything the developer dashboard asks for, written out so it can be pasted
 rather than improvised. Keep this file in step with the manifest.
 
 Dashboard: https://chrome.google.com/webstore/devconsole
 
-Upload: `paraleagle-family-ext-v0.10.5-webstore.zip` (repo root, gitignored —
+Upload: `paraleagle-family-ext-v0.10.6-webstore.zip` (repo root, gitignored —
 rebuild with `npm run build` then re-zip the CONTENTS of `dist/`).
 
 ---
@@ -49,7 +49,7 @@ how the "Yellow Argon" rejection happened (section 6).
 
 **Title**
 
-    ParaLeagle Family Form Autofill
+    ParaLeagle Form Autofill
 
 **Summary** (132 characters max) — paste `store-assets/listing/summary.txt`
 

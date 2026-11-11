@@ -74,11 +74,31 @@ each descriptor — that is the composition root.
 
 ```bash
 npm install
-npm run build        # one-shot → dist/   (production: console.* dropped)
-npm run watch        # rebuild on change; adds http://localhost/* to host_permissions
+npm run build        # one-shot → dist/   STORE build: minified, console.* dropped,
+                     #                    Production backend only
+npm run build:dev    # one-shot → dist/   DEV build: unminified + sourcemaps, and
+                     #                    offers Local + Staging + Production
+npm run watch        # build:dev, but stays running and rebuilds on change
 ```
 
 Load `dist/` as an unpacked extension at `chrome://extensions` (Dev mode on).
+
+### Picking a backend
+
+The popup's **Backend** dropdown is rendered from the running build's
+`host_permissions`, so a build only offers a backend it can actually fetch. The
+committed `manifest.json` is the STORE manifest and names Production alone; the
+two dev builds widen it with `http://localhost/*` and the staging host. So to
+file a **Staging** case, load a `npm run build:dev` (or `npm run watch`) `dist/`
+— the store build will not show the option, by design.
+
+Both dev flags are gated in one place, `tools/dev-manifest.mjs`, and
+`test/store-build.test.ts` asserts that a bare `npm run build` widens nothing.
+
+Signing in follows the backend you pick: Local authenticates against the
+`paraleagle-f3a7f` Firebase project, Staging and Production against
+`paraleagle-family` (see `src/engine/firebase.ts`). A login that works on one
+will not work on the other.
 
 ## Test
 

@@ -16,12 +16,19 @@
 // paraleagle-ext hit the same wall on flag.dol.gov (SOF-643) and solved it the
 // same way — route the call through the worker.
 //
-// Two message types, deliberately narrow:
+// Three message types, deliberately narrow:
 //   API_GET       — GET a path on the family API, WITH the caller's bearer token.
+//   API_POST      — POST a JSON body to a path on the family API, same token.
 //   DOWNLOAD_FILE — GET a file's bytes, from the API *or* from S3 media storage.
 //
 // Widening either allowlist is a deliberate surface change. Add only origins we
 // actually fetch from.
+//
+// API_POST exists for SOF-2191 (the FLAG LCA-summary compare/sign-off) rather
+// than widening API_GET to take a method + body — a GET that can suddenly carry
+// a body is the kind of "small" change that quietly turns into "this endpoint
+// accepts anything", and the two verbs have different trust shapes (a POST
+// changes case state; a GET never should).
 
 import { ALLOWED_API_ORIGINS } from "./api-config";
 
@@ -128,6 +135,56 @@ function handleApiGet(
         ok
           ? { success: true, status, data }
           : fail(`HTTP ${status}`, status),
+      ),
+    )
+    .catch((err) =>
+      sendResponse(fail(err instanceof Error ? err.message : String(err))),
+    );
+}
+
+/**
+ * POST a JSON body to a path on the family API with the caller's bearer
+ * token. Same shape and same never-throws contract as handleApiGet — a
+ * network or CORS failure comes back as {success:false}, never a rejection.
+ */
+function handleApiPost(
+  message: { apiBaseUrl?: string; path?: string; accessToken?: string; body?: unknown },
+  sendResponse: (r: unknown) => void,
+): void {
+  const { apiBaseUrl, path, accessToken, body } = message;
+  if (!apiBaseUrl || !isApiUrl(apiBaseUrl)) {
+    sendResponse(fail(`API base not allowed: ${originOf(String(apiBaseUrl))}`));
+    return;
+  }
+  if (!path || !path.startsWith("/")) {
+    sendResponse(fail("API path must start with /"));
+    return;
+  }
+  if (path.startsWith("//") || /^\/[a-z][a-z0-9+.-]*:/i.test(path)) {
+    sendResponse(fail("API path must be relative"));
+    return;
+  }
+
+  const base = apiBaseUrl.replace(/\/+$/, "");
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+
+  fetch(`${base}${path}`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body ?? {}),
+  })
+    .then((res) =>
+      res
+        .json()
+        .catch(() => null)
+        .then((data) => ({ ok: res.ok, status: res.status, data })),
+    )
+    .then(({ ok, status, data }) =>
+      sendResponse(
+        ok
+          ? { success: true, status, data }
+          : { success: false, status, error: (data as { detail?: string } | null)?.detail || `HTTP ${status}`, data },
       ),
     )
     .catch((err) =>
@@ -256,6 +313,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
   if (message?.type === "API_GET") {
     handleApiGet(message, sendResponse);
+    return true; // keep channel open for async sendResponse
+  }
+  if (message?.type === "API_POST") {
+    handleApiPost(message, sendResponse);
     return true; // keep channel open for async sendResponse
   }
   if (message?.type === "SLACK_POST") {

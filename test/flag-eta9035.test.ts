@@ -14,8 +14,10 @@ import {
 import { fillSection, isForbidden } from "../src/flag/fill-chain";
 import { findSectionLink, sectionIsRendered } from "../src/flag/nav";
 import { FLAG_CONFIGS, caseTypeMatchesForm, flagConfigForPath } from "../src/flag/registry";
-import { FlagField, flagFieldNames } from "../src/flag/types";
-import { locateElement } from "../src/engine/value-setter";
+import { FlagField, flagFieldNames, revealGates } from "../src/flag/types";
+import { asDollarsAndCents, locateElement, sameMoney } from "../src/engine/value-setter";
+import { readFlagValue } from "../src/flag/review";
+import { mountCurrencyBox } from "./fixtures/dom";
 
 interface CapturedField {
   box: string;
@@ -69,16 +71,43 @@ describe("descriptor vs the live capture", () => {
       .filter((f) => f.revealedBy && f.name)
       .map((f) => [f.name, f.revealedBy!.by, f.revealedBy!.is.join("|")].join(" "));
     const ours = fields()
-      .filter((f) => f.revealedBy)
-      .map((f) => [f.name, f.revealedBy!.by, (f.revealedBy!.is ?? []).join("|")].join(" "));
-    expect(ours.sort()).toEqual(want.sort());
+      .flatMap((f) => revealGates(f).map((g) => [f.name, g.by, (g.is ?? []).join("|")].join(" ")));
+    // Every captured reveal must still be carried. The descriptor may hold MORE
+    // than the capture saw — a capture is one session on one draft, not the
+    // form's rulebook — but each extra gate has to name its `source`, so the
+    // difference between "watched it happen" and "guessed" stays on the page.
+    const extra = fields().flatMap((f) =>
+      revealGates(f)
+        .filter((g) => !want.includes([f.name, g.by, (g.is ?? []).join("|")].join(" ")))
+        .map((g) => ({ field: f.name, gate: g.by, source: g.source })),
+    );
+    expect(extra).toEqual([
+      {
+        field: "h3_only_h1b",
+        gate: "h2_is_willful_violator",
+        source: expect.stringContaining("Observed live"),
+      },
+    ]);
+    expect(ours.filter((r) => want.includes(r)).sort()).toEqual(want.sort());
+  });
+
+  it("reveals H.3 on the willful-violator answer as well as the dependency one", () => {
+    // DOL: "If Yes to H.1 and/or H.2". A willful violator that is NOT H-1B
+    // dependent sees H.3, and the backend sends it — so gating on H.1 alone
+    // left a required box blank and the section unsaveable.
+    const h3 = fields().find((f) => f.name === "h3_only_h1b")!;
+    expect(revealGates(h3).map((g) => g.by)).toEqual([
+      "h1_is_dependent",
+      "h2_is_willful_violator",
+    ]);
+    for (const gate of revealGates(h3)) expect(gate.is).toEqual(["YES"]);
   });
 
   it("lists each gate before the fields it reveals", () => {
     for (const section of ETA9035_SECTIONS) {
       const seen = new Set<string>();
       for (const field of section.fields) {
-        if (field.revealedBy) expect(seen.has(field.revealedBy.by), field.name).toBe(true);
+        for (const gate of revealGates(field)) expect(seen.has(gate.by), field.name).toBe(true);
         seen.add(field.name);
       }
     }
@@ -136,7 +165,12 @@ describe("descriptor vs the backend table", () => {
     for (const f of fields()) {
       const s = byName.get(f.name);
       if (!s) continue;
-      const ours = f.kind === "search" && s.by_id ? "text" : f.kind;
+      // The backend table describes the BOX; `kind` here is how the extension
+      // writes it. Two of ours are a write strategy over a box the backend
+      // rightly calls text: the by-id county typeahead, and the wage boxes,
+      // whose mask needs one native write and a numeric read-back.
+      const ours =
+        (f.kind === "search" && s.by_id) || f.kind === "currency" ? "text" : f.kind;
       if (ours !== s.kind) wrong.push(`${f.name}: descriptor=${f.kind} backend=${s.kind}`);
       if ((f.byLabel ?? null) !== (s.label ?? null)) wrong.push(`${f.name}: label`);
       if (!!f.byId !== !!s.by_id) wrong.push(`${f.name}: by_id`);
@@ -158,9 +192,21 @@ describe("refusals", () => {
     }
   });
 
-  it("carries every control the capture forbade", () => {
+  it("carries every control the capture forbade, bar the one reversal", () => {
+    // The capture's `forbidden` list mixes two things: controls that would
+    // destroy what we typed (the three profile pickers) and DECISIONS taken at
+    // the time about what to leave manual. The OES Wage Calculator was the
+    // second kind, and the decision was reversed on 2026-10-27 — F.11 and
+    // F.13a cannot be answered any other way once F.12/13/14 says OES, so a
+    // refused calculator meant a Section F with no committable row.
     const ours = ETA9035_FORBIDDEN.map((f) => f.match);
-    for (const f of CAPTURE.forbidden) expect(ours).toContain(f.id ?? f.text);
+    const reversed = ["OES Wage Calculator"];
+    for (const f of CAPTURE.forbidden) {
+      const match = f.id ?? f.text!;
+      if (reversed.includes(match)) continue;
+      expect(ours).toContain(match);
+    }
+    for (const match of reversed) expect(ours).not.toContain(match);
   });
 
   it("does not refuse an ordinary field", () => {
@@ -256,5 +302,281 @@ describe("registry", () => {
     expect(caseTypeMatchesForm("H-1B-COS-F1", "ETA-9035E")).toBe(true);
     expect(caseTypeMatchesForm("PERM", "ETA-9035E")).toBe(false);
     expect(caseTypeMatchesForm("IR-1", "ETA-9035E")).toBe(false);
+  });
+});
+
+describe("Section H when the employer is a willful violator but not dependent", () => {
+  // The case SOF-2300 created. Until the employer record carried the question,
+  // H.2 was always No and H.1 was the only gate anyone could see fire — so the
+  // descriptor gated H.3 on H.1 alone and this whole branch was dead code. It
+  // is not dead now: the backend derives H.3 = Yes whenever H.1 OR H.2 is Yes,
+  // and sends the exemption basis with it.
+  const section = ETA9035_SECTIONS.find((s) => s.title.startsWith("H —"))!;
+
+  // What the feed sends for that employer, verbatim from the backend.
+  const WILLFUL_ONLY = {
+    h1_is_dependent: "NO",
+    h2_is_willful_violator: "YES",
+    h3_only_h1b: "YES",
+    h4_exemption_basis: "$60,000 or higher annual wage",
+  };
+
+  const radios = (...names: string[]): string =>
+    names
+      .map((n) =>
+        ["YES", "NO", "$60,000 or higher annual wage"]
+          .map((v) => `<input type="radio" name="${n}" value="${v}" />`)
+          .join(""),
+      )
+      .join("");
+
+  /**
+   * Section H as FLAG actually serves it: H.3 and H.4 are NOT on the page until
+   * their gate is answered, and each arrives A TICK LATER, not in the same turn
+   * as the click. FLAG is React — answering H.2 schedules a re-render, it does
+   * not perform one — so the chain looks for H.3 and finds nothing there yet.
+   *
+   * Both halves of that matter. Pre-rendering the fields would make these tests
+   * pass against the very bug they exist for, since `fillSection` consults a
+   * gate only for a field the DOM does not already hold. Revealing them
+   * synchronously does the same thing more subtly: the field would be in place
+   * before the chain ever looked, and the gate would again go unread.
+   */
+  const REPAINT_MS = 20;
+
+  const revealingPage = (): void => {
+    document.body.innerHTML = radios("h1_is_dependent", "h2_is_willful_violator");
+    const appearLater = (name: string) => {
+      setTimeout(() => {
+        if (!document.querySelector(`[name="${name}"]`)) {
+          document.body.insertAdjacentHTML("beforeend", radios(name));
+        }
+      }, REPAINT_MS);
+    };
+    document.body.addEventListener("change", (e) => {
+      const el = e.target as HTMLInputElement;
+      if (el.value !== "YES") return;
+      if (el.name === "h1_is_dependent" || el.name === "h2_is_willful_violator") {
+        appearLater("h3_only_h1b");
+      }
+      if (el.name === "h3_only_h1b") appearLater("h4_exemption_basis");
+    });
+  };
+
+  it("types H.3, instead of skipping it as hidden", async () => {
+    revealingPage();
+    const out = await fillSection(section, WILLFUL_ONLY, ETA9035_FORBIDDEN);
+    const h3 = out.find((o) => o.name === "h3_only_h1b")!;
+    expect(h3.status).toBe("filled");
+    expect(out.filter((o) => o.status === "failed")).toEqual([]);
+  });
+
+  it("does not then report H.4 as a broken reveal", async () => {
+    // The old failure mode's second half: H.3 was skipped silently, so FLAG
+    // never rendered H.4, and H.4 — whose own gate WAS answered — came back
+    // "answered but this never appeared", pointing at a redesign that had not
+    // happened.
+    revealingPage();
+    const out = await fillSection(section, WILLFUL_ONLY, ETA9035_FORBIDDEN);
+    expect(out.find((o) => o.name === "h4_exemption_basis")?.status).toBe("filled");
+  });
+
+  it("still says nothing about H.3 when neither gate is Yes", async () => {
+    // The ordinary employer, which is nearly all of them. H.3 genuinely never
+    // renders, the backend sends nothing for it, and a silent skip is right.
+    document.body.innerHTML = radios("h1_is_dependent", "h2_is_willful_violator");
+    const out = await fillSection(
+      section, { h1_is_dependent: "NO", h2_is_willful_violator: "NO" }, ETA9035_FORBIDDEN,
+    );
+    expect(out.find((o) => o.name === "h3_only_h1b")?.status).toBe("no-value");
+    expect(out.filter((o) => o.status === "failed")).toEqual([]);
+  });
+
+  it("names both gates when it does report H.3 as hidden", async () => {
+    // A message naming only H.1 is what sent this the wrong way the first time.
+    document.body.innerHTML = radios("h1_is_dependent", "h2_is_willful_violator");
+    const out = await fillSection(
+      section,
+      { h1_is_dependent: "NO", h2_is_willful_violator: "NO", h3_only_h1b: "YES" },
+      ETA9035_FORBIDDEN,
+    );
+    const h3 = out.find((o) => o.name === "h3_only_h1b")!;
+    expect(h3.status).toBe("not-rendered");
+    expect(h3.message).toContain("h1_is_dependent or h2_is_willful_violator");
+  });
+});
+
+describe("Section F wage boxes, against FLAG's currency mask", () => {
+  // The live failure (FAM-4063, 2026-10-26): "10 filled, 3 failed
+  // (_section_f_f10_nonimmigrant_wage_from, _section_f_f10_nonimmigrant_wage_to,
+  // _section_f_f11_prevailing_wage)", with F.10 and F.11 blank on screen. The
+  // feed was correct — plain digits, "110344" for all three.
+  //
+  // Two faults, and the first caused the second. Driven as plain text the
+  // native write DID land ("$110,344.00"), but the read-back compares digits,
+  // the mask's ".00" makes those "11034400", and so a good write was called a
+  // failure. The waterfall then ran its last resort, which clears the box and
+  // types one character at a time — and a two-decimal mask discards every one
+  // after the first, leaving $1.00.
+  const section = ETA9035_SECTIONS.find((s) => s.title.startsWith("F —"))!;
+  const WAGE = "110344";
+  // The To box is a RANGE top, so it is given a real range here — an equal To
+  // is now deliberately not typed, which has its own tests below.
+  const TOP = "120000";
+  const WAGE_BOXES = [
+    "_section_f_f10_nonimmigrant_wage_from",
+    "_section_f_f10_nonimmigrant_wage_to",
+    "_section_f_f11_prevailing_wage",
+  ];
+  const WRITTEN = ["110344.00", "120000.00", "110344.00"];
+  const SHOWN = ["$110,344.00", "$120,000.00", "$110,344.00"];
+
+  const mountWageBoxes = (opts: { disabled?: boolean } = {}) => {
+    document.body.innerHTML = "";
+    return WAGE_BOXES.map((n) => mountCurrencyBox(n, opts));
+  };
+
+  const WAGES = {
+    _section_f_f10_nonimmigrant_wage_from: WAGE,
+    _section_f_f10_nonimmigrant_wage_to: TOP,
+    _section_f_f11_prevailing_wage: WAGE,
+  };
+
+  const fillWages = () => fillSection(section, WAGES, ETA9035_FORBIDDEN);
+
+  it("is declared as money, not as text", () => {
+    for (const name of WAGE_BOXES) {
+      expect(section.fields.find((f) => f.name === name)?.kind, name).toBe("currency");
+    }
+  });
+
+  it("leaves the right wage in all three boxes", async () => {
+    const boxes = mountWageBoxes();
+    await fillWages();
+    boxes.forEach((b, i) => expect(b.input.value, WAGE_BOXES[i]).toBe(SHOWN[i]));
+  });
+
+  it("reports them as filled rather than as a false failure", async () => {
+    mountWageBoxes();
+    const out = await fillWages();
+    expect(out.filter((o) => o.status === "failed").map((o) => o.name)).toEqual([]);
+    for (const name of WAGE_BOXES) {
+      expect(out.find((o) => o.name === name)?.status, name).toBe("filled");
+    }
+  });
+
+  it("writes each box once, so no retry can type on top of the mask's output", async () => {
+    // The $1.00 came from a second pass, not the first. One write is the fix.
+    const boxes = mountWageBoxes();
+    await fillWages();
+    boxes.forEach((b, i) => expect(b.writes, WAGE_BOXES[i]).toEqual([WRITTEN[i]]));
+  });
+
+  it("spells the cents out, for a mask that would read bare digits as cents", async () => {
+    const boxes = mountWageBoxes();
+    await fillWages();
+    expect(boxes[0].writes[0]).toBe("110344.00");
+  });
+
+  it("does not report a fill into a box FLAG has disabled", async () => {
+    // F.11 is disabled and owned by the OES calculator whenever the prevailing
+    // wage source is OES. A native assignment sticks even on a disabled input,
+    // so without this guard the walk would claim a wage the page never took.
+    const boxes = mountWageBoxes({ disabled: true });
+    const out = await fillWages();
+    expect(out.filter((o) => o.status === "filled")).toEqual([]);
+    for (const b of boxes) expect(b.input.value).toBe("");
+  });
+
+  it("still fills a wage box that carries no mask at all", async () => {
+    // Drift insurance: if DOL ever drops the mask, the amount must still land.
+    document.body.innerHTML = WAGE_BOXES.map((n) => `<input type="text" name="${n}" />`).join("");
+    const out = await fillWages();
+    expect(out.filter((o) => WAGE_BOXES.includes(o.name) && o.status !== "filled")).toEqual([]);
+    const el = document.querySelector<HTMLInputElement>(`[name="${WAGE_BOXES[0]}"]`)!;
+    expect(el.value).toBe("110344.00");
+  });
+
+  it("does not type a To wage that is not above the From wage", async () => {
+    // The live block (FAM-4063, 2026-10-27): the feed sends the case's salary
+    // max, which on a single-rate offer is the SAME number as the min. FLAG
+    // answers "The 'To' must be higher than the 'From' wage rate" and keeps
+    // "Add Place of Employment" greyed out, so the worksite row is lost over a
+    // box that was never a range in the first place.
+    const boxes = mountWageBoxes();
+    const out = await fillSection(
+      section,
+      Object.fromEntries(WAGE_BOXES.map((n) => [n, WAGE])),
+      ETA9035_FORBIDDEN,
+    );
+    const to = out.find((o) => o.name === "_section_f_f10_nonimmigrant_wage_to")!;
+    expect(to.status).toBe("skipped");
+    expect(to.message).toContain("higher than the From");
+    expect(boxes[1].input.value).toBe("");
+    // and the From and the prevailing wage are untouched by the rule.
+    expect(boxes[0].input.value).toBe("$110,344.00");
+    expect(boxes[2].input.value).toBe("$110,344.00");
+  });
+
+  it("does not type a To wage that is BELOW the From wage either", async () => {
+    const boxes = mountWageBoxes();
+    await fillSection(
+      section,
+      { ...WAGES, _section_f_f10_nonimmigrant_wage_to: "90000" },
+      ETA9035_FORBIDDEN,
+    );
+    expect(boxes[1].input.value).toBe("");
+  });
+
+  it("types a To wage that IS a range", async () => {
+    const boxes = mountWageBoxes();
+    const out = await fillWages();
+    expect(out.find((o) => o.name === "_section_f_f10_nonimmigrant_wage_to")?.status).toBe("filled");
+    expect(boxes[1].input.value).toBe("$120,000.00");
+  });
+});
+
+describe("reading a wage back for the sign-off compare", () => {
+  it("reads the masked spelling, which the backend normalizes to the same wage", async () => {
+    // readFlagValue is what the LCA summary review POSTs. It must not be
+    // confused by the "$110,344.00" the mask renders — the backend's currency
+    // normalizer (family_visa/cases/lca_summary_compare.py) parses both sides
+    // as numbers, so "$110,344.00" and "110344" compare equal.
+    document.body.innerHTML = "";
+    const box = mountCurrencyBox("_section_f_f10_nonimmigrant_wage_from");
+    await fillSection(
+      ETA9035_SECTIONS.find((s) => s.title.startsWith("F —"))!,
+      { _section_f_f10_nonimmigrant_wage_from: "110344" },
+      ETA9035_FORBIDDEN,
+    );
+    expect(readFlagValue({ name: box.input.name, kind: "currency" })).toBe("$110,344.00");
+    expect(sameMoney("$110,344.00", "110344")).toBe(true);
+  });
+});
+
+describe("the money normalizer", () => {
+  it("spells plain digits as dollars and cents", () => {
+    expect(asDollarsAndCents("110344")).toBe("110344.00");
+  });
+
+  it("keeps cents it was given, and pads a single one", () => {
+    expect(asDollarsAndCents("50.84")).toBe("50.84");
+    expect(asDollarsAndCents("50.8")).toBe("50.80");
+  });
+
+  it("takes an already-formatted amount back apart", () => {
+    expect(asDollarsAndCents("$110,344.00")).toBe("110344.00");
+  });
+
+  it("has nothing to write for an empty amount", () => {
+    expect(asDollarsAndCents("")).toBe("");
+    expect(asDollarsAndCents("$")).toBe("");
+  });
+
+  it("agrees that the mask's spelling is the same wage", () => {
+    expect(sameMoney("$110,344.00", "110344")).toBe(true);
+    expect(sameMoney("$110,344.00", "110344.00")).toBe(true);
+    expect(sameMoney("$1.00", "110344")).toBe(false);
+    expect(sameMoney("", "110344")).toBe(false);
   });
 });

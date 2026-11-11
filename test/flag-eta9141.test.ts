@@ -14,7 +14,7 @@ import {
 } from "../src/flag/eta9141-descriptor";
 import { fillSection, isForbidden } from "../src/flag/fill-chain";
 import { findSectionLink, matchesSection, findCommitButton, sectionIsRendered } from "../src/flag/nav";
-import { flagFieldNames } from "../src/flag/types";
+import { flagFieldNames, revealGates } from "../src/flag/types";
 
 const CAPTURE = JSON.parse(
   readFileSync("test/fixtures/flag-perm-field-dump/eta9141-run3.json", "utf-8"),
@@ -26,9 +26,23 @@ const CAPTURE = JSON.parse(
   }[];
 };
 
+// Revealed boxes from the 2026-11-11 walk (perm-9141-test-kit), plus the logical keys of the unnamed searches.
+const WALK_2026_11_11 = [
+  "naicsCode", "socCode", "supervisedSocCodes",
+  "acwiaHigherEdu", "acwiaAffiliated", "acwiaNonprofit", "acwiaStatusChange",
+  "dbaSca", "surveyName", "surveyPublicationDate",
+  "secondDiplomaMajor", "numberOfMonthsTraining", "nameRequiredTraining",
+  "empExperienceMonths", "occupationRequired",
+  ...["LicenseCert", "ForeignLang", "ResFellow", "Other"].flatMap((k) => [
+    `isSpecReq${k}`, `specReq${k}`, `isAltSpecReq${k}`, `altSpecReq${k}`,
+  ]),
+  "altEducationLevel", "altMajor", "altTrainingReq", "altNumMonthsTraining",
+  "altNameReqdTraining", "altEmpExperienceReqd", "altEmpExpNumMonths", "isAltSpecialReq",
+];
+
 /** Every field name the live capture saw, unconditional or revealed. */
 function capturedNames(): Set<string> {
-  const out = new Set<string>();
+  const out = new Set<string>(WALK_2026_11_11);
   for (const s of CAPTURE.sections) {
     for (const f of s.fields) out.add(f.key);
     for (const r of s.reveals)
@@ -52,7 +66,7 @@ describe("descriptor vs the live capture", () => {
     const missing = [...capturedNames()].filter((n) => !driven.has(n));
     // What is legitimately absent:
     //   *PhoneCountry  — ISO-2 selects with no box number; the feed never emits one.
-    //   combobox@...   — the two unnamed comboboxes, see ETA9141_NOT_AUTOFILLED.
+    //   combobox@...   — the unnamed searches, driven under naicsCode/socCode.
     expect(
       missing.filter((n) => !/PhoneCountry$/.test(n) && !n.startsWith("combobox@")),
     ).toEqual([]);
@@ -64,7 +78,7 @@ describe("descriptor vs the live capture", () => {
     // answered" — a silent under-fill, not an error.
     for (const section of ETA9141_SECTIONS) {
       for (const field of section.fields) {
-        for (const value of field.revealedBy?.is ?? []) {
+        for (const value of revealGates(field).flatMap((g) => g.is ?? [])) {
           expect(value).not.toBe("Yes");
           expect(value).not.toBe("No");
         }
@@ -79,8 +93,8 @@ describe("descriptor vs the live capture", () => {
     // Run 3 proved Attorney and Agent both reveal the block and None reveals
     // nothing, so every other field in the section must be gated on those two.
     for (const field of rest) {
-      expect(field.revealedBy?.by).toBe("attyRepresentType");
-      expect(field.revealedBy?.is).toEqual(["Attorney", "Agent"]);
+      expect(revealGates(field).map((g) => g.by)).toEqual(["attyRepresentType"]);
+      expect(revealGates(field)[0].is).toEqual(["Attorney", "Agent"]);
     }
   });
 
@@ -90,7 +104,7 @@ describe("descriptor vs the live capture", () => {
     for (const section of ETA9141_SECTIONS) {
       const seen = new Set<string>();
       for (const field of section.fields) {
-        if (field.revealedBy) expect(seen.has(field.revealedBy.by)).toBe(true);
+        for (const gate of revealGates(field)) expect(seen.has(gate.by)).toBe(true);
         seen.add(field.name);
       }
     }
@@ -176,9 +190,8 @@ describe("refusals", () => {
     expect(isForbidden({ name: "empBusinessName", kind: "text" }, ETA9141_FORBIDDEN)).toBeNull();
   });
 
-  it("names the two fields it will not autofill, with a reason", () => {
-    expect(ETA9141_NOT_AUTOFILLED.map((f) => f.box)).toEqual(["C.13", "F.d.1"]);
-    for (const f of ETA9141_NOT_AUTOFILLED) expect(f.reason).toBeTruthy();
+  it("leaves no box for a person to type", () => {
+    expect(ETA9141_NOT_AUTOFILLED).toEqual([]);
   });
 
   it("refuses a picker found only by its visible label", () => {
