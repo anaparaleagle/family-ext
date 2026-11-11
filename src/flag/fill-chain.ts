@@ -31,6 +31,7 @@ import {
   commitSection,
   goToSection,
   reviewPageErrors,
+  reviewPageLoaded,
   sectionIsRendered,
 } from "./nav";
 import { ModalOutcome, runModal } from "./modal";
@@ -627,8 +628,10 @@ export async function fillAll(
   if (config.reviewNavLabel) {
     reviewReached = await goToSection({ navLabel: config.reviewNavLabel, title: "Review", fields: [] });
     if (reviewReached) {
+      const deadline = Date.now() + REVIEW_WAIT_MS;
+      while (!reviewPageLoaded() && Date.now() < deadline) await sleep(250);
       await sleep(REVIEW_SETTLE_MS);
-      reviewErrors = reviewPageErrors();
+      reviewErrors = reviewPageErrors() ?? [];
     }
   }
 
@@ -648,7 +651,8 @@ export async function fillAll(
   };
 }
 
-const REVIEW_SETTLE_MS = 1500;
+const REVIEW_SETTLE_MS = 1000;
+const REVIEW_WAIT_MS = 8000;
 
 /** Why a table or upload section has nothing to do on this case, or "". */
 function specialSkip(

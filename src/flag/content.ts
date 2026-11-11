@@ -504,6 +504,7 @@ async function onFillAll(config: FlagFormConfig): Promise<void> {
     const notes = report.sections.map(sectionNotes).filter(Boolean).join(" ");
     setStatus(
       summarise(report) +
+        (report.reviewErrors?.length ? ` Review still lists ${report.reviewErrors.length} error(s).` : "") +
         (notes ? ` ${notes}` : "") +
         ` ${committed} section(s) saved with FLAG's own Continue.` +
         (report.blockedAt
