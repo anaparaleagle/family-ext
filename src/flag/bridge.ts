@@ -8,7 +8,7 @@ type Reply = { ok: boolean; message: string };
 const REQUEST = "mk-flag-bridge";
 const DONE = "mk-flag-bridge-done";
 const TARGET_ATTR = "data-mk-flag-target";
-const KEY_CODES: Record<string, number> = { ArrowDown: 40, Enter: 13, Escape: 27 };
+const KEY_CODES: Record<string, number> = { ArrowDown: 40, Enter: 13 };
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -159,6 +159,7 @@ async function key(req: Request): Promise<Reply> {
   const el = target(req.target);
   if (!el) return { ok: false, message: "element not on page" };
   const name = String(req.key);
+  if (!(name in KEY_CODES)) return { ok: false, message: `key ${name} is never sent on FLAG` };
   const times = Math.max(1, Number(req.times ?? 1));
   for (let i = 0; i < times; i++) {
     el.dispatchEvent(keyEvent("keydown", name));
@@ -177,10 +178,20 @@ async function click(req: Request): Promise<Reply> {
   return { ok: true, message: "click" };
 }
 
+function focusIn(req: Request): Promise<Reply> {
+  const el = target(req.target);
+  if (!el) return Promise.resolve({ ok: false, message: "element not on page" });
+  el.focus();
+  el.dispatchEvent(new FocusEvent("focus"));
+  el.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+  call(el, "onFocus", synthetic(el, "focus"));
+  return Promise.resolve({ ok: true, message: "focused" });
+}
+
 async function clickUp(req: Request): Promise<Reply> {
   let el: Element | null = target(req.target);
   if (!el) return { ok: false, message: "element not on page" };
-  for (let depth = 0; el && depth < 6; depth++, el = el.parentElement) {
+  for (let depth = 0; el && depth < 10; depth++, el = el.parentElement) {
     if (call(el, "onClick", synthetic(el, "click"))) return { ok: true, message: `onClick at depth ${depth}` };
   }
   return { ok: false, message: "no React onClick" };
@@ -194,7 +205,7 @@ function blur(req: Request): Promise<Reply> {
   return Promise.resolve({ ok: true, message: "blurred" });
 }
 
-const OPS: Record<string, (req: Request) => Promise<Reply>> = { radio, checkbox, setInput, key, click, clickUp, blur };
+const OPS: Record<string, (req: Request) => Promise<Reply>> = { radio, checkbox, setInput, key, click, clickUp, focusIn, blur };
 
 document.addEventListener(REQUEST, (e: Event) => {
   let req: Request;

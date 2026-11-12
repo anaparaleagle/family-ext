@@ -7,6 +7,7 @@ import { FlagField, FlagFormConfig, FlagSection, NotAutofilled } from "./types";
 const t = (name: string): FlagField => ({ name, kind: "text" });
 const area = (name: string): FlagField => ({ name, kind: "textarea" });
 const sel = (name: string): FlagField => ({ name, kind: "select" });
+const money = (name: string): FlagField => ({ name, kind: "currency" });
 const date = (name: string): FlagField => ({ name, kind: "date" });
 const phone = (name: string): FlagField => ({ name, kind: "phone", widget: "typed-phone" });
 const radio = (name: string): FlagField => ({ name, kind: "radio", widget: "label-click" });
@@ -103,7 +104,7 @@ export const ETA9089_SECTIONS: FlagSection[] = [
   {
     navLabel: "Job Opportunity and Wage Information",
     title: "E — Job Opportunity and Wage",
-    fields: [t("jobOppWageFrom"), t("jobOppWageTo"), radio("jobOppWagePer"), area("jobOppWageConditions")],
+    fields: [money("jobOppWageFrom"), money("jobOppWageTo"), radio("jobOppWagePer"), area("jobOppWageConditions")],
   },
   {
     navLabel: "Worksite Information",
@@ -215,6 +216,7 @@ export const ETA9089_SECTIONS: FlagSection[] = [
     conditional: true,
     addRows: {
       rowsKey: "education",
+      addText: "+ Add Foreign Worker Education",
       saveText: "Save",
       labelField: row("appAEduInstName"),
       fields: [
@@ -234,6 +236,7 @@ export const ETA9089_SECTIONS: FlagSection[] = [
     conditional: true,
     addRows: {
       rowsKey: "training",
+      addText: "+ Add Foreign Worker Training",
       saveText: "Save",
       labelField: row("appATrainingInstName"),
       fields: [
@@ -253,6 +256,7 @@ export const ETA9089_SECTIONS: FlagSection[] = [
     conditional: true,
     addRows: {
       rowsKey: "skills",
+      addText: "+ Add Skills, Abilities, and Proficiencies",
       saveText: "Save",
       labelField: row("appASkillsInstName"),
       fields: [
@@ -270,6 +274,7 @@ export const ETA9089_SECTIONS: FlagSection[] = [
     conditional: true,
     addRows: {
       rowsKey: "experience",
+      addText: "+ Add Foreign Worker Work Experience",
       saveText: "Save",
       labelField: row("appAExpEmpName"),
       fields: [
@@ -309,7 +314,26 @@ export const ETA9089_SECTIONS: FlagSection[] = [
       rowsKey: "supplemental",
       saveText: "Save",
       labelField: "sectionAndItemNum",
-      fields: [sel("sectionAndItemNum"), { ...sel("sectionName"), firstOption: true }, area("suppInfo")],
+      addText: "+ Add Supplemental Information",
+      fields: [
+        sel("sectionAndItemNum"),
+        {
+          ...sel("sectionName"),
+          optionFor: {
+            from: "sectionAndItemNum",
+            keywords: {
+              "G.6": "premises",
+              "G.7": "combination",
+              "G.8": "foreign language",
+              "G.9": "svp",
+              "G.10": "credential",
+              "G.11": "payment",
+              "G.12": "layoff",
+            },
+          },
+        },
+        area("suppInfo"),
+      ],
     },
   },
   {

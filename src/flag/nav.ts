@@ -92,9 +92,17 @@ function fingerprint(): string {
  * to be true. A section with no fields at all cannot be confirmed this way, so it
  * reports false and the caller treats it as "nothing to do".
  */
+// Appendix pages keep their boxes inside the Add box, so only the page heading says where we are.
+function headingShows(navLabel: string): boolean {
+  const want = normalise(navLabel);
+  return Array.from(document.querySelectorAll<HTMLElement>("#simple-modal h1, #simple-modal h2")).some((h) =>
+    normalise(h.textContent).includes(want),
+  );
+}
+
 export function sectionIsRendered(section: FlagSection): boolean {
   if (section.marker && findButtonByText(section.marker)) return true;
-  if (!section.fields.length) return false;
+  if (!section.fields.length) return headingShows(section.navLabel);
   return section.fields.some((f) => !!locateFlagField(f));
 }
 
