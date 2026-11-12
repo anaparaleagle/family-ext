@@ -156,6 +156,7 @@ async function addOne(spec: FlagAddRowsSpec, row: RowValues, label: string): Pro
 /** Add every row the section's table does not already list, one Add box at a time. */
 export async function fillAddRows(spec: FlagAddRowsSpec, rows: RowValues[]): Promise<AddRowOutcome[]> {
   const out: AddRowOutcome[] = [];
+  await sleep(1200);
   for (const row of rows) {
     const label = row[spec.labelField] ?? spec.fields.map((f) => row[f.name]).find(Boolean) ?? "row";
     const key = normalise(label);
@@ -163,7 +164,14 @@ export async function fillAddRows(spec: FlagAddRowsSpec, rows: RowValues[]): Pro
       out.push({ label, status: "already-there" });
       continue;
     }
-    const res = await addOne(spec, row, label);
+    let res = await addOne(spec, row, label);
+    if (res.status === "failed" && !/did not open|no ".*" control/.test(res.message ?? "")) {
+      await sleep(1500);
+      const open = domName(spec.fields[0].name);
+      if (open) closeBox(boxScope(open, spec.saveText));
+      await sleep(800);
+      if (!tableText().some((t) => key && t.includes(key))) res = await addOne(spec, row, label);
+    }
     dbg(`  ${spec.rowsKey} row ${label}: ${res.status}${res.message ? ` (${res.message})` : ""}`);
     out.push(res);
     await sleep(800);

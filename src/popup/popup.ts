@@ -243,6 +243,7 @@ function selectCase(id: string, persist: boolean): void {
   const label = selectedLabel();
   caseSearch.value = label;
   renderCases(label);
+  caseList.hidden = true;
   showSelected();
   followCaseType(cases.find((c) => c.id === id)?.case_type);
   void loadPeople(id);
@@ -454,7 +455,14 @@ loginPassword.addEventListener("keydown", (e) => {
 });
 logoutBtn.addEventListener("click", handleLogout);
 loadBtn.addEventListener("click", handleLoadCase);
-caseSearch.addEventListener("input", () => renderCases(caseSearch.value));
+caseSearch.addEventListener("input", () => {
+  caseList.hidden = false;
+  renderCases(caseSearch.value);
+});
+caseSearch.addEventListener("focus", () => {
+  caseList.hidden = false;
+  renderCases(selectedCaseId ? "" : caseSearch.value);
+});
 caseList.addEventListener("click", (e) => {
   const row = (e.target as HTMLElement).closest<HTMLElement>(".case-row");
   if (!row?.dataset.id) return;
