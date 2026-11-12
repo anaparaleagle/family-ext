@@ -84,19 +84,21 @@ function closeBox(scope: HTMLElement | null): void {
 }
 
 function tableText(): string[] {
-  return Array.from(document.querySelectorAll<HTMLElement>("table tbody tr")).map((tr) => normalise(tr.textContent));
+  return Array.from(document.querySelectorAll<HTMLElement>("table tr")).map((tr) => normalise(tr.textContent));
 }
 
 async function pickOptionNaming(name: string, keyword: string): Promise<boolean> {
   const want = normalise(keyword);
   const el = await waitFor(() => {
     const s = document.querySelector<HTMLSelectElement>(`select[name="${CSS.escape(name)}"]`);
-    return s && !s.disabled && Array.from(s.options).some((o) => o.value) ? s : null;
+    if (!s || !Array.from(s.options).some((o) => o.value)) return null;
+    return !s.disabled || normalise(s.selectedOptions[0]?.textContent).includes(want) ? s : null;
   }, REVEAL_TIMEOUT_MS);
   if (!el) return false;
   const opt = Array.from(el.options).find((o) => o.value && !o.disabled && normalise(o.textContent).includes(want));
   if (!opt) return false;
   if (el.value === opt.value) return true;
+  if (el.disabled) return false;
   const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set;
   if (setter) setter.call(el, opt.value);
   else el.value = opt.value;
