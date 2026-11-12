@@ -177,6 +177,11 @@ export const ETA9089_SECTIONS: FlagSection[] = [
     ],
   },
   {
+    navLabel: "Employer Labor Condition Statements",
+    title: "I — Employer Labor Condition Statements",
+    fields: [box("sectionIAgreement")],
+  },
+  {
     navLabel: "Preparer",
     title: "J — Preparer",
     fields: [
@@ -352,7 +357,6 @@ export const ETA9089_FORBIDDEN = [
   { match: "groupSelect", reason: "Appendix A.A profile picker." },
   { match: "fwSelect", reason: "Appendix A.A profile picker." },
   { match: "Select an Employer profile", reason: "The profile pickers, matched by their visible label." },
-  { match: "sectionIAgreement", reason: "I.1 is the employer's certification under penalty of perjury." },
   { match: "jobOppPWDNumber", reason: "FLAG fills E.1 from the determined 9141 and locks it." },
   { match: "Add Data", reason: "Opens FLAG's quit box, which offers Delete Case." },
   { match: "Delete Case", reason: "Never." },
@@ -360,7 +364,6 @@ export const ETA9089_FORBIDDEN = [
 ];
 
 export const ETA9089_NOT_AUTOFILLED: NotAutofilled[] = [
-  { box: "I.1", label: "Employer certification", reason: "a certification under penalty of perjury; the employer ticks it" },
   { box: "E.1", label: "PWD case number", reason: "FLAG fills it when the 9089 is started from the determined 9141" },
 ];
 

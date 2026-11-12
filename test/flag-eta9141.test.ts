@@ -166,7 +166,7 @@ describe("descriptor vs the backend table", () => {
     // it, the value arrives and is silently dropped. `unclaimed` in the walk
     // report exists to catch that at runtime; this catches it at build time.
     const driven = new Set(flagFieldNames(ETA9141_SECTIONS));
-    const excluded = new Set(["sectionIAgreement"]);
+    const excluded = new Set<string>();
     const dropped = Object.values(TABLE.forms["ETA-9141"])
       .map((s) => s.name)
       .filter((n) => !driven.has(n) && !excluded.has(n) && !/PhoneCountry$/.test(n));
