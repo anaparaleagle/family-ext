@@ -26,6 +26,7 @@ import { flushUnmappedFields } from "../engine/telemetry";
 import { FLAG_CONFIGS } from "./registry";
 import { FlagDocument, FlagFormConfig } from "./types";
 import { scrapeReviewFields } from "./review";
+import { reviewPageErrors, reviewPageLoaded } from "./nav";
 
 /** Storage keys for the FLAG side. Separate from the myUSCIS payload keys so a
  * loaded DOL form cannot be mistaken for a loaded I-130 or vice versa. */
@@ -522,13 +523,15 @@ async function onFillAll(config: FlagFormConfig): Promise<void> {
     void flushUnmappedFields(config.formType, loaded.caseId);
     await recordExtraRows(report.sections);
     const committed = report.sections.filter((s) => s.commit === "committed").length;
+    const open = report.reviewErrors?.length ?? 0;
     const notes = report.sections.map(sectionNotes).filter(Boolean).join(" ");
     setStatus(
       summarise(report) +
-        (report.reviewErrors?.length ? ` Review still lists ${report.reviewErrors.length} error(s).` : "") +
         submitNote(report) +
         (notes ? ` ${notes}` : "") +
-        ` ${committed} section(s) saved with FLAG's own Continue.` +
+        (open
+          ? ` ${committed} section(s) passed Continue, but FLAG still lists ${open} error(s) — the form is NOT complete. See the list below.`
+          : ` ${committed} section(s) saved with FLAG's own Continue.`) +
         (report.blockedAt
           ? ` STOPPED at "${report.blockedAt}" — FLAG would not accept it. Read the ` +
             "errors it is showing, fix them, and press Continue yourself; the " +
@@ -547,6 +550,7 @@ function problemLines(report: WalkReport): string[] {
   for (const s of report.sections) {
     for (const f of s.fields) {
       if (f.status === "failed" || f.status === "locked") lines.push(`${s.title}: ${withReason(f)}`);
+      if (f.status === "refused") lines.push(`${s.title}: ${f.name} left for you: ${f.message ?? ""}`);
     }
     for (const a of s.appendix ?? []) {
       if (a.status === "failed") lines.push(`${s.title}: ${a.label} NOT added (${a.message ?? "unknown"})`);
@@ -615,11 +619,29 @@ async function reviewContext(): Promise<ReviewContext | null> {
   };
 }
 
-function renderReviewPanel(discrepancies: LcaDiscrepancy[], readCount: number): void {
+function renderReviewPanel(
+  discrepancies: LcaDiscrepancy[],
+  readCount: number,
+  flagErrors: string[] | null,
+): void {
   const panel = document.getElementById(REVIEW_PANEL_ID);
   if (!panel) return;
   panel.replaceChildren();
   panel.style.cssText = "margin-top:8px;padding-top:8px;border-top:1px solid #eee";
+
+  const errors = document.createElement("div");
+  errors.style.cssText = `white-space:pre-line;margin-bottom:6px;color:${flagErrors?.length ? "#7c2d12" : "#334"}`;
+  if (flagErrors === null) {
+    errors.textContent = "FLAG's own errors not checked. Open Review & Submit and press Review Summary again.";
+  } else if (flagErrors.length) {
+    errors.style.fontWeight = "600";
+    errors.textContent =
+      `FLAG still lists ${flagErrors.length} error(s); the form is NOT complete:\n` +
+      flagErrors.map((e) => `- ${e}`).join("\n");
+  } else {
+    errors.textContent = "Review & Submit lists no errors.";
+  }
+  panel.appendChild(errors);
 
   const summary = document.createElement("div");
   summary.style.cssText = `font-weight:600;margin-bottom:4px;color:${discrepancies.length ? "#7c2d12" : "#14532d"}`;
@@ -657,6 +679,7 @@ async function onReviewSummary(): Promise<void> {
       return;
     }
 
+    const flagErrors = reviewPageLoaded() ? reviewPageErrors() ?? [] : null;
     const read = scrapeReviewFields();
     const stored = await chrome.storage.local.get(KEYS.reviewValues);
     const accumulated: Record<string, string> = {
@@ -667,7 +690,8 @@ async function onReviewSummary(): Promise<void> {
 
     if (Object.keys(accumulated).length === 0) {
       setStatus(
-        "Couldn't read any LCA values on this page. Open the section with the " +
+        (flagErrors?.length ? `FLAG still lists ${flagErrors.length} error(s) on Review & Submit. ` : "") +
+          "Couldn't read any LCA values on this page. Open the section with the " +
           "job, employer, worksite or wage boxes and try again.",
       );
       return;
@@ -685,7 +709,7 @@ async function onReviewSummary(): Promise<void> {
     }
     const discrepancies = resp.data.discrepancies ?? [];
     setStatus(`Reviewed ${Object.keys(accumulated).length} field(s) read so far.`);
-    renderReviewPanel(discrepancies, Object.keys(accumulated).length);
+    renderReviewPanel(discrepancies, Object.keys(accumulated).length, flagErrors);
   });
 }
 

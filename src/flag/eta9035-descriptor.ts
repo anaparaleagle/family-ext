@@ -27,7 +27,7 @@ import {
 
 const t = (name: string): FlagField => ({ name, kind: "text" });
 const sel = (name: string): FlagField => ({ name, kind: "select" });
-const phone = (name: string): FlagField => ({ name, kind: "phone" });
+const phone = (name: string): FlagField => ({ name, kind: "phone", widget: "typed-phone" });
 const radio = (name: string): FlagField => ({ name, kind: "radio" });
 const box = (name: string): FlagField => ({ name, kind: "checkbox" });
 /**
@@ -400,14 +400,14 @@ export const ETA9035_FORBIDDEN: ForbiddenControl[] = [
   // OES_WAGE_CALCULATOR above. Nothing else moved: the modal is never
   // submitted unless it produced a wage, and the application's own
   // "Review & Submit" stays refused below.
-  { match: "Review & Submit", reason: "Never." },
+  { match: "Review & Submit", reason: "Read only; never submitted." },
   {
     match: "g1_read_agree",
-    reason: "G.1 is the employer agreeing to the labor condition statements. A person ticks it.",
+    reason: "G.1 is the employer agreeing to the labor condition statements. Answer it by hand.",
   },
   {
     match: "h6_read_agree",
-    reason: "H.6 is the employer agreeing to the additional statements. A person ticks it.",
+    reason: "H.6 is the employer agreeing to the additional statements. A person ticks it, if FLAG shows it.",
   },
 ];
 
@@ -420,7 +420,11 @@ export const ETA9035_NOT_AUTOFILLED: NotAutofilled[] = [
       "Driven for you on All Industries / County-Township / R&D No. " +
       "Check the prevailing wage it returns before you file.",
   },
-  { box: "G.1", label: "Labor condition statements", reason: "An attestation. Tick it yourself." },
+  {
+    box: "G.1",
+    label: "Labor condition statements",
+    reason: "The employer's own agreement. Answer it by hand on Section G; FLAG will not submit without it.",
+  },
   { box: "H.6", label: "Additional statements", reason: "An attestation. Tick it yourself, if shown." },
   {
     box: "Appendix A",
@@ -457,4 +461,5 @@ export const ETA9035_CONFIG: FlagFormConfig = {
   sections: ETA9035_SECTIONS,
   forbidden: ETA9035_FORBIDDEN,
   notAutofilled: ETA9035_NOT_AUTOFILLED,
+  reviewNavLabel: "Review & Submit",
 };
