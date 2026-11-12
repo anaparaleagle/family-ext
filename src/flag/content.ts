@@ -267,11 +267,21 @@ function buildToolbar(config: FlagFormConfig): void {
   bar.style.cssText =
     "position:fixed;right:16px;bottom:16px;z-index:2147483647;background:#fff;" +
     "border:1px solid #ccd;border-radius:6px;padding:8px;box-shadow:0 2px 8px rgba(0,0,0,.2);" +
-    "font:12px system-ui;max-width:320px";
+    "font:12px system-ui;max-width:320px;max-height:calc(100vh - 32px);overflow-y:auto";
 
   const title = document.createElement("div");
-  title.textContent = config.label;
-  title.style.cssText = "font-weight:600;margin-bottom:4px";
+  title.style.cssText = "font-weight:600;margin-bottom:4px;display:flex;justify-content:space-between;gap:8px";
+  const name = document.createElement("span");
+  name.textContent = config.label;
+  const fold = document.createElement("button");
+  fold.textContent = "Hide";
+  fold.style.cssText = "border:0;background:none;color:#1f4e79;cursor:pointer;font:12px system-ui;padding:0";
+  fold.addEventListener("click", () => {
+    const hide = fold.textContent === "Hide";
+    for (const child of Array.from(bar.children)) if (child !== title) (child as HTMLElement).style.display = hide ? "none" : "";
+    fold.textContent = hide ? "Show" : "Hide";
+  });
+  title.append(name, fold);
   bar.appendChild(title);
 
   const loaded = document.createElement("div");

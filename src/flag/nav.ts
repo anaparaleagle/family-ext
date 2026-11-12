@@ -80,7 +80,7 @@ function fingerprint(): string {
   const names = [...document.querySelectorAll("input[name], select[name], textarea[name]")]
     .map((el) => el.getAttribute("name"))
     .join("|");
-  const heading = normalise(document.querySelector("h1, h2, legend")?.textContent);
+  const heading = [...document.querySelectorAll("h1, h2, legend")].map((h) => normalise(h.textContent)).join("|");
   return `${heading}##${names}`;
 }
 
@@ -178,12 +178,13 @@ export async function commitSection(): Promise<CommitOutcome> {
   }
 
   const before = fingerprint();
-  button.click();
-
-  const deadline = Date.now() + NAV_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    await sleep(POLL_MS);
-    if (fingerprint() !== before) return "committed";
+  for (let attempt = 0; attempt < 2; attempt++) {
+    (attempt ? findCommitButton() ?? button : button).click();
+    const deadline = Date.now() + NAV_TIMEOUT_MS / 2;
+    while (Date.now() < deadline) {
+      await sleep(POLL_MS);
+      if (fingerprint() !== before) return "committed";
+    }
   }
   dbg(`commit: page unchanged ${NAV_TIMEOUT_MS}ms after Continue — FLAG refused it`);
   return "blocked";

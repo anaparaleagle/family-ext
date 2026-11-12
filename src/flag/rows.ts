@@ -84,19 +84,21 @@ function closeBox(scope: HTMLElement | null): void {
 }
 
 function tableText(): string[] {
-  return Array.from(document.querySelectorAll<HTMLElement>("table tbody tr")).map((tr) => normalise(tr.textContent));
+  return Array.from(document.querySelectorAll<HTMLElement>("table tr")).map((tr) => normalise(tr.textContent));
 }
 
 async function pickOptionNaming(name: string, keyword: string): Promise<boolean> {
   const want = normalise(keyword);
   const el = await waitFor(() => {
     const s = document.querySelector<HTMLSelectElement>(`select[name="${CSS.escape(name)}"]`);
-    return s && !s.disabled && Array.from(s.options).some((o) => o.value) ? s : null;
+    if (!s || !Array.from(s.options).some((o) => o.value)) return null;
+    return !s.disabled || normalise(s.selectedOptions[0]?.textContent).includes(want) ? s : null;
   }, REVEAL_TIMEOUT_MS);
   if (!el) return false;
   const opt = Array.from(el.options).find((o) => o.value && !o.disabled && normalise(o.textContent).includes(want));
   if (!opt) return false;
   if (el.value === opt.value) return true;
+  if (el.disabled) return false;
   const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set;
   if (setter) setter.call(el, opt.value);
   else el.value = opt.value;
@@ -156,6 +158,7 @@ async function addOne(spec: FlagAddRowsSpec, row: RowValues, label: string): Pro
 /** Add every row the section's table does not already list, one Add box at a time. */
 export async function fillAddRows(spec: FlagAddRowsSpec, rows: RowValues[]): Promise<AddRowOutcome[]> {
   const out: AddRowOutcome[] = [];
+  await sleep(1200);
   for (const row of rows) {
     const label = row[spec.labelField] ?? spec.fields.map((f) => row[f.name]).find(Boolean) ?? "row";
     const key = normalise(label);
@@ -163,7 +166,14 @@ export async function fillAddRows(spec: FlagAddRowsSpec, rows: RowValues[]): Pro
       out.push({ label, status: "already-there" });
       continue;
     }
-    const res = await addOne(spec, row, label);
+    let res = await addOne(spec, row, label);
+    if (res.status === "failed" && !/did not open|no ".*" control/.test(res.message ?? "")) {
+      await sleep(1500);
+      const open = domName(spec.fields[0].name);
+      if (open) closeBox(boxScope(open, spec.saveText));
+      await sleep(800);
+      if (!tableText().some((t) => key && t.includes(key))) res = await addOne(spec, row, label);
+    }
     dbg(`  ${spec.rowsKey} row ${label}: ${res.status}${res.message ? ` (${res.message})` : ""}`);
     out.push(res);
     await sleep(800);
