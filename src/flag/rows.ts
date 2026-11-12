@@ -159,6 +159,7 @@ async function addOne(spec: FlagAddRowsSpec, row: RowValues, label: string): Pro
 export async function fillAddRows(spec: FlagAddRowsSpec, rows: RowValues[]): Promise<AddRowOutcome[]> {
   const out: AddRowOutcome[] = [];
   await sleep(1200);
+  await waitFor(() => (tableText().length > 1 ? true : null), 4000);
   for (const row of rows) {
     const label = row[spec.labelField] ?? spec.fields.map((f) => row[f.name]).find(Boolean) ?? "row";
     const key = normalise(label);
