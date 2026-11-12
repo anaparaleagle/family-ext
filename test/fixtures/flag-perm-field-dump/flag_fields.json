@@ -3198,6 +3198,11 @@
      "kind": "select"
     },
     {
+     "from": "province",
+     "name": "add_values_field[0].appAExpProvince",
+     "kind": "text"
+    },
+    {
      "from": "job_title",
      "name": "add_values_field[0].appAExpJobTitle",
      "kind": "text"
