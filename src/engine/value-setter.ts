@@ -684,11 +684,12 @@ function selectWageYear(el: HTMLSelectElement, value: string): boolean {
 
 // ── Search (MUI Autocomplete: country / state) ────────────────────────────
 
-/** The open modal over the page, if there is one. */
+/** The topmost open modal over the page, if there is one. */
 function openDialogScope(): HTMLElement | null {
-  return document.querySelector<HTMLElement>(
+  const open = document.querySelectorAll<HTMLElement>(
     '[role="dialog"]:not([aria-hidden="true"]), .modal.show',
   );
+  return open.length ? open[open.length - 1] : null;
 }
 
 /**

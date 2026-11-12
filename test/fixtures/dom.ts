@@ -336,7 +336,12 @@ export function mountOesCalculator(
   const openButton = document.createElement("button");
   openButton.type = "button";
   openButton.textContent = "OES Wage Calculator";
-  document.body.appendChild(openButton);
+  // Live FLAG draws the whole application as a dialog too, and the
+  // calculator opens as a second dialog on top of it.
+  const application = document.createElement("div");
+  application.setAttribute("role", "dialog");
+  application.appendChild(openButton);
+  document.body.appendChild(application);
 
   const handle: OesCalculatorHandle = {
     openButton,
@@ -362,10 +367,11 @@ export function mountOesCalculator(
     "</select>";
 
   openButton.addEventListener("click", () => {
-    if (opts.neverOpens || document.querySelector('[role="dialog"]')) return;
+    if (opts.neverOpens || document.querySelector(".wage-calculator-modal")) return;
     handle.opens += 1;
     const dialog = document.createElement("div");
     dialog.setAttribute("role", "dialog");
+    dialog.className = "wage-calculator-modal";
     dialog.innerHTML =
       (omit.has("OES_state")
         ? ""

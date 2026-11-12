@@ -239,11 +239,13 @@ export function isDisabled(el: HTMLElement): boolean {
   return el.getAttribute("aria-disabled") === "true";
 }
 
-/** The open modal over the page, if there is one. */
+/** The topmost open modal. FLAG's whole application is itself a dialog, so a
+ * calculator opened over it is the LAST one, never the first. */
 export function openDialog(): HTMLElement | null {
-  return document.querySelector<HTMLElement>(
+  const open = document.querySelectorAll<HTMLElement>(
     '[role="dialog"]:not([aria-hidden="true"]), .modal.show, .modal[style*="display: block"]',
   );
+  return open.length ? open[open.length - 1] : null;
 }
 
 /**

@@ -253,7 +253,7 @@ describe("the OES Wage Calculator is driven, not left manual", () => {
     expect(out.result).toBeFalsy();
     expect(out.message).toContain("NO prevailing wage");
     expect(calc.submits).toBe(1);
-    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.querySelector(".wage-calculator-modal")).toBeNull();
   }, 30000);
 
   it("still keeps its hands off the boxes it owns when it produced no wage", async () => {

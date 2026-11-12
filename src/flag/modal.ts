@@ -94,16 +94,18 @@ function writable(el: HTMLElement | null): boolean {
   return !!el && !isDisabled(el);
 }
 
-/** The modal, after the old flow's fixed wait and then a short poll. */
-async function waitForDialog(): Promise<HTMLElement | null> {
+/** The modal the button opened, after the old flow's fixed wait and then a
+ * short poll. A dialog already open before the click is not it. */
+async function waitForDialog(before: HTMLElement | null): Promise<HTMLElement | null> {
   await sleep(AFTER_OPEN_MS);
   const deadline = Date.now() + EXTRA_WAIT_MS;
   while (Date.now() < deadline) {
     const dialog = openDialog();
-    if (dialog) return dialog;
+    if (dialog && dialog !== before) return dialog;
     await sleep(POLL_MS);
   }
-  return openDialog();
+  const dialog = openDialog();
+  return dialog && dialog !== before ? dialog : null;
 }
 
 /**
@@ -156,9 +158,10 @@ export async function runModal(
     dbg(`modal: no "${spec.openButton}" button on this section`);
     return { status: "no-button", fields: [], message: `No "${spec.openButton}" button on the page.` };
   }
+  const before = openDialog();
   opener.click();
 
-  const dialog = await waitForDialog();
+  const dialog = await waitForDialog(before);
   if (!dialog) {
     dbg(`modal: "${spec.openButton}" did not open a dialog`);
     return {
@@ -259,7 +262,7 @@ export async function runModal(
   // with a required box empty FLAG keeps the dialog up and prints the error
   // against it. A dialog left on screen sits over the rest of Section F, so
   // this is the difference between "applied" and "the page is still waiting".
-  const stillOpen = openDialog() !== null;
+  const stillOpen = dialog.isConnected && openDialog() === dialog;
   if (stillOpen) dbg("modal: the calculator did not close — FLAG refused its Submit");
 
   if (!result) {
