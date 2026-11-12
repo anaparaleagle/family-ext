@@ -285,6 +285,7 @@ export const ETA9089_SECTIONS: FlagSection[] = [
         t(row("appAExpPostalCode")),
         sel(row("appAExpCountryId")),
         sel(row("appAExpStateTerritory")),
+        t(row("appAExpProvince")),
         t(row("appAExpJobTitle")),
         t(row("appAExpStartDate")),
         t(row("appAExpEndDate")),
