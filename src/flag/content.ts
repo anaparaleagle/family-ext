@@ -374,6 +374,9 @@ function withReason(f: FieldOutcome): string {
  */
 function sectionNotes(outcome: SectionOutcome): string {
   const notes: string[] = [];
+  if (outcome.pwd && outcome.pwd.status !== "skipped" && outcome.pwd.message) {
+    notes.push(`F.12a: ${outcome.pwd.message}`);
+  }
   const modal = outcome.modal;
   if (modal && modal.status !== "skipped") {
     if (modal.status === "applied") {

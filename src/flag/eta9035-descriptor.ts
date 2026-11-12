@@ -292,7 +292,7 @@ export const ETA9035_SECTIONS: FlagSection[] = [
   {
     navLabel: "Employer Labor Condition Statements",
     title: "G — Employer Labor Condition Statements",
-    // G.1 is an attestation: refused below, listed so the section is recognised.
+    // G.1 is typed Yes; the feed flags it for the caseworker to check.
     fields: [radio("g1_read_agree")],
   },
 
@@ -391,7 +391,6 @@ export const ETA9035_FORBIDDEN: ForbiddenControl[] = [
     match: "Select an Employer profile",
     reason: "The profile pickers matched by their visible label as well as by id.",
   },
-  { match: "PWD Case Lookup", reason: "F.12a lookup modal. Manual." },
   // "OES Wage Calculator" was here, refused as manual by a decision of
   // 2026-09-01. REVERSED on 2026-10-27 after reading the H-1B extension's
   // Section F path: the calculator is not an optional convenience, it is the
@@ -401,35 +400,15 @@ export const ETA9035_FORBIDDEN: ForbiddenControl[] = [
   // submitted unless it produced a wage, and the application's own
   // "Review & Submit" stays refused below.
   { match: "Review & Submit", reason: "Read only; never submitted." },
-  {
-    match: "g1_read_agree",
-    reason: "G.1 is the employer agreeing to the labor condition statements. Answer it by hand.",
-  },
-  {
-    match: "h6_read_agree",
-    reason: "H.6 is the employer agreeing to the additional statements. A person ticks it, if FLAG shows it.",
-  },
 ];
 
 export const ETA9035_NOT_AUTOFILLED: NotAutofilled[] = [
-  { box: "F.12a", label: "PWD tracking number", reason: "Use FLAG's PWD Case Lookup." },
   {
     box: "F.13",
     label: "OES Wage Calculator",
     reason:
       "Driven for you on All Industries / County-Township / R&D No. " +
       "Check the prevailing wage it returns before you file.",
-  },
-  {
-    box: "G.1",
-    label: "Labor condition statements",
-    reason: "The employer's own agreement. Answer it by hand on Section G; FLAG will not submit without it.",
-  },
-  { box: "H.6", label: "Additional statements", reason: "An attestation. Tick it yourself, if shown." },
-  {
-    box: "Appendix A",
-    label: "Educational attainment",
-    reason: "Only for a dependent employer claiming the master's exemption.",
   },
 ];
 

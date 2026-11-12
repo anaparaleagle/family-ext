@@ -37,6 +37,7 @@ import {
   sectionIsRendered,
 } from "./nav";
 import { ModalOutcome, runModal } from "./modal";
+import { PWD_BRANCH, PWD_GATE, PWD_LOOKUP_KEY, PwdLookupOutcome, runPwdLookup } from "./pwd-lookup";
 import {
   FlagDocument,
   FlagField,
@@ -117,6 +118,7 @@ export interface SectionOutcome {
   commit?: CommitOutcome;
   /** What the section's modal did, when it has one. */
   modal?: ModalOutcome;
+  pwd?: PwdLookupOutcome;
   /** What each press of the section's Add button did, when it is a repeater. */
   rows?: RowOutcome[];
   worksites?: WorksiteOutcome[];
@@ -423,6 +425,7 @@ export async function fillSection(
 export interface SectionFill {
   fields: FieldOutcome[];
   modal?: ModalOutcome;
+  pwd?: PwdLookupOutcome;
   /**
    * What each press of the repeater's Add button did — one per worksite, in
    * the order they were typed. Absent on a section that is not a repeater, and
@@ -494,7 +497,7 @@ export async function runSection(
     rows.push(await addRow(section.repeater));
   }
 
-  return { fields, modal: first.modal, rows };
+  return { fields, modal: first.modal, pwd: first.pwd, rows };
 }
 
 /** One pass over the section's own boxes: gate, modal, the rest. */
@@ -504,6 +507,20 @@ async function driveSection(
   forbidden: ForbiddenControl[],
   coverage?: Set<string>,
 ): Promise<SectionFill> {
+  const pwdGate = section.fields.find((f) => f.name === PWD_GATE);
+  if (pwdGate && values[PWD_LOOKUP_KEY] && values[PWD_GATE] === PWD_BRANCH) {
+    const gateOutcome = await fillSection({ ...section, fields: [pwdGate] }, values, forbidden);
+    if (gateOutcome.some((o) => o.status === "filled")) await sleep(AFTER_GATE_MS);
+    const pwd = await runPwdLookup(values[PWD_LOOKUP_KEY]);
+    const rest = await fillSection(
+      { ...section, fields: section.fields.filter((f) => f !== pwdGate) },
+      values,
+      forbidden,
+      coverage,
+    );
+    return { fields: [...gateOutcome, ...rest], pwd };
+  }
+
   if (!section.modal || !gateIsAnswered(section.modal.onlyWhen, values)) {
     return { fields: await fillSection(section, values, forbidden, coverage) };
   }
@@ -608,15 +625,15 @@ export async function fillAll(
       continue;
     }
     const special = skipped ? null : await runSpecialSection(section, values, extraRows, extras);
-    const { fields, modal, rows } = special || isSpecial(section)
-      ? { fields: [], modal: undefined, rows: undefined }
+    const { fields, modal, pwd, rows } = special || isSpecial(section)
+      ? { fields: [], modal: undefined, pwd: undefined, rows: undefined }
       : await runSection(section, values, config.forbidden, coverage, extraRows);
 
     // Commit before moving on. A sidebar click is not a save: FLAG persists a
     // section when Continue is pressed and discards it otherwise, so a walk
     // that only navigated would leave every section it typed behind it empty.
     const commit = await commitSection();
-    sections.push({ title: section.title, reached: true, fields, commit, modal, rows, skipped, ...special });
+    sections.push({ title: section.title, reached: true, fields, commit, modal, pwd, rows, skipped, ...special });
 
     if (commit === "blocked") {
       // FLAG is holding this section over a box it wants. Pressing on would
@@ -645,6 +662,7 @@ export async function fillAll(
 
   const all = sections.flatMap((s) => s.fields);
   const driven = new Set(config.sections.flatMap((s) => s.fields.map((f) => f.name)));
+  driven.add(PWD_LOOKUP_KEY);
   return {
     sections,
     filled: all.filter((f) => f.status === "filled").length,

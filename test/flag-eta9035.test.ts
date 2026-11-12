@@ -146,11 +146,11 @@ describe("descriptor vs the backend table", () => {
     expect(Object.keys(table).length).toBeGreaterThan(80);
   });
 
-  it("drives every field the backend can send, except the refused attestations", () => {
+  it("drives every field the backend can send", () => {
     const driven = new Set(flagFieldNames(ETA9035_SECTIONS));
     const dropped = Object.values(table)
       .map((s) => s.name)
-      .filter((n) => !driven.has(n) && !["g1_read_agree", "h6_read_agree"].includes(n));
+      .filter((n) => !driven.has(n));
     expect(dropped).toEqual([]);
   });
 
@@ -186,9 +186,9 @@ describe("refusals", () => {
     }
   });
 
-  it("refuses the two attestations", () => {
+  it("types the two agreements rather than refusing them", () => {
     for (const name of ["g1_read_agree", "h6_read_agree"]) {
-      expect(isForbidden({ name, kind: "radio" }, ETA9035_FORBIDDEN), name).toBeTruthy();
+      expect(isForbidden({ name, kind: "radio" }, ETA9035_FORBIDDEN), name).toBeNull();
     }
   });
 
@@ -200,7 +200,7 @@ describe("refusals", () => {
     // F.13a cannot be answered any other way once F.12/13/14 says OES, so a
     // refused calculator meant a Section F with no committable row.
     const ours = ETA9035_FORBIDDEN.map((f) => f.match);
-    const reversed = ["OES Wage Calculator"];
+    const reversed = ["OES Wage Calculator", "PWD Case Lookup"];
     for (const f of CAPTURE.forbidden) {
       const match = f.id ?? f.text!;
       if (reversed.includes(match)) continue;
@@ -215,7 +215,8 @@ describe("refusals", () => {
 
   it("names what stays manual, with a reason", () => {
     const boxes = ETA9035_NOT_AUTOFILLED.map((f) => f.box);
-    for (const box of ["F.12a", "F.13", "G.1", "H.6", "Appendix A"]) expect(boxes).toContain(box);
+    expect(boxes).toContain("F.13");
+    for (const box of ["F.12a", "G.1", "H.6", "Appendix A"]) expect(boxes).not.toContain(box);
     for (const f of ETA9035_NOT_AUTOFILLED) expect(f.reason).toBeTruthy();
   });
 });
