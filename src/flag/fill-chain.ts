@@ -23,6 +23,7 @@ import { locateFlagField } from "./locate";
 import { setFlagValue } from "./widgets";
 import { WorksiteOutcome, WorksiteRow, fillWorksiteTable } from "./worksites";
 import { DocumentOutcome, DownloadFn, uploadDocuments } from "./documents";
+import { AddRowOutcome, fillAddRows, pickWorksiteRows } from "./rows";
 import { auditUnmappedFields, normalizeName } from "../engine/telemetry";
 import {
   CommitOutcome,
@@ -120,6 +121,7 @@ export interface SectionOutcome {
   rows?: RowOutcome[];
   worksites?: WorksiteOutcome[];
   documents?: DocumentOutcome[];
+  appendix?: AddRowOutcome[];
   /** Why a section was passed over without being opened. */
   skipped?: string;
 }
@@ -143,6 +145,8 @@ export interface WalkReport {
 export interface WalkExtras {
   documents?: FlagDocument[];
   download?: DownloadFn;
+  /** ETA-9089 Appendix rows by kind (education, experience, supplemental, ...). */
+  appendixRows?: Record<string, RowValues[]>;
 }
 
 /**
@@ -603,8 +607,8 @@ export async function fillAll(
       sections.push({ title: section.title, reached: false, fields: [], skipped });
       continue;
     }
-    const special = skipped ? null : await runSpecialSection(section, extraRows, extras);
-    const { fields, modal, rows } = special || section.worksiteTable || section.documents
+    const special = skipped ? null : await runSpecialSection(section, values, extraRows, extras);
+    const { fields, modal, rows } = special || isSpecial(section)
       ? { fields: [], modal: undefined, rows: undefined }
       : await runSection(section, values, config.forbidden, coverage, extraRows);
 
@@ -659,6 +663,10 @@ export async function fillAll(
 const REVIEW_SETTLE_MS = 1000;
 const REVIEW_WAIT_MS = 8000;
 
+function isSpecial(section: FlagSection): boolean {
+  return !!(section.worksiteTable || section.documents || section.addRows || section.pickRows);
+}
+
 /** Why a table or upload section has nothing to do on this case, or "". */
 function specialSkip(
   section: FlagSection,
@@ -671,14 +679,23 @@ function specialSkip(
     if (!extraRows?.length) return "F.e.7 is Yes but the case sent no additional worksites; add them yourself";
   }
   if (section.documents && (!extras.documents?.length || !extras.download)) return "no documents to upload";
+  if (section.addRows && !extras.appendixRows?.[section.addRows.rowsKey]?.length) return "no rows on this case";
+  if (section.pickRows && !gateIsAnswered(section.pickRows.onlyWhen, values)) return "no additional worksites on this case";
   return "";
 }
 
 async function runSpecialSection(
   section: FlagSection,
+  values: Record<string, string>,
   extraRows: RowValues[] | undefined,
   extras: WalkExtras,
-): Promise<Pick<SectionOutcome, "worksites" | "documents"> | null> {
+): Promise<Pick<SectionOutcome, "worksites" | "documents" | "appendix"> | null> {
+  if (section.addRows) {
+    return { appendix: await fillAddRows(section.addRows, extras.appendixRows?.[section.addRows.rowsKey] ?? []) };
+  }
+  if (section.pickRows && gateIsAnswered(section.pickRows.onlyWhen, values)) {
+    return { appendix: await pickWorksiteRows(section.pickRows, extraRows ?? []) };
+  }
   if (section.worksiteTable) {
     return { worksites: await fillWorksiteTable(section.worksiteTable, (extraRows ?? []) as WorksiteRow[]) };
   }
@@ -697,10 +714,10 @@ export async function fillCurrentSection(
 ): Promise<SectionOutcome | null> {
   const section = config.sections.find((s) => sectionIsRendered(s));
   if (!section) return null;
-  if (section.worksiteTable || section.documents) {
+  if (isSpecial(section)) {
     const skipped = specialSkip(section, values, extraRows, extras);
     if (skipped) return { title: section.title, reached: true, fields: [], skipped };
-    const special = await runSpecialSection(section, extraRows, extras);
+    const special = await runSpecialSection(section, values, extraRows, extras);
     return { title: section.title, reached: true, fields: [], ...special };
   }
   const coverage = new Set(flagFieldNames(config.sections).map(normalizeName));

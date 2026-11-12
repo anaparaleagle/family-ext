@@ -26,6 +26,7 @@ import { flushUnmappedFields } from "../engine/telemetry";
 import { FLAG_CONFIGS } from "./registry";
 import { FlagDocument, FlagFormConfig } from "./types";
 import { scrapeReviewFields } from "./review";
+import { reviewPageErrors, reviewPageLoaded } from "./nav";
 
 /** Storage keys for the FLAG side. Separate from the myUSCIS payload keys so a
  * loaded DOL form cannot be mistaken for a loaded I-130 or vice versa. */
@@ -42,6 +43,7 @@ const KEYS = {
   caseId: "flagCaseId",
   caseLabel: "flagCaseLabel",
   documents: "flagDocuments",
+  appendixRows: "flagAppendixRows",
   accessToken: "accessToken",
   apiBaseUrl: "apiBaseUrl",
   // SOF-2191 — the FLAG values read back so far this review, accumulated
@@ -62,6 +64,7 @@ interface Loaded {
   /** Worksites past the first, in the order the case holds them. */
   extraRows: RowValues[];
   documents: FlagDocument[];
+  appendixRows: Record<string, RowValues[]>;
   report: Record<string, unknown>;
   /** Case id (for health telemetry). Empty when loaded from cache without one. */
   caseId: string;
@@ -101,6 +104,7 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
     KEYS.fieldValues,
     KEYS.extraRows,
     KEYS.documents,
+    KEYS.appendixRows,
     KEYS.formType,
     KEYS.caseId,
     KEYS.accessToken,
@@ -129,6 +133,7 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
       fieldValues: cached,
       extraRows: (stored[KEYS.extraRows] as RowValues[]) ?? [],
       documents: (stored[KEYS.documents] as FlagDocument[]) ?? [],
+      appendixRows: (stored[KEYS.appendixRows] as Record<string, RowValues[]>) ?? {},
       report: {},
       caseId: (stored[KEYS.caseId] as string) ?? "",
     };
@@ -149,6 +154,7 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
   const res = await apiGet<{
     field_values: Record<string, string>;
     additional_worksites?: RowValues[];
+    appendix_rows?: Record<string, RowValues[]>;
     documents?: FlagDocument[];
     autofill_report: Record<string, unknown>;
   }>(path, { apiBaseUrl, accessToken });
@@ -160,14 +166,16 @@ async function loadValues(config: FlagFormConfig): Promise<Loaded | null> {
   const fieldValues = res.data.field_values ?? {};
   const extraRows = res.data.additional_worksites ?? [];
   const documents = res.data.documents ?? [];
+  const appendixRows = res.data.appendix_rows ?? {};
   await chrome.storage.local.set({
     [KEYS.fieldValues]: fieldValues,
     [KEYS.extraRows]: extraRows,
     [KEYS.documents]: documents,
+    [KEYS.appendixRows]: appendixRows,
     [KEYS.formType]: config.formType,
   });
   await chrome.storage.local.remove(KEYS.extraRowsDone);
-  return { fieldValues, extraRows, documents, report: res.data.autofill_report ?? {}, caseId };
+  return { fieldValues, extraRows, documents, appendixRows, report: res.data.autofill_report ?? {}, caseId };
 }
 
 function fromBase64(b64: string): Uint8Array<ArrayBuffer> {
@@ -260,11 +268,21 @@ function buildToolbar(config: FlagFormConfig): void {
   bar.style.cssText =
     "position:fixed;right:16px;bottom:16px;z-index:2147483647;background:#fff;" +
     "border:1px solid #ccd;border-radius:6px;padding:8px;box-shadow:0 2px 8px rgba(0,0,0,.2);" +
-    "font:12px system-ui;max-width:320px";
+    "font:12px system-ui;max-width:320px;max-height:calc(100vh - 32px);overflow-y:auto";
 
   const title = document.createElement("div");
-  title.textContent = config.label;
-  title.style.cssText = "font-weight:600;margin-bottom:4px";
+  title.style.cssText = "font-weight:600;margin-bottom:4px;display:flex;justify-content:space-between;gap:8px";
+  const name = document.createElement("span");
+  name.textContent = config.label;
+  const fold = document.createElement("button");
+  fold.textContent = "Hide";
+  fold.style.cssText = "border:0;background:none;color:#1f4e79;cursor:pointer;font:12px system-ui;padding:0";
+  fold.addEventListener("click", () => {
+    const hide = fold.textContent === "Hide";
+    for (const child of Array.from(bar.children)) if (child !== title) (child as HTMLElement).style.display = hide ? "none" : "";
+    fold.textContent = hide ? "Show" : "Hide";
+  });
+  title.append(name, fold);
   bar.appendChild(title);
 
   const loaded = document.createElement("div");
@@ -383,6 +401,10 @@ function sectionNotes(outcome: SectionOutcome): string {
     if (w.status === "added") notes.push(`Worksite ${w.city} added.`);
     else if (w.status === "failed") notes.push(`Worksite ${w.city} NOT added: ${w.message ?? "unknown"}.`);
   }
+  for (const a of outcome.appendix ?? []) {
+    if (a.status === "added") notes.push(`${outcome.title}: added ${a.label}.`);
+    else if (a.status === "failed") notes.push(`${outcome.title}: ${a.label} NOT added: ${a.message ?? "unknown"}.`);
+  }
   for (const d of outcome.documents ?? []) {
     if (d.status === "uploaded") notes.push(`Uploaded ${d.filename}${d.message ? ` (${d.message})` : ""}.`);
     else if (d.status === "failed") notes.push(`${d.filename} NOT uploaded: ${d.message ?? "unknown"}.`);
@@ -461,7 +483,7 @@ async function onFillSection(config: FlagFormConfig): Promise<void> {
     if (!loaded) return;
     const outcome = await fillCurrentSection(
       config, loaded.fieldValues, await pendingExtraRows(loaded),
-      { documents: loaded.documents, download: downloadDocument },
+      { documents: loaded.documents, download: downloadDocument, appendixRows: loaded.appendixRows },
     );
     if (!outcome) {
       setStatus(`This is not a section the ${config.formType} descriptor knows.`);
@@ -496,18 +518,20 @@ async function onFillAll(config: FlagFormConfig): Promise<void> {
     renderReport([], "");
     const report = await fillAll(
       config, loaded.fieldValues, await pendingExtraRows(loaded),
-      { documents: loaded.documents, download: downloadDocument },
+      { documents: loaded.documents, download: downloadDocument, appendixRows: loaded.appendixRows },
     );
     void flushUnmappedFields(config.formType, loaded.caseId);
     await recordExtraRows(report.sections);
     const committed = report.sections.filter((s) => s.commit === "committed").length;
+    const open = report.reviewErrors?.length ?? 0;
     const notes = report.sections.map(sectionNotes).filter(Boolean).join(" ");
     setStatus(
       summarise(report) +
-        (report.reviewErrors?.length ? ` Review still lists ${report.reviewErrors.length} error(s).` : "") +
         submitNote(report) +
         (notes ? ` ${notes}` : "") +
-        ` ${committed} section(s) saved with FLAG's own Continue.` +
+        (open
+          ? ` ${committed} section(s) passed Continue, but FLAG still lists ${open} error(s) — the form is NOT complete. See the list below.`
+          : ` ${committed} section(s) saved with FLAG's own Continue.`) +
         (report.blockedAt
           ? ` STOPPED at "${report.blockedAt}" — FLAG would not accept it. Read the ` +
             "errors it is showing, fix them, and press Continue yourself; the " +
@@ -526,7 +550,12 @@ function problemLines(report: WalkReport): string[] {
   for (const s of report.sections) {
     for (const f of s.fields) {
       if (f.status === "failed" || f.status === "locked") lines.push(`${s.title}: ${withReason(f)}`);
+      if (f.status === "refused") lines.push(`${s.title}: ${f.name} left for you: ${f.message ?? ""}`);
     }
+    for (const a of s.appendix ?? []) {
+      if (a.status === "failed") lines.push(`${s.title}: ${a.label} NOT added (${a.message ?? "unknown"})`);
+    }
+    if (!s.reached) lines.push(`${s.title}: section not reached${s.skipped ? ` (${s.skipped})` : ""}`);
   }
   if (report.unclaimed.length) lines.push(`Sent by the case but not on this form: ${report.unclaimed.join(", ")}`);
   return lines;
@@ -590,11 +619,29 @@ async function reviewContext(): Promise<ReviewContext | null> {
   };
 }
 
-function renderReviewPanel(discrepancies: LcaDiscrepancy[], readCount: number): void {
+function renderReviewPanel(
+  discrepancies: LcaDiscrepancy[],
+  readCount: number,
+  flagErrors: string[] | null,
+): void {
   const panel = document.getElementById(REVIEW_PANEL_ID);
   if (!panel) return;
   panel.replaceChildren();
   panel.style.cssText = "margin-top:8px;padding-top:8px;border-top:1px solid #eee";
+
+  const errors = document.createElement("div");
+  errors.style.cssText = `white-space:pre-line;margin-bottom:6px;color:${flagErrors?.length ? "#7c2d12" : "#334"}`;
+  if (flagErrors === null) {
+    errors.textContent = "FLAG's own errors not checked. Open Review & Submit and press Review Summary again.";
+  } else if (flagErrors.length) {
+    errors.style.fontWeight = "600";
+    errors.textContent =
+      `FLAG still lists ${flagErrors.length} error(s); the form is NOT complete:\n` +
+      flagErrors.map((e) => `- ${e}`).join("\n");
+  } else {
+    errors.textContent = "Review & Submit lists no errors.";
+  }
+  panel.appendChild(errors);
 
   const summary = document.createElement("div");
   summary.style.cssText = `font-weight:600;margin-bottom:4px;color:${discrepancies.length ? "#7c2d12" : "#14532d"}`;
@@ -632,6 +679,7 @@ async function onReviewSummary(): Promise<void> {
       return;
     }
 
+    const flagErrors = reviewPageLoaded() ? reviewPageErrors() ?? [] : null;
     const read = scrapeReviewFields();
     const stored = await chrome.storage.local.get(KEYS.reviewValues);
     const accumulated: Record<string, string> = {
@@ -642,7 +690,8 @@ async function onReviewSummary(): Promise<void> {
 
     if (Object.keys(accumulated).length === 0) {
       setStatus(
-        "Couldn't read any LCA values on this page. Open the section with the " +
+        (flagErrors?.length ? `FLAG still lists ${flagErrors.length} error(s) on Review & Submit. ` : "") +
+          "Couldn't read any LCA values on this page. Open the section with the " +
           "job, employer, worksite or wage boxes and try again.",
       );
       return;
@@ -660,7 +709,7 @@ async function onReviewSummary(): Promise<void> {
     }
     const discrepancies = resp.data.discrepancies ?? [];
     setStatus(`Reviewed ${Object.keys(accumulated).length} field(s) read so far.`);
-    renderReviewPanel(discrepancies, Object.keys(accumulated).length);
+    renderReviewPanel(discrepancies, Object.keys(accumulated).length, flagErrors);
   });
 }
 

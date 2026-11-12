@@ -80,7 +80,7 @@ function fingerprint(): string {
   const names = [...document.querySelectorAll("input[name], select[name], textarea[name]")]
     .map((el) => el.getAttribute("name"))
     .join("|");
-  const heading = normalise(document.querySelector("h1, h2, legend")?.textContent);
+  const heading = [...document.querySelectorAll("h1, h2, legend")].map((h) => normalise(h.textContent)).join("|");
   return `${heading}##${names}`;
 }
 
@@ -92,9 +92,17 @@ function fingerprint(): string {
  * to be true. A section with no fields at all cannot be confirmed this way, so it
  * reports false and the caller treats it as "nothing to do".
  */
+// Appendix pages keep their boxes inside the Add box, so only the page heading says where we are.
+function headingShows(navLabel: string): boolean {
+  const want = normalise(navLabel);
+  return Array.from(document.querySelectorAll<HTMLElement>("#simple-modal h1, #simple-modal h2")).some((h) =>
+    normalise(h.textContent).includes(want),
+  );
+}
+
 export function sectionIsRendered(section: FlagSection): boolean {
   if (section.marker && findButtonByText(section.marker)) return true;
-  if (!section.fields.length) return false;
+  if (!section.fields.length) return headingShows(section.navLabel);
   return section.fields.some((f) => !!locateFlagField(f));
 }
 
@@ -170,12 +178,13 @@ export async function commitSection(): Promise<CommitOutcome> {
   }
 
   const before = fingerprint();
-  button.click();
-
-  const deadline = Date.now() + NAV_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    await sleep(POLL_MS);
-    if (fingerprint() !== before) return "committed";
+  for (let attempt = 0; attempt < 2; attempt++) {
+    (attempt ? findCommitButton() ?? button : button).click();
+    const deadline = Date.now() + NAV_TIMEOUT_MS / 2;
+    while (Date.now() < deadline) {
+      await sleep(POLL_MS);
+      if (fingerprint() !== before) return "committed";
+    }
   }
   dbg(`commit: page unchanged ${NAV_TIMEOUT_MS}ms after Continue — FLAG refused it`);
   return "blocked";

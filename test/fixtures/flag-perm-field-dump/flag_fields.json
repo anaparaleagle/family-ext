@@ -2,8 +2,8 @@
  "_doc": "Map entry id in eta/maps.py -> the FLAG DOM field that box is rendered as. `kind` is how the extension must DRIVE the input, not what HTML tag it is.",
  "_source": "Live DOM capture of flag.dol.gov/dashboard/application/{9141,9089}/<id>, 2026-07-16.",
  "_key": "The key is the map entry id (A1, Fa8a, Hc2b), NOT the box number printed on the form. A BOX NUMBER IS NOT UNIQUE ON THE ETA-9089: Section A is Employer Information numbered A.1-A.17, and Appendix A.A is Foreign Worker Contact Information numbered A.1-A.15 all over again. Keying on the bare box number silently pointed A.1 at the foreign worker's last-name input, so the feed would have typed the employer's legal business name into the beneficiary's name box on a federal form -- no error, no blank, just wrong. The generated key therefore carries the APX prefix from the field's nav section, and the test asserts every key resolves to a real map entry in both directions.",
- "_coverage": "Text, select and textarea boxes only. NO RADIO is listed, and that is a statement of what has been observed rather than a preference: a FLAG radio carries its box number on the fieldset legend, and the capture this was built from recorded only the per-option label ('Yes'). The option `value` attributes are unknown -- circumstantial evidence in that capture points at numeric codes ('1'/'2'). Writing a value a React-controlled radio does not offer is ignored rather than raised, so nothing is emitted for a radio until the values are observed by the reveal-pass capture (tools/flag-capture.js in the family-ext repo).",
- "_orphans_doc": "FLAG inputs that exist on the portal and have NO map entry to fill them. All 15 are ETA-9089 Appendix A.A -- the foreign worker's own name, address, date of birth, class of admission, alien number and countries of birth/citizenship. The map covers Sections A-J and stops; the appendices were never mapped. This is the cheapest coverage left on the form, because the beneficiary's identity is data the product certainly holds. Recorded here rather than deleted so it stays a known gap instead of an absence.",
+ "_coverage": "RADIOS ARE NOW CARRIED, for the ETA-9035E only. The first capture this file was built from (2026-07-16, the 9141 and the 9089) recorded a radio's per-option LABEL and never its `value` attribute, so no radio was listed and the guess at the time -- numeric codes -- was circumstantial. The reveal pass of 2026-10-08 read the live ETA-9035E option values directly, and FOUR radio sets on that form are now observed fact, vendored in forms/tests/fixtures/flag_eta9035_capture.json and asserted against this table on every run: F.2 is YES/NO; F.10a and F.11a are BOTH Hour/Week/Bi-Weekly/Month/Year -- the same five spellings, hyphen and all, which is NOT how the printed PDF spells them (its prevailing-wage group is 'Bi Weekly', unhyphenated, and `options` is where that difference is translated away); and F.12 is f12_is_dol_prevailing_wage / f13_is_oes_prevailing_wage / f14_non_oes_prevailing_wage. Only those four sets were observed as option values. Every other 9035E radio here carries values from the same capture file but was not part of that four-set read, and NO radio on the ETA-9141 or the ETA-9089 has been re-observed since 2026-07-16. Writing a value a React-controlled radio does not offer is ignored rather than raised, so a value not in `options` is still never written.",
+ "_orphans_doc": "FLAG inputs that exist on the portal and have NO map entry to fill them. Empty since the 2026-11-12 walk mapped Appendix A.A.",
  "forms": {
   "ETA-9141": {
    "A1": {
@@ -34,7 +34,7 @@
     "map_id": "B12",
     "box": "B.12",
     "name": "requestorPocPhone",
-    "kind": "text"
+    "kind": "phone"
    },
    "B13": {
     "map_id": "B13",
@@ -106,7 +106,7 @@
     "map_id": "C10",
     "box": "C.10",
     "name": "empPhone",
-    "kind": "text"
+    "kind": "phone"
    },
    "C11": {
     "map_id": "C11",
@@ -119,6 +119,12 @@
     "box": "C.12",
     "name": "empFein",
     "kind": "text"
+   },
+   "C13": {
+    "map_id": "C13",
+    "box": "C.13",
+    "name": "naicsCode",
+    "kind": "search"
    },
    "C2": {
     "map_id": "C2",
@@ -189,7 +195,7 @@
     "map_id": "D12",
     "box": "D.12",
     "name": "attyPhone",
-    "kind": "text"
+    "kind": "phone"
    },
    "D13": {
     "map_id": "D13",
@@ -274,6 +280,68 @@
      "N/A": "2"
     }
    },
+   "E1A1": {
+    "map_id": "E1a1",
+    "box": "E.1.a",
+    "name": "acwiaHigherEdu",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    },
+    "revealed_by": {
+     "name": "coveredByAcwia",
+     "values": [
+      "1"
+     ]
+    }
+   },
+   "E1A2": {
+    "map_id": "E1a2",
+    "box": "E.1.a",
+    "name": "acwiaAffiliated",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    },
+    "revealed_by": {
+     "name": "coveredByAcwia",
+     "values": [
+      "1"
+     ]
+    }
+   },
+   "E1A3": {
+    "map_id": "E1a3",
+    "box": "E.1.a",
+    "name": "acwiaNonprofit",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    },
+    "revealed_by": {
+     "name": "coveredByAcwia",
+     "values": [
+      "1"
+     ]
+    }
+   },
+   "E1B": {
+    "map_id": "E1b",
+    "box": "E.1.b",
+    "name": "acwiaStatusChange",
+    "kind": "radio",
+    "options": {
+     "Yes": "1",
+     "No": "No",
+     "N/A": "2"
+    },
+    "revealed_by": {
+     "name": "coveredByAcwia",
+     "values": [
+      "1"
+     ]
+    }
+   },
    "E2": {
     "map_id": "E2",
     "box": null,
@@ -305,6 +373,22 @@
      "No": "No"
     }
    },
+   "E4A": {
+    "map_id": "E4a",
+    "box": "E.4.a",
+    "name": "dbaSca",
+    "kind": "radio",
+    "options": {
+     "Davis-Bacon Act (DBA)": "DBA",
+     "Service Contract Act (SCA)": "SCA"
+    },
+    "revealed_by": {
+     "name": "pre_dbaSca",
+     "values": [
+      "1"
+     ]
+    }
+   },
    "E5": {
     "map_id": "E5",
     "box": null,
@@ -313,6 +397,30 @@
     "options": {
      "Yes": "1",
      "No": "No"
+    }
+   },
+   "E5A": {
+    "map_id": "E5a",
+    "box": "E.5.a",
+    "name": "surveyName",
+    "kind": "text",
+    "revealed_by": {
+     "name": "dbaSurvey",
+     "values": [
+      "1"
+     ]
+    }
+   },
+   "E5B": {
+    "map_id": "E5b",
+    "box": "E.5.b",
+    "name": "surveyPublicationDate",
+    "kind": "date",
+    "revealed_by": {
+     "name": "dbaSurvey",
+     "values": [
+      "1"
+     ]
     }
    },
    "FA1": {
@@ -337,6 +445,18 @@
      "No": "No"
     }
    },
+   "FA3A": {
+    "map_id": "Fa3a",
+    "box": "F.a.3.a",
+    "name": "supervisedSocCodes",
+    "kind": "search",
+    "revealed_by": {
+     "name": "superviseOtherEmp",
+     "values": [
+      "1"
+     ]
+    }
+   },
    "FB1": {
     "map_id": "FB1",
     "box": null,
@@ -356,7 +476,13 @@
     "map_id": "Fb1a",
     "box": "F.b.1.a",
     "name": "otherEducation",
-    "kind": "textarea"
+    "kind": "textarea",
+    "revealed_by": {
+     "name": "primaryEducationLevel",
+     "values": [
+      "OTHERDEGREE"
+     ]
+    }
    },
    "FB1B": {
     "map_id": "Fb1b",
@@ -374,6 +500,18 @@
      "No": "No"
     }
    },
+   "FB2A": {
+    "map_id": "Fb2a",
+    "box": "F.b.2.a",
+    "name": "secondDiplomaMajor",
+    "kind": "text",
+    "revealed_by": {
+     "name": "secondDiploma",
+     "values": [
+      "1"
+     ]
+    }
+   },
    "FB3": {
     "map_id": "FB3",
     "box": null,
@@ -382,6 +520,30 @@
     "options": {
      "Yes": "1",
      "No": "No"
+    }
+   },
+   "FB3A": {
+    "map_id": "Fb3a",
+    "box": "F.b.3.a",
+    "name": "numberOfMonthsTraining",
+    "kind": "text",
+    "revealed_by": {
+     "name": "trainingRequired",
+     "values": [
+      "1"
+     ]
+    }
+   },
+   "FB3B": {
+    "map_id": "Fb3b",
+    "box": "F.b.3.b",
+    "name": "nameRequiredTraining",
+    "kind": "text",
+    "revealed_by": {
+     "name": "trainingRequired",
+     "values": [
+      "1"
+     ]
     }
    },
    "FB4": {
@@ -394,6 +556,30 @@
      "No": "No"
     }
    },
+   "FB4A": {
+    "map_id": "Fb4a",
+    "box": "F.b.4.a",
+    "name": "empExperienceMonths",
+    "kind": "text",
+    "revealed_by": {
+     "name": "empExperienceRequired",
+     "values": [
+      "1"
+     ]
+    }
+   },
+   "FB4B": {
+    "map_id": "Fb4b",
+    "box": "F.b.4.b",
+    "name": "occupationRequired",
+    "kind": "text",
+    "revealed_by": {
+     "name": "empExperienceRequired",
+     "values": [
+      "1"
+     ]
+    }
+   },
    "FB5": {
     "map_id": "FB5",
     "box": null,
@@ -402,6 +588,114 @@
     "options": {
      "Yes": "1",
      "No": "No"
+    }
+   },
+   "FB5ALANG": {
+    "map_id": "Fb5a_lang",
+    "box": "F.b.5.a",
+    "name": "isSpecReqForeignLang",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    },
+    "revealed_by": {
+     "name": "isSpecialRequirements",
+     "values": [
+      "1"
+     ]
+    }
+   },
+   "FB5ALANGTEXT": {
+    "map_id": "Fb5a_lang_text",
+    "box": "F.b.5.a",
+    "name": "specReqForeignLang",
+    "kind": "textarea",
+    "revealed_by": {
+     "name": "isSpecReqForeignLang",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "FB5ALIC": {
+    "map_id": "Fb5a_lic",
+    "box": "F.b.5.a",
+    "name": "isSpecReqLicenseCert",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    },
+    "revealed_by": {
+     "name": "isSpecialRequirements",
+     "values": [
+      "1"
+     ]
+    }
+   },
+   "FB5ALICTEXT": {
+    "map_id": "Fb5a_lic_text",
+    "box": "F.b.5.a",
+    "name": "specReqLicenseCert",
+    "kind": "textarea",
+    "revealed_by": {
+     "name": "isSpecReqLicenseCert",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "FB5AOTHER": {
+    "map_id": "Fb5a_other",
+    "box": "F.b.5.a",
+    "name": "isSpecReqOther",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    },
+    "revealed_by": {
+     "name": "isSpecialRequirements",
+     "values": [
+      "1"
+     ]
+    }
+   },
+   "FB5AOTHERTEXT": {
+    "map_id": "Fb5a_other_text",
+    "box": "F.b.5.a",
+    "name": "specReqOther",
+    "kind": "textarea",
+    "revealed_by": {
+     "name": "isSpecReqOther",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "FB5ARES": {
+    "map_id": "Fb5a_res",
+    "box": "F.b.5.a",
+    "name": "isSpecReqResFellow",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    },
+    "revealed_by": {
+     "name": "isSpecialRequirements",
+     "values": [
+      "1"
+     ]
+    }
+   },
+   "FB5ARESTEXT": {
+    "map_id": "Fb5a_res_text",
+    "box": "F.b.5.a",
+    "name": "specReqResFellow",
+    "kind": "textarea",
+    "revealed_by": {
+     "name": "isSpecReqResFellow",
+     "values": [
+      "true"
+     ]
     }
    },
    "FC1": {
@@ -413,6 +707,241 @@
      "Yes": "1",
      "No": "No"
     }
+   },
+   "FC2": {
+    "map_id": "Fc2",
+    "box": "F.c.2",
+    "name": "altEducationLevel",
+    "kind": "radio",
+    "options": {
+     "None": "NONE",
+     "High School/GED": "HIGHSCHOOLGED",
+     "Associate's": "ASSOCIATES",
+     "Bachelor's": "BACHELORS",
+     "Master's": "MASTERS",
+     "Doctorate (Ph.D.)": "DOCTORATEPHD",
+     "Other degree": "OTHERDEGREE"
+    },
+    "revealed_by": {
+     "name": "altJobRequirement",
+     "values": [
+      "1"
+     ]
+    }
+   },
+   "FC2B": {
+    "map_id": "Fc2b",
+    "box": "F.c.2.b",
+    "name": "altMajor",
+    "kind": "textarea",
+    "revealed_by": {
+     "name": "altEducationLevel",
+     "values": [
+      "ASSOCIATES",
+      "BACHELORS",
+      "MASTERS",
+      "DOCTORATEPHD",
+      "OTHERDEGREE"
+     ]
+    }
+   },
+   "FC3": {
+    "map_id": "Fc3",
+    "box": "F.c.3",
+    "name": "altTrainingReq",
+    "kind": "radio",
+    "options": {
+     "Yes": "1",
+     "No": "No"
+    },
+    "revealed_by": {
+     "name": "altJobRequirement",
+     "values": [
+      "1"
+     ]
+    }
+   },
+   "FC3A": {
+    "map_id": "Fc3a",
+    "box": "F.c.3.a",
+    "name": "altNumMonthsTraining",
+    "kind": "text",
+    "revealed_by": {
+     "name": "altTrainingReq",
+     "values": [
+      "1"
+     ]
+    }
+   },
+   "FC3B": {
+    "map_id": "Fc3b",
+    "box": "F.c.3.b",
+    "name": "altNameReqdTraining",
+    "kind": "text",
+    "revealed_by": {
+     "name": "altTrainingReq",
+     "values": [
+      "1"
+     ]
+    }
+   },
+   "FC4": {
+    "map_id": "Fc4",
+    "box": "F.c.4",
+    "name": "altEmpExperienceReqd",
+    "kind": "radio",
+    "options": {
+     "Yes": "1",
+     "No": "No"
+    },
+    "revealed_by": {
+     "name": "altJobRequirement",
+     "values": [
+      "1"
+     ]
+    }
+   },
+   "FC4A": {
+    "map_id": "Fc4a",
+    "box": "F.c.4.a",
+    "name": "altEmpExpNumMonths",
+    "kind": "text",
+    "revealed_by": {
+     "name": "altEmpExperienceReqd",
+     "values": [
+      "1"
+     ]
+    }
+   },
+   "FC5": {
+    "map_id": "Fc5",
+    "box": "F.c.5",
+    "name": "isAltSpecialReq",
+    "kind": "radio",
+    "options": {
+     "Yes": "1",
+     "No": "No"
+    },
+    "revealed_by": {
+     "name": "altJobRequirement",
+     "values": [
+      "1"
+     ]
+    }
+   },
+   "FC5ALANG": {
+    "map_id": "Fc5a_lang",
+    "box": "F.c.5.a",
+    "name": "isAltSpecReqForeignLang",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    },
+    "revealed_by": {
+     "name": "isAltSpecialReq",
+     "values": [
+      "1"
+     ]
+    }
+   },
+   "FC5ALANGTEXT": {
+    "map_id": "Fc5a_lang_text",
+    "box": "F.c.5.a",
+    "name": "altSpecReqForeignLang",
+    "kind": "textarea",
+    "revealed_by": {
+     "name": "isAltSpecReqForeignLang",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "FC5ALIC": {
+    "map_id": "Fc5a_lic",
+    "box": "F.c.5.a",
+    "name": "isAltSpecReqLicenseCert",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    },
+    "revealed_by": {
+     "name": "isAltSpecialReq",
+     "values": [
+      "1"
+     ]
+    }
+   },
+   "FC5ALICTEXT": {
+    "map_id": "Fc5a_lic_text",
+    "box": "F.c.5.a",
+    "name": "altSpecReqLicenseCert",
+    "kind": "textarea",
+    "revealed_by": {
+     "name": "isAltSpecReqLicenseCert",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "FC5AOTHER": {
+    "map_id": "Fc5a_other",
+    "box": "F.c.5.a",
+    "name": "isAltSpecReqOther",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    },
+    "revealed_by": {
+     "name": "isAltSpecialReq",
+     "values": [
+      "1"
+     ]
+    }
+   },
+   "FC5AOTHERTEXT": {
+    "map_id": "Fc5a_other_text",
+    "box": "F.c.5.a",
+    "name": "altSpecReqOther",
+    "kind": "textarea",
+    "revealed_by": {
+     "name": "isAltSpecReqOther",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "FC5ARES": {
+    "map_id": "Fc5a_res",
+    "box": "F.c.5.a",
+    "name": "isAltSpecReqResFellow",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    },
+    "revealed_by": {
+     "name": "isAltSpecialReq",
+     "values": [
+      "1"
+     ]
+    }
+   },
+   "FC5ARESTEXT": {
+    "map_id": "Fc5a_res_text",
+    "box": "F.c.5.a",
+    "name": "altSpecReqResFellow",
+    "kind": "textarea",
+    "revealed_by": {
+     "name": "isAltSpecReqResFellow",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "FD1": {
+    "map_id": "Fd1",
+    "box": "F.d.1",
+    "name": "socCode",
+    "kind": "search"
    },
    "FD2": {
     "map_id": "Fd2",
@@ -464,7 +993,7 @@
     "map_id": "Fe5",
     "box": "F.e.5",
     "name": "primaryWorksiteCounty",
-    "kind": "text"
+    "kind": "search"
    },
    "FE6": {
     "map_id": "Fe6",
@@ -489,56 +1018,6 @@
     "box": "A.1",
     "name": "empBusinessName",
     "kind": "text"
-   },
-   "A10": {
-    "map_id": "A10",
-    "box": "A.10",
-    "name": "empPhone",
-    "kind": "text"
-   },
-   "A11": {
-    "map_id": "A11",
-    "box": "A.11",
-    "name": "empPhoneext",
-    "kind": "text"
-   },
-   "A12": {
-    "map_id": "A12",
-    "box": "A.12",
-    "name": "empFein",
-    "kind": "text"
-   },
-   "A14": {
-    "map_id": "A14",
-    "box": "A.14",
-    "name": "empNumPayroll",
-    "kind": "text"
-   },
-   "A15": {
-    "map_id": "A15",
-    "box": "A.15",
-    "name": "empYearCommenced",
-    "kind": "text"
-   },
-   "A16": {
-    "map_id": "A16",
-    "box": null,
-    "name": "empWorkerInterest",
-    "kind": "radio",
-    "options": {
-     "Yes": "Yes",
-     "No": "No"
-    }
-   },
-   "A17": {
-    "map_id": "A17",
-    "box": null,
-    "name": "empRelationshipWorker",
-    "kind": "radio",
-    "options": {
-     "Yes": "Yes",
-     "No": "No"
-    }
    },
    "A2": {
     "map_id": "A2",
@@ -588,40 +1067,66 @@
     "name": "empProvince",
     "kind": "text"
    },
+   "A10": {
+    "map_id": "A10",
+    "box": "A.10",
+    "name": "empPhone",
+    "kind": "phone"
+   },
+   "A11": {
+    "map_id": "A11",
+    "box": "A.11",
+    "name": "empPhoneext",
+    "kind": "text"
+   },
+   "A12": {
+    "map_id": "A12",
+    "box": "A.12",
+    "name": "empFein",
+    "kind": "text"
+   },
+   "A13": {
+    "map_id": "A13",
+    "box": "A.13",
+    "name": "naicsCode",
+    "kind": "search"
+   },
+   "A14": {
+    "map_id": "A14",
+    "box": "A.14",
+    "name": "empNumPayroll",
+    "kind": "text"
+   },
+   "A15": {
+    "map_id": "A15",
+    "box": "A.15",
+    "name": "empYearCommenced",
+    "kind": "text"
+   },
+   "A16": {
+    "map_id": "A16",
+    "box": "A.16",
+    "name": "empWorkerInterest",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No"
+    }
+   },
+   "A17": {
+    "map_id": "A17",
+    "box": "A.17",
+    "name": "empRelationshipWorker",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No"
+    }
+   },
    "B1": {
     "map_id": "B1",
     "box": "B.1",
     "name": "empPocLastName",
-    "kind": "text"
-   },
-   "B10": {
-    "map_id": "B10",
-    "box": "B.10",
-    "name": "empPocCountry",
-    "kind": "select"
-   },
-   "B11": {
-    "map_id": "B11",
-    "box": "B.11",
-    "name": "empPocProvince",
-    "kind": "text"
-   },
-   "B12": {
-    "map_id": "B12",
-    "box": "B.12",
-    "name": "empPocPhone",
-    "kind": "text"
-   },
-   "B13": {
-    "map_id": "B13",
-    "box": "B.13",
-    "name": "empPocPhoneExt",
-    "kind": "text"
-   },
-   "B14": {
-    "map_id": "B14",
-    "box": "B.14",
-    "name": "empPocEmail",
     "kind": "text"
    },
    "B2": {
@@ -672,9 +1177,39 @@
     "name": "empPocPostalCode",
     "kind": "text"
    },
+   "B10": {
+    "map_id": "B10",
+    "box": "B.10",
+    "name": "empPocCountry",
+    "kind": "select"
+   },
+   "B11": {
+    "map_id": "B11",
+    "box": "B.11",
+    "name": "empPocProvince",
+    "kind": "text"
+   },
+   "B12": {
+    "map_id": "B12",
+    "box": "B.12",
+    "name": "empPocPhone",
+    "kind": "phone"
+   },
+   "B13": {
+    "map_id": "B13",
+    "box": "B.13",
+    "name": "empPocPhoneExt",
+    "kind": "text"
+   },
+   "B14": {
+    "map_id": "B14",
+    "box": "B.14",
+    "name": "empPocEmail",
+    "kind": "text"
+   },
    "C1": {
     "map_id": "C1",
-    "box": null,
+    "box": "C.1",
     "name": "attyAgRepType",
     "kind": "radio",
     "options": {
@@ -683,140 +1218,252 @@
      "None": "None"
     }
    },
-   "C10": {
-    "map_id": "C10",
-    "box": "C.10",
-    "name": "attyAgCountry",
-    "kind": "select"
-   },
-   "C12": {
-    "map_id": "C12",
-    "box": "C.12",
-    "name": "attyAgPhone",
-    "kind": "text"
-   },
-   "C13": {
-    "map_id": "C13",
-    "box": "C.13",
-    "name": "attyAgPhoneExt",
-    "kind": "text"
-   },
-   "C14": {
-    "map_id": "C14",
-    "box": "C.14",
-    "name": "attyAgEmail",
-    "kind": "text"
-   },
-   "C15": {
-    "map_id": "C15",
-    "box": "C.15",
-    "name": "attyAgLawFirmName",
-    "kind": "text"
-   },
-   "C16": {
-    "map_id": "C16",
-    "box": "C.16",
-    "name": "attyAgFEIN",
-    "kind": "text"
-   },
-   "C17": {
-    "map_id": "C17",
-    "box": "C.17",
-    "name": "attyAgStateBarNumber",
-    "kind": "text"
-   },
-   "C18": {
-    "map_id": "C18",
-    "box": "C.18",
-    "name": "attyAgGoodStandingState",
-    "kind": "select"
-   },
-   "C19": {
-    "map_id": "C19",
-    "box": "C.19",
-    "name": "attyAgGoodStandingAttorney",
-    "kind": "text"
-   },
    "C2": {
     "map_id": "C2",
     "box": "C.2",
     "name": "attyAgLastName",
-    "kind": "text"
+    "kind": "text",
+    "revealed_by": {
+     "name": "attyAgRepType",
+     "values": [
+      "Attorney",
+      "Agent"
+     ]
+    }
    },
    "C3": {
     "map_id": "C3",
     "box": "C.3",
     "name": "attyAgFirstName",
-    "kind": "text"
+    "kind": "text",
+    "revealed_by": {
+     "name": "attyAgRepType",
+     "values": [
+      "Attorney",
+      "Agent"
+     ]
+    }
    },
    "C4": {
     "map_id": "C4",
     "box": "C.4",
     "name": "attyAgMiddleName",
-    "kind": "text"
+    "kind": "text",
+    "revealed_by": {
+     "name": "attyAgRepType",
+     "values": [
+      "Attorney",
+      "Agent"
+     ]
+    }
    },
    "C5": {
     "map_id": "C5",
     "box": "C.5",
     "name": "attyAgAddress1",
-    "kind": "text"
+    "kind": "text",
+    "revealed_by": {
+     "name": "attyAgRepType",
+     "values": [
+      "Attorney",
+      "Agent"
+     ]
+    }
    },
    "C6": {
     "map_id": "C6",
     "box": "C.6",
     "name": "attyAgAddress2",
-    "kind": "text"
+    "kind": "text",
+    "revealed_by": {
+     "name": "attyAgRepType",
+     "values": [
+      "Attorney",
+      "Agent"
+     ]
+    }
    },
    "C7": {
     "map_id": "C7",
     "box": "C.7",
     "name": "attyAgCity",
-    "kind": "text"
+    "kind": "text",
+    "revealed_by": {
+     "name": "attyAgRepType",
+     "values": [
+      "Attorney",
+      "Agent"
+     ]
+    }
    },
    "C8": {
     "map_id": "C8",
     "box": "C.8",
     "name": "attyAgState",
-    "kind": "select"
+    "kind": "select",
+    "revealed_by": {
+     "name": "attyAgRepType",
+     "values": [
+      "Attorney",
+      "Agent"
+     ]
+    }
    },
    "C9": {
     "map_id": "C9",
     "box": "C.9",
     "name": "attyAgPostalCode",
-    "kind": "text"
+    "kind": "text",
+    "revealed_by": {
+     "name": "attyAgRepType",
+     "values": [
+      "Attorney",
+      "Agent"
+     ]
+    }
+   },
+   "C10": {
+    "map_id": "C10",
+    "box": "C.10",
+    "name": "attyAgCountry",
+    "kind": "select",
+    "revealed_by": {
+     "name": "attyAgRepType",
+     "values": [
+      "Attorney",
+      "Agent"
+     ]
+    }
+   },
+   "C12": {
+    "map_id": "C12",
+    "box": "C.12",
+    "name": "attyAgPhone",
+    "kind": "phone",
+    "revealed_by": {
+     "name": "attyAgRepType",
+     "values": [
+      "Attorney",
+      "Agent"
+     ]
+    }
+   },
+   "C13": {
+    "map_id": "C13",
+    "box": "C.13",
+    "name": "attyAgPhoneExt",
+    "kind": "text",
+    "revealed_by": {
+     "name": "attyAgRepType",
+     "values": [
+      "Attorney",
+      "Agent"
+     ]
+    }
+   },
+   "C14": {
+    "map_id": "C14",
+    "box": "C.14",
+    "name": "attyAgEmail",
+    "kind": "text",
+    "revealed_by": {
+     "name": "attyAgRepType",
+     "values": [
+      "Attorney",
+      "Agent"
+     ]
+    }
+   },
+   "C15": {
+    "map_id": "C15",
+    "box": "C.15",
+    "name": "attyAgLawFirmName",
+    "kind": "text",
+    "revealed_by": {
+     "name": "attyAgRepType",
+     "values": [
+      "Attorney",
+      "Agent"
+     ]
+    }
+   },
+   "C16": {
+    "map_id": "C16",
+    "box": "C.16",
+    "name": "attyAgFEIN",
+    "kind": "text",
+    "revealed_by": {
+     "name": "attyAgRepType",
+     "values": [
+      "Attorney",
+      "Agent"
+     ]
+    }
+   },
+   "C17": {
+    "map_id": "C17",
+    "box": "C.17",
+    "name": "attyAgStateBarNumber",
+    "kind": "text",
+    "revealed_by": {
+     "name": "attyAgRepType",
+     "values": [
+      "Attorney",
+      "Agent"
+     ]
+    }
+   },
+   "C18": {
+    "map_id": "C18",
+    "box": "C.18",
+    "name": "attyAgGoodStandingState",
+    "kind": "select",
+    "revealed_by": {
+     "name": "attyAgRepType",
+     "values": [
+      "Attorney",
+      "Agent"
+     ]
+    }
+   },
+   "C19": {
+    "map_id": "C19",
+    "box": "C.19",
+    "name": "attyAgGoodStandingAttorney",
+    "kind": "text",
+    "revealed_by": {
+     "name": "attyAgRepType",
+     "values": [
+      "Attorney",
+      "Agent"
+     ]
+    }
    },
    "D2": {
     "map_id": "D2",
-    "box": null,
+    "box": "D.2",
     "name": "fwInfoAttyorAgent",
     "kind": "radio",
     "options": {
      "Yes": "Yes",
      "No": "No"
-    },
-    "confirm": "D.1 is a statement with a 'Go to Appendix A' link, not an input, so this Yes/No is read as D.2. Confirm against the live form before this box is ever emitted."
+    }
    },
-   "E1": {
-    "map_id": "E1",
-    "box": "E.1",
-    "name": "jobOppPWDNumber",
+   "E3": {
+    "map_id": "E3",
+    "box": "E.3",
+    "name": "jobOppWageFrom",
     "kind": "text"
    },
-   "E2": {
-    "map_id": "E2",
-    "box": null,
-    "name": "jobOppPWDAttached",
-    "kind": "radio",
-    "options": {
-     "Yes": "Yes",
-     "No": "No",
-     "N/A": "N/A"
-    },
-    "confirm": "The only remaining radio in section E; the map's E.2 wording ('PWD not obtained because of supervised recruitment') does not obviously match the field name jobOppPWDAttached. Confirm before emitting."
+   "E3B": {
+    "map_id": "E3b",
+    "box": "E.3",
+    "name": "jobOppWageTo",
+    "kind": "text"
    },
    "E4": {
     "map_id": "E4",
-    "box": null,
+    "box": "E.4",
     "name": "jobOppWagePer",
     "kind": "radio",
     "options": {
@@ -834,15 +1481,15 @@
     "kind": "textarea"
    },
    "FA1": {
-    "map_id": "FA1",
-    "box": null,
+    "map_id": "Fa1",
+    "box": "F.a.1",
     "name": "primaryWorksiteType",
     "kind": "radio",
     "options": {
-     "business_premises": "1",
-     "employer_household": "2",
-     "employee_household": "3",
-     "no_specific_worksite": "4"
+     "Business premises": "1",
+     "Employer's private household": "2",
+     "Employee's private residence": "3",
+     "No one specific worksite": "4"
     }
    },
    "FA2": {
@@ -867,7 +1514,7 @@
     "map_id": "Fa5",
     "box": "F.a.5",
     "name": "primaryWorksiteCounty",
-    "kind": "text"
+    "kind": "search"
    },
    "FA6": {
     "map_id": "Fa6",
@@ -881,21 +1528,193 @@
     "name": "primaryWorksitePostalCode",
     "kind": "text"
    },
-   "FA8": {
-    "map_id": "Fa8",
-    "box": "F.a.8",
-    "name": "primaryWorksiteBlsAreaCode",
-    "kind": "text"
+   "FB1": {
+    "map_id": "Fb1",
+    "box": "F.b.1",
+    "name": "isMultipleLocations",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No"
+    }
    },
-   "FA8A": {
-    "map_id": "Fa8a",
-    "box": "F.a.8.a",
-    "name": "primaryWorksiteBlsArea",
-    "kind": "text"
+   "FC1": {
+    "map_id": "Fc1",
+    "box": "F.c",
+    "name": "geograpicalArea",
+    "kind": "textarea"
+   },
+   "G1": {
+    "map_id": "G1",
+    "box": "G.1",
+    "name": "isFullTimeEmp",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No"
+    }
+   },
+   "G2": {
+    "map_id": "G2",
+    "box": "G.2",
+    "name": "isLiveInHousehold",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No"
+    }
+   },
+   "G2A": {
+    "map_id": "G2a",
+    "box": "G.2.a",
+    "name": "isPaidExperience",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No",
+     "N/A": "N/A"
+    }
+   },
+   "G2B": {
+    "map_id": "G2b",
+    "box": "G.2.b",
+    "name": "isFwexecutedCont",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No",
+     "N/A": "N/A"
+    }
+   },
+   "G2C": {
+    "map_id": "G2c",
+    "box": "G.2.c",
+    "name": "isEmpProvidedCont",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No",
+     "N/A": "N/A"
+    }
+   },
+   "G3": {
+    "map_id": "G3",
+    "box": "G.3",
+    "name": "acceptDiplomaPwd",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No",
+     "N/A": "N/A"
+    }
+   },
+   "G4": {
+    "map_id": "G4",
+    "box": "G.4",
+    "name": "isFwCurrentlyWrk",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No"
+    }
+   },
+   "G4A": {
+    "map_id": "G4a",
+    "box": "G.4.a",
+    "name": "isFwQualify",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No",
+     "N/A": "N/A"
+    }
+   },
+   "G4B": {
+    "map_id": "G4b",
+    "box": "G.4.b",
+    "name": "empWillAccept",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No"
+    }
+   },
+   "G5": {
+    "map_id": "G5",
+    "box": "G.5",
+    "name": "empRelyExp",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No"
+    }
+   },
+   "G5A": {
+    "map_id": "G5a",
+    "box": "G.5.a",
+    "name": "fwGainExp",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No",
+     "N/A": "N/A"
+    }
+   },
+   "G5B": {
+    "map_id": "G5b",
+    "box": "G.5.b",
+    "name": "empPayEducation",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No",
+     "N/A": "N/A"
+    }
+   },
+   "G6": {
+    "map_id": "G6",
+    "box": "G.6",
+    "name": "jobEmpPremises",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No"
+    }
+   },
+   "G7": {
+    "map_id": "G7",
+    "box": "G.7",
+    "name": "jobComboOccup",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No"
+    }
+   },
+   "G8": {
+    "map_id": "G8",
+    "box": "G.8",
+    "name": "jobForeignLanguage",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No"
+    }
+   },
+   "G9": {
+    "map_id": "G9",
+    "box": "G.9",
+    "name": "jobReqExceed",
+    "kind": "radio",
+    "options": {
+     "Yes": "Yes",
+     "No": "No",
+     "N/A": "N/A"
+    }
    },
    "G10": {
     "map_id": "G10",
-    "box": null,
+    "box": "G.10",
     "name": "empUseCredential",
     "kind": "radio",
     "options": {
@@ -906,7 +1725,7 @@
    },
    "G11": {
     "map_id": "G11",
-    "box": null,
+    "box": "G.11",
     "name": "emprecpayment",
     "kind": "radio",
     "options": {
@@ -916,7 +1735,7 @@
    },
    "G12": {
     "map_id": "G12",
-    "box": null,
+    "box": "G.12",
     "name": "emPlayoff",
     "kind": "radio",
     "options": {
@@ -924,50 +1743,9 @@
      "No": "No"
     }
    },
-   "G6": {
-    "map_id": "G6",
-    "box": null,
-    "name": "jobEmpPremises",
-    "kind": "radio",
-    "options": {
-     "Yes": "Yes",
-     "No": "No"
-    }
-   },
-   "G7": {
-    "map_id": "G7",
-    "box": null,
-    "name": "jobComboOccup",
-    "kind": "radio",
-    "options": {
-     "Yes": "Yes",
-     "No": "No"
-    }
-   },
-   "G8": {
-    "map_id": "G8",
-    "box": null,
-    "name": "jobForeignLanguage",
-    "kind": "radio",
-    "options": {
-     "Yes": "Yes",
-     "No": "No"
-    }
-   },
-   "G9": {
-    "map_id": "G9",
-    "box": null,
-    "name": "jobReqExceed",
-    "kind": "radio",
-    "options": {
-     "Yes": "Yes",
-     "No": "No",
-     "N/A": "N/A"
-    }
-   },
    "HA1": {
-    "map_id": "HA1",
-    "box": null,
+    "map_id": "Ha1",
+    "box": "H.a",
     "name": "supervisedRecruitment",
     "kind": "radio",
     "options": {
@@ -976,16 +1754,469 @@
     }
    },
    "HB1": {
-    "map_id": "HB1",
-    "box": null,
+    "map_id": "Hb1",
+    "box": "H.b",
     "name": "occupationType",
     "kind": "radio",
     "options": {
-     "professional": "professional_occupation",
-     "non_professional": "non_professional",
-     "college_university_teacher": "college_university_teacher",
-     "schedule_a": "schedule_a",
-     "professional_athlete": "professional_athlete"
+     "Professional occupation": "professional_occupation",
+     "Non-professional occupation": "non_professional",
+     "College or university teacher": "college_university_teacher",
+     "Schedule A or sheepherder": "schedule_a",
+     "Professional athlete": "professional_athlete"
+    }
+   },
+   "HC1A": {
+    "map_id": "Hc1a",
+    "box": "H.c.1.a",
+    "name": "swaJobOrderStartDate",
+    "kind": "date"
+   },
+   "HC1B": {
+    "map_id": "Hc1b",
+    "box": "H.c.1.b",
+    "name": "swaJobOrderEndDate",
+    "kind": "date"
+   },
+   "HC2": {
+    "map_id": "Hc2",
+    "box": "H.c.2",
+    "name": "sundayPaperExists",
+    "kind": "radio",
+    "options": {
+     "Yes": "yes",
+     "No": "no"
+    }
+   },
+   "HC2A": {
+    "map_id": "Hc2a",
+    "box": "H.c.2.a",
+    "name": "newspaperNameForAd",
+    "kind": "text"
+   },
+   "HC2B": {
+    "map_id": "Hc2b",
+    "box": "H.c.2.b",
+    "name": "newspaperAdPlacedDate",
+    "kind": "date"
+   },
+   "HC3": {
+    "map_id": "Hc3",
+    "box": "H.c.3",
+    "name": "advertisementMethod",
+    "kind": "radio",
+    "options": {
+     "Newspaper of general circulation": "newspaper",
+     "Professional journal": "professional-journal",
+     "N/A": "n/a"
+    }
+   },
+   "HC3A": {
+    "map_id": "Hc3a",
+    "box": "H.c.3.a",
+    "name": "journalNameForAd",
+    "kind": "text"
+   },
+   "HC3B": {
+    "map_id": "Hc3b",
+    "box": "H.c.3.b",
+    "name": "journalAdPlacedDate",
+    "kind": "date"
+   },
+   "HD1": {
+    "map_id": "Hd1",
+    "box": "H.d.1",
+    "name": "jobFairIncluded",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    }
+   },
+   "HD1A": {
+    "map_id": "Hd1a",
+    "box": "H.d.1.a",
+    "name": "jobFairFrom",
+    "kind": "date",
+    "revealed_by": {
+     "name": "jobFairIncluded",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HD1B": {
+    "map_id": "Hd1b",
+    "box": "H.d.1.b",
+    "name": "jobFairTo",
+    "kind": "date",
+    "revealed_by": {
+     "name": "jobFairIncluded",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HD2": {
+    "map_id": "Hd2",
+    "box": "H.d.2",
+    "name": "employerWebsiteIncluded",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    }
+   },
+   "HD2A": {
+    "map_id": "Hd2a",
+    "box": "H.d.2.a",
+    "name": "employerWebsiteFrom",
+    "kind": "date",
+    "revealed_by": {
+     "name": "employerWebsiteIncluded",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HD2B": {
+    "map_id": "Hd2b",
+    "box": "H.d.2.b",
+    "name": "employerWebsiteTo",
+    "kind": "date",
+    "revealed_by": {
+     "name": "employerWebsiteIncluded",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HD3": {
+    "map_id": "Hd3",
+    "box": "H.d.3",
+    "name": "jobSearchWebsiteIncluded",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    }
+   },
+   "HD3A": {
+    "map_id": "Hd3a",
+    "box": "H.d.3.a",
+    "name": "jobSearchWebsiteFrom",
+    "kind": "date",
+    "revealed_by": {
+     "name": "jobSearchWebsiteIncluded",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HD3B": {
+    "map_id": "Hd3b",
+    "box": "H.d.3.b",
+    "name": "jobSearchWebsiteTo",
+    "kind": "date",
+    "revealed_by": {
+     "name": "jobSearchWebsiteIncluded",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HD4": {
+    "map_id": "Hd4",
+    "box": "H.d.4",
+    "name": "onCampusRecruitingIncluded",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    }
+   },
+   "HD4A": {
+    "map_id": "Hd4a",
+    "box": "H.d.4.a",
+    "name": "onCampusRecruitingFrom",
+    "kind": "date",
+    "revealed_by": {
+     "name": "onCampusRecruitingIncluded",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HD4B": {
+    "map_id": "Hd4b",
+    "box": "H.d.4.b",
+    "name": "onCampusRecruitingTo",
+    "kind": "date",
+    "revealed_by": {
+     "name": "onCampusRecruitingIncluded",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HD5": {
+    "map_id": "Hd5",
+    "box": "H.d.5",
+    "name": "tradeProfessionalIncluded",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    }
+   },
+   "HD5A": {
+    "map_id": "Hd5a",
+    "box": "H.d.5.a",
+    "name": "tradeProfessionalFrom",
+    "kind": "date",
+    "revealed_by": {
+     "name": "tradeProfessionalIncluded",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HD5B": {
+    "map_id": "Hd5b",
+    "box": "H.d.5.b",
+    "name": "tradeProfessionalTo",
+    "kind": "date",
+    "revealed_by": {
+     "name": "tradeProfessionalIncluded",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HD6": {
+    "map_id": "Hd6",
+    "box": "H.d.6",
+    "name": "privateEmploymentIncluded",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    }
+   },
+   "HD6A": {
+    "map_id": "Hd6a",
+    "box": "H.d.6.a",
+    "name": "privateEmploymentFrom",
+    "kind": "date",
+    "revealed_by": {
+     "name": "privateEmploymentIncluded",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HD6B": {
+    "map_id": "Hd6b",
+    "box": "H.d.6.b",
+    "name": "privateEmploymentTo",
+    "kind": "date",
+    "revealed_by": {
+     "name": "privateEmploymentIncluded",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HD7": {
+    "map_id": "Hd7",
+    "box": "H.d.7",
+    "name": "employeeReferralIncluded",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    }
+   },
+   "HD7A": {
+    "map_id": "Hd7a",
+    "box": "H.d.7.a",
+    "name": "employeeReferralFrom",
+    "kind": "date",
+    "revealed_by": {
+     "name": "employeeReferralIncluded",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HD7B": {
+    "map_id": "Hd7b",
+    "box": "H.d.7.b",
+    "name": "employeeReferralTo",
+    "kind": "date",
+    "revealed_by": {
+     "name": "employeeReferralIncluded",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HD8": {
+    "map_id": "Hd8",
+    "box": "H.d.8",
+    "name": "campusPlacementIncluded",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    }
+   },
+   "HD8A": {
+    "map_id": "Hd8a",
+    "box": "H.d.8.a",
+    "name": "campusPlacementFrom",
+    "kind": "date",
+    "revealed_by": {
+     "name": "campusPlacementIncluded",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HD8B": {
+    "map_id": "Hd8b",
+    "box": "H.d.8.b",
+    "name": "campusPlacementTo",
+    "kind": "date",
+    "revealed_by": {
+     "name": "campusPlacementIncluded",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HD9": {
+    "map_id": "Hd9",
+    "box": "H.d.9",
+    "name": "localEthnicNewspaperIncluded",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    }
+   },
+   "HD9A": {
+    "map_id": "Hd9a",
+    "box": "H.d.9.a",
+    "name": "localEthnicNewspaperFrom",
+    "kind": "date",
+    "revealed_by": {
+     "name": "localEthnicNewspaperIncluded",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HD9B": {
+    "map_id": "Hd9b",
+    "box": "H.d.9.b",
+    "name": "localEthnicNewspaperTo",
+    "kind": "date",
+    "revealed_by": {
+     "name": "localEthnicNewspaperIncluded",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HD10": {
+    "map_id": "Hd10",
+    "box": "H.d.10",
+    "name": "radioTvAdIncluded",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    }
+   },
+   "HD10A": {
+    "map_id": "Hd10a",
+    "box": "H.d.10.a",
+    "name": "radioTvAdFrom",
+    "kind": "date",
+    "revealed_by": {
+     "name": "radioTvAdIncluded",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HD10B": {
+    "map_id": "Hd10b",
+    "box": "H.d.10.b",
+    "name": "radioTvAdTo",
+    "kind": "date",
+    "revealed_by": {
+     "name": "radioTvAdIncluded",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HE1A": {
+    "map_id": "He1a",
+    "box": "H.e.1.a",
+    "name": "bargainingRep",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    }
+   },
+   "HE1B": {
+    "map_id": "He1b",
+    "box": "H.e.1.b",
+    "name": "noBargainingRepPhysical",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    }
+   },
+   "HE1C": {
+    "map_id": "He1c",
+    "box": "H.e.1.c",
+    "name": "noBargainingRepElectronic",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    },
+    "revealed_by": {
+     "name": "noBargainingRepPhysical",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HE1D": {
+    "map_id": "He1d",
+    "box": "H.e.1.d",
+    "name": "noBargainingRepInHouse",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    },
+    "revealed_by": {
+     "name": "noBargainingRepPhysical",
+     "values": [
+      "true"
+     ]
+    }
+   },
+   "HE1E": {
+    "map_id": "He1e",
+    "box": "H.e.1.e",
+    "name": "noBargainingRepPrivate",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
+    }
+   },
+   "HE1F": {
+    "map_id": "He1f",
+    "box": "H.e.1.f",
+    "name": "noBargainingRepNoNotice",
+    "kind": "checkbox",
+    "options": {
+     "Yes": "true"
     }
    },
    "I1": {
@@ -1033,6 +2264,96 @@
     "box": "J.6",
     "name": "prepEmail",
     "kind": "text"
+   },
+   "AA1": {
+    "map_id": "AA1",
+    "box": "APX A.A.1",
+    "name": "appAContLastName",
+    "kind": "text"
+   },
+   "AA2": {
+    "map_id": "AA2",
+    "box": "APX A.A.2",
+    "name": "appAContFirstName",
+    "kind": "text"
+   },
+   "AA3": {
+    "map_id": "AA3",
+    "box": "APX A.A.3",
+    "name": "appAContMiddleName",
+    "kind": "text"
+   },
+   "AA4": {
+    "map_id": "AA4",
+    "box": "APX A.A.4",
+    "name": "appAContAddress1",
+    "kind": "text"
+   },
+   "AA5": {
+    "map_id": "AA5",
+    "box": "APX A.A.5",
+    "name": "appAContAddress2",
+    "kind": "text"
+   },
+   "AA6": {
+    "map_id": "AA6",
+    "box": "APX A.A.6",
+    "name": "appAContCity",
+    "kind": "text"
+   },
+   "AA7": {
+    "map_id": "AA7",
+    "box": "APX A.A.7",
+    "name": "appAContStateId",
+    "kind": "select"
+   },
+   "AA8": {
+    "map_id": "AA8",
+    "box": "APX A.A.8",
+    "name": "appAContPostalCode",
+    "kind": "text"
+   },
+   "AA9": {
+    "map_id": "AA9",
+    "box": "APX A.A.9",
+    "name": "appAContCountryId",
+    "kind": "select"
+   },
+   "AA10": {
+    "map_id": "AA10",
+    "box": "APX A.A.10",
+    "name": "appAContProvince",
+    "kind": "text"
+   },
+   "AA11": {
+    "map_id": "AA11",
+    "box": "APX A.A.11",
+    "name": "appAContDOB",
+    "kind": "date"
+   },
+   "AA12": {
+    "map_id": "AA12",
+    "box": "APX A.A.12",
+    "name": "appAContAdmClassId",
+    "kind": "select"
+   },
+   "AA13": {
+    "map_id": "AA13",
+    "box": "APX A.A.13",
+    "name": "appAContAlienReg",
+    "kind": "text"
+   },
+   "AA14": {
+    "map_id": "AA14",
+    "box": "APX A.A.14",
+    "name": "appAContBirthCountryId",
+    "kind": "select"
+   },
+   "AA15": {
+    "map_id": "AA15",
+    "box": "APX A.A.15",
+    "name": "appAContCitizenCountryId",
+    "kind": "select"
    }
   },
   "ETA-9035E": {
@@ -1479,10 +2800,12 @@
     "box": "F.11a",
     "name": "_section_f_f11a_prevailing_wage_per",
     "kind": "radio",
+    "_options_doc": "TWO KEYS FOR BI-WEEKLY, on purpose. The key is what the map emits, the value is what FLAG offers. FLAG offers the hyphenated 'Bi-Weekly' on BOTH F.10a and F.11a; the printed PDF does not -- its 'Prevailing Rate' widget state is '/Bi Weekly' while 'Paid' is '/Bi-Weekly', so preview.py speaks the PDF's spelling and hands this one 'Bi Weekly'. Both spellings are keyed so this lookup resolves whichever side is tidied first. A miss here is silent: the box simply stays blank on a federal form.",
     "options": {
      "Hourly": "Hour",
      "Weekly": "Week",
      "Bi Weekly": "Bi-Weekly",
+     "Bi-Weekly": "Bi-Weekly",
      "Monthly": "Month",
      "Yearly": "Year"
     }
@@ -1509,13 +2832,25 @@
      "III": "III",
      "IV": "IV",
      "N/A": "N/A"
+    },
+    "revealed_by": {
+     "name": "_section_f_f12_f13_f14_prevailing_wage_question",
+     "values": [
+      "f13_is_oes_prevailing_wage"
+     ]
     }
    },
    "F13b": {
     "map_id": "F13b",
     "box": "F.13b",
     "name": "_section_f_f13b_source_year",
-    "kind": "select"
+    "kind": "select",
+    "revealed_by": {
+     "name": "_section_f_f12_f13_f14_prevailing_wage_question",
+     "values": [
+      "f13_is_oes_prevailing_wage"
+     ]
+    }
    },
    "F14a": {
     "map_id": "F14a",
@@ -1524,25 +2859,49 @@
     "kind": "radio",
     "options": {
      "Other/PW Survey": "Other/PW Survey"
+    },
+    "revealed_by": {
+     "name": "_section_f_f12_f13_f14_prevailing_wage_question",
+     "values": [
+      "f14_non_oes_prevailing_wage"
+     ]
     }
    },
    "F14b": {
     "map_id": "F14b",
     "box": "F.14b",
     "name": "_section_f_f14b_source_year_notcba",
-    "kind": "select"
+    "kind": "select",
+    "revealed_by": {
+     "name": "_section_f_f14a_source_type",
+     "values": [
+      "Other/PW Survey"
+     ]
+    }
    },
    "F14c": {
     "map_id": "F14c",
     "box": "F.14c",
     "name": "_section_f_f14c_survey_publisher",
-    "kind": "text"
+    "kind": "text",
+    "revealed_by": {
+     "name": "_section_f_f14a_source_type",
+     "values": [
+      "Other/PW Survey"
+     ]
+    }
    },
    "F14d": {
     "map_id": "F14d",
     "box": "F.14d",
     "name": "_section_f_f14d_survey_name",
-    "kind": "text"
+    "kind": "text",
+    "revealed_by": {
+     "name": "_section_f_f14a_source_type",
+     "values": [
+      "Other/PW Survey"
+     ]
+    }
    },
    "G1": {
     "map_id": "G1",
@@ -1691,98 +3050,7 @@
  },
  "orphans": {
   "ETA-9141": [],
-  "ETA-9089": [
-   {
-    "box": "A.1",
-    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
-    "name": "appAContLastName",
-    "kind": "text"
-   },
-   {
-    "box": "A.2",
-    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
-    "name": "appAContFirstName",
-    "kind": "text"
-   },
-   {
-    "box": "A.3",
-    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
-    "name": "appAContMiddleName",
-    "kind": "text"
-   },
-   {
-    "box": "A.4",
-    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
-    "name": "appAContAddress1",
-    "kind": "text"
-   },
-   {
-    "box": "A.5",
-    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
-    "name": "appAContAddress2",
-    "kind": "text"
-   },
-   {
-    "box": "A.9",
-    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
-    "name": "appAContCountryId",
-    "kind": "select"
-   },
-   {
-    "box": "A.6",
-    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
-    "name": "appAContCity",
-    "kind": "text"
-   },
-   {
-    "box": "A.7",
-    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
-    "name": "appAContStateId",
-    "kind": "select"
-   },
-   {
-    "box": "A.8",
-    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
-    "name": "appAContPostalCode",
-    "kind": "text"
-   },
-   {
-    "box": "A.10",
-    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
-    "name": "appAContProvince",
-    "kind": "text"
-   },
-   {
-    "box": "A.11",
-    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
-    "name": "appAContDOB",
-    "kind": "text"
-   },
-   {
-    "box": "A.12",
-    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
-    "name": "appAContAdmClassId",
-    "kind": "select"
-   },
-   {
-    "box": "A.13",
-    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
-    "name": "appAContAlienReg",
-    "kind": "text"
-   },
-   {
-    "box": "A.14",
-    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
-    "name": "appAContBirthCountryId",
-    "kind": "select"
-   },
-   {
-    "box": "A.15",
-    "section": "APX A.AAppendix A.A - Foreign Worker Contact Information",
-    "name": "appAContCitizenCountryId",
-    "kind": "select"
-   }
-  ],
+  "ETA-9089": [],
   "ETA-9035E": [
    {
     "box": "C.10 country code",
@@ -1836,8 +3104,149 @@
    "L5": "DOL use only.",
    "L6": "DOL use only.",
    "M1": "A PDF artefact; FLAG has no such box."
+  },
+  "ETA-9141": {
+   "FD1A": "FLAG fills the SOC title itself from the F.d.1 code pick.",
+   "G4": "Section G is completed by DOL.",
+   "G4PER": "Section G is completed by DOL.",
+   "GVALIDITY": "Section G is completed by DOL.",
+   "GCASE": "Section G is completed by DOL."
+  },
+  "ETA-9089": {
+   "E1": "FLAG fills E.1 from the determined 9141 the 9089 is started from, and locks it.",
+   "E2": "Locked on FLAG outside a supervised-recruitment case.",
+   "Fa8": "FLAG works the area out from the county and locks the box.",
+   "Fa8a": "FLAG works the area out from the county and locks the box.",
+   "C11": "FLAG's Section C has no province box.",
+   "AB": "Typed as Appendix A.B rows (appendix_rows.education), not as one box.",
+   "AE": "Typed as Appendix A.E rows (appendix_rows.experience), not as one box.",
+   "APXC": "Typed as Appendix C rows (appendix_rows.supplemental), not as one box."
   }
  },
+ "_revealed_by_doc": "A box FLAG does not put on the page until another box is answered. `name` is that other box's DOM field and `values` are the answers that reveal this one, copied from the `revealedBy` the reveal-pass capture recorded, and asserted against it on every run. autofill.py HOLDS a box whose gate is unanswered or answered elsewhere, with the reason, instead of emitting it: a value written to an input that is not in the DOM is not a slow fill, it is no fill, and nothing is raised. That is how a wage level could never land -- F.13a was emitted for every case while F.12, which reveals it, was emitted for almost none.",
+ "_revealed_by_scope": "ETA-9035E: only the F.12 prevailing-wage chain is enforced (the H chain was captured on one path only). ETA-9141: the reveals seen on the 2026-11-11 walk.",
+ "_revealed_by_reasons": {
+  "_section_f_f12_f13_f14_prevailing_wage_question": "F.12 -- where the prevailing wage came from -- is not answered on this case, and FLAG does not put this box on the page until it is. Nothing is typed because there is nowhere to type it. F.12 is a legal statement about the source of the wage, so it is never guessed: answer it first and this box fills.",
+  "_section_f_f14a_source_type": "F.14.a -- which other wage source this is -- is not answered on this case, and FLAG does not put this box on the page until it is."
+ },
  "_skipped_doc": "Map entries with NO FLAG field, and why. autofill.py reports a filled one with this reason instead of 'not mapped yet', so nobody goes looking for a field that does not exist.",
- "_source_9035": "ETA-9035E: live read of a throwaway ETA-9035 draft on flag.dol.gov/dashboard/application/9035/<id>, 2026-10-08 (family-ext test/fixtures/flag-lca-field-dump/eta9035-capture.json). Yes/No is \"YES\"/\"NO\" on this form. B.2/B.3 SOC and C.13 NAICS have no name and no id: `name` is a LOGICAL key the extension finds by `label`. F.7 county has an id and no name (`by_id`)."
+ "_source_9035": "ETA-9035E: live read of a throwaway ETA-9035 draft on flag.dol.gov/dashboard/application/9035/<id>, 2026-10-08 (family-ext test/fixtures/flag-lca-field-dump/eta9035-capture.json). Yes/No is \"YES\"/\"NO\" on this form. B.2/B.3 SOC and C.13 NAICS have no name and no id: `name` is a LOGICAL key the extension finds by `label`. F.7 county has an id and no name (`by_id`).",
+ "_source_9141_walk": "ETA-9141 rows for C.13, E.1.a-E.5.b, F.a.3.a, F.b.2.a-F.b.5.a, F.c.2-F.c.5.a and F.d.1, their revealed_by, and the phone/search/checkbox/date kinds: live FLAG walk of 2026-11-11. Search keys (naicsCode, socCode, supervisedSocCodes, primaryWorksiteCounty) are logical names, not DOM names. Checkboxes take \"true\"; phones go out as E.164.",
+ "rows": {
+  "ETA-9089": {
+   "education": [
+    {
+     "from": "level",
+     "name": "add_values_field[0]appAEduTypeId",
+     "kind": "radio"
+    },
+    {
+     "from": "other",
+     "name": "add_values_field[0].appAEduOther",
+     "kind": "text"
+    },
+    {
+     "from": "field_of_study",
+     "name": "add_values_field[0].appAEduMajors",
+     "kind": "text"
+    },
+    {
+     "from": "institution",
+     "name": "add_values_field[0].appAEduInstName",
+     "kind": "text"
+    },
+    {
+     "from": "country",
+     "name": "add_values_field[0].appAEduCountryId",
+     "kind": "select"
+    },
+    {
+     "from": "attained",
+     "name": "add_values_field[0].appAEduMonthYearAttained",
+     "kind": "text"
+    }
+   ],
+   "experience": [
+    {
+     "from": "employer_name",
+     "name": "add_values_field[0].appAExpEmpName",
+     "kind": "text"
+    },
+    {
+     "from": "street",
+     "name": "add_values_field[0].appAExpAddress1",
+     "kind": "text"
+    },
+    {
+     "from": "city",
+     "name": "add_values_field[0].appAExpCity",
+     "kind": "text"
+    },
+    {
+     "from": "postal_code",
+     "name": "add_values_field[0].appAExpPostalCode",
+     "kind": "text"
+    },
+    {
+     "from": "country",
+     "name": "add_values_field[0].appAExpCountryId",
+     "kind": "select"
+    },
+    {
+     "from": "state",
+     "name": "add_values_field[0].appAExpStateTerritory",
+     "kind": "select"
+    },
+    {
+     "from": "province",
+     "name": "add_values_field[0].appAExpProvince",
+     "kind": "text"
+    },
+    {
+     "from": "job_title",
+     "name": "add_values_field[0].appAExpJobTitle",
+     "kind": "text"
+    },
+    {
+     "from": "start",
+     "name": "add_values_field[0].appAExpStartDate",
+     "kind": "text"
+    },
+    {
+     "from": "end",
+     "name": "add_values_field[0].appAExpEndDate",
+     "kind": "text"
+    },
+    {
+     "from": "present",
+     "name": "add_values_field[0]appAExpFWPresent",
+     "kind": "radio"
+    },
+    {
+     "from": "hours",
+     "name": "add_values_field[0].appAExpWorkHour",
+     "kind": "text"
+    },
+    {
+     "from": "duties",
+     "name": "add_values_field[0].appAExpJobDuties",
+     "kind": "textarea"
+    }
+   ],
+   "supplemental": [
+    {
+     "from": "item",
+     "name": "sectionAndItemNum",
+     "kind": "select"
+    },
+    {
+     "from": "text",
+     "name": "suppInfo",
+     "kind": "textarea"
+    }
+   ]
+  }
+ },
+ "_rows_doc": "Appendix rows typed through FLAG's Add boxes: `from` is the key of a row built in preview.py, `name` the DOM field it is typed into. A.C/A.D are not sent: nothing in the product records training or skills rows.",
+ "_source_9089_walk": "ETA-9089 rows, kinds, options and reveals: live FLAG walk of 2026-11-12. H.c.2 is yes/no in lower case; F.a.1 is 1-4; H.d dates open on their checkbox; H.e electronic/in-house open on the physical notice."
 }
