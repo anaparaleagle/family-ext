@@ -16,6 +16,7 @@ import {
 import { STORAGE_KEYS, MyuscisPayload } from "../runner/payload";
 import { FORM_CONFIGS, formTypeForCaseType } from "../runner/registry";
 import { apiEnvOptions, allowedApiOrigins, resolveApiBaseUrl } from "../engine/api-config";
+import { MAPS_STORAGE_KEY, MapsStatus, loadFormMaps, refreshFormMaps } from "../engine/form-maps";
 
 /** Shown whenever the backend rejects our Firebase token. */
 const SESSION_EXPIRED = "Session expired — reopen the popup and Load case.";
@@ -51,6 +52,7 @@ function useApi(apiBaseUrl: string): void {
   onAuthStateChanged(auth, (user) => {
     if (user) {
       showLoggedIn(user.email || "");
+      void refreshFormMaps((path) => apiRequest(path)).then(showMapsStatus);
       loadCases();
     } else {
       showLogin();
@@ -527,6 +529,8 @@ function followCaseType(caseType: string | undefined): void {
 
 apiEnvSelect.addEventListener("change", async () => {
   await chrome.storage.local.set({ [STORAGE_KEYS.apiBaseUrl]: apiEnvSelect.value });
+  await chrome.storage.local.remove(MAPS_STORAGE_KEY);
+  await loadFormMaps();
   hideError();
   // Switching backend can switch Firebase project, so re-point auth rather than
   // reusing a session the new backend would reject on every request.
@@ -571,16 +575,18 @@ function renderApiEnvs(selected: string): void {
  * and a caseworker picking "ETA-9141" while sitting on myUSCIS should be able to
  * see from the list why nothing happens there.
  */
-const FORM_GROUPS: { label: string; formTypes: string[] }[] = [
-  { label: "myUSCIS (my.uscis.gov)", formTypes: FORM_CONFIGS.map((c) => c.formType) },
-  { label: "DOL FLAG (flag.dol.gov)", formTypes: FLAG_CONFIGS.map((c) => c.formType) },
-];
-
-const ALL_FORM_TYPES = FORM_GROUPS.flatMap((g) => g.formTypes);
+function formGroups(): { label: string; formTypes: string[] }[] {
+  return [
+    { label: "myUSCIS (my.uscis.gov)", formTypes: FORM_CONFIGS.map((c) => c.formType) },
+    { label: "DOL FLAG (flag.dol.gov)", formTypes: FLAG_CONFIGS.map((c) => c.formType) },
+  ];
+}
 
 function renderFormTypes(selected: string): void {
+  const groups = formGroups();
+  const allFormTypes = groups.flatMap((g) => g.formTypes);
   formTypeSelect.innerHTML = "";
-  for (const group of FORM_GROUPS) {
+  for (const group of groups) {
     if (!group.formTypes.length) continue;
     const optgroup = document.createElement("optgroup");
     optgroup.label = group.label;
@@ -592,10 +598,18 @@ function renderFormTypes(selected: string): void {
     }
     formTypeSelect.appendChild(optgroup);
   }
-  formTypeSelect.value = ALL_FORM_TYPES.includes(selected) ? selected : ALL_FORM_TYPES[0];
+  formTypeSelect.value = allFormTypes.includes(selected) ? selected : allFormTypes[0];
+}
+
+function showMapsStatus(status: MapsStatus): void {
+  renderFormTypes(formTypeSelect.value);
+  if (status.updateNeeded) {
+    showError("A newer ParaLeagle extension is needed for the latest form maps. Update it from the Chrome Web Store.");
+  }
 }
 
 async function init(): Promise<void> {
+  await loadFormMaps();
   const stored = await chrome.storage.local.get([
     STORAGE_KEYS.apiBaseUrl,
     STORAGE_KEYS.fieldValues,

@@ -29,6 +29,7 @@ import { dbg } from "../engine/logger";
 import { locateElement, setValue } from "../engine/value-setter";
 import { findButtonByText, isDisabled, openDialog } from "./nav";
 import { FlagModalSpec, flagFieldSpec, gateIsAnswered, modalFieldValue } from "./types";
+import { tunable } from "../engine/tuning";
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -49,6 +50,7 @@ const AFTER_SUBMIT_MS = 2000;
  * first — it is what the live form was tuned against. */
 const EXTRA_WAIT_MS = 3000;
 const POLL_MS = 150;
+const TUNE = tunable("flagModal", { AFTER_OPEN_MS, AFTER_ANSWER_MS, BEFORE_AREA_MS, AFTER_CALCULATE_MS, AFTER_SUBMIT_MS, EXTRA_WAIT_MS, POLL_MS });
 
 export interface ModalFieldOutcome {
   name: string;
@@ -97,12 +99,12 @@ function writable(el: HTMLElement | null): boolean {
 /** The modal the button opened, after the old flow's fixed wait and then a
  * short poll. A dialog already open before the click is not it. */
 async function waitForDialog(before: HTMLElement | null): Promise<HTMLElement | null> {
-  await sleep(AFTER_OPEN_MS);
-  const deadline = Date.now() + EXTRA_WAIT_MS;
+  await sleep(TUNE.AFTER_OPEN_MS);
+  const deadline = Date.now() + TUNE.EXTRA_WAIT_MS;
   while (Date.now() < deadline) {
     const dialog = openDialog();
     if (dialog && dialog !== before) return dialog;
-    await sleep(POLL_MS);
+    await sleep(TUNE.POLL_MS);
   }
   const dialog = openDialog();
   return dialog && dialog !== before ? dialog : null;
@@ -217,7 +219,7 @@ export async function runModal(
   }
 
   calculate.click();
-  await sleep(AFTER_CALCULATE_MS);
+  await sleep(TUNE.AFTER_CALCULATE_MS);
 
   // Step 5: the wage level and the per-unit, which FLAG keeps disabled until
   // Calculate has produced a wage to apply them to.
@@ -233,9 +235,9 @@ export async function runModal(
   // has to see before filing.
   let result = readResult(spec, dialog);
   if (!result) {
-    const deadline = Date.now() + EXTRA_WAIT_MS;
+    const deadline = Date.now() + TUNE.EXTRA_WAIT_MS;
     while (!result && Date.now() < deadline) {
-      await sleep(POLL_MS);
+      await sleep(TUNE.POLL_MS);
       result = readResult(spec, dialog);
     }
   }
@@ -256,7 +258,7 @@ export async function runModal(
     };
   }
   submit.click();
-  await sleep(AFTER_SUBMIT_MS);
+  await sleep(TUNE.AFTER_SUBMIT_MS);
 
   // Did it actually close? Submit is only ACCEPTED when the modal validates;
   // with a required box empty FLAG keeps the dialog up and prints the error
@@ -285,7 +287,7 @@ async function fillModalField(
   values: Record<string, string>,
 ): Promise<ModalFieldOutcome> {
   // The old flow paused before the area combobox for its dependent options.
-  if (field.waitBefore) await sleep(BEFORE_AREA_MS);
+  if (field.waitBefore) await sleep(TUNE.BEFORE_AREA_MS);
 
   const value = modalFieldValue(field, values);
   if (!value) {
@@ -311,7 +313,7 @@ async function fillModalField(
   const res = await setValue(flagFieldSpec(field), value);
   // Each answer re-renders the ones below it — the area list is rebuilt off
   // the state, the level list off the area.
-  if (res.success) await sleep(AFTER_ANSWER_MS);
+  if (res.success) await sleep(TUNE.AFTER_ANSWER_MS);
   return {
     name: field.name,
     status: res.success ? "filled" : "failed",

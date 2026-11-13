@@ -21,6 +21,7 @@
 import { dbg } from "../engine/logger";
 import { locateFlagField } from "./locate";
 import { FlagRepeaterSpec, FlagSection } from "./types";
+import { tunable } from "../engine/tuning";
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -125,16 +126,16 @@ export async function goToSection(section: FlagSection): Promise<boolean> {
   const before = fingerprint();
   link.click();
 
-  const deadline = Date.now() + NAV_TIMEOUT_MS;
+  const deadline = Date.now() + TUNE.NAV_TIMEOUT_MS;
   while (Date.now() < deadline) {
-    await sleep(POLL_MS);
+    await sleep(TUNE.POLL_MS);
     if (sectionIsRendered(section)) return true;
     // An empty conditional section will never satisfy sectionIsRendered, so
     // accept "the page changed" as arrival for those and let the field loop
     // find nothing.
     if (!section.fields.length && fingerprint() !== before) return true;
   }
-  dbg(`nav: "${section.navLabel}" did not render within ${NAV_TIMEOUT_MS}ms`);
+  dbg(`nav: "${section.navLabel}" did not render within ${TUNE.NAV_TIMEOUT_MS}ms`);
   return false;
 }
 
@@ -152,7 +153,7 @@ export function findCommitButton(): HTMLElement | null {
   for (const el of document.querySelectorAll<HTMLElement>("button, [role='button'], input[type='submit']")) {
     const text = normalise(el.textContent || (el as HTMLInputElement).value);
     if (!text || NEVER_CLICK.test(text)) continue;
-    if (COMMIT_LABELS.includes(text)) return el;
+    if (TUNE.COMMIT_LABELS.includes(text)) return el;
   }
   return null;
 }
@@ -180,13 +181,13 @@ export async function commitSection(): Promise<CommitOutcome> {
   const before = fingerprint();
   for (let attempt = 0; attempt < 2; attempt++) {
     (attempt ? findCommitButton() ?? button : button).click();
-    const deadline = Date.now() + NAV_TIMEOUT_MS / 2;
+    const deadline = Date.now() + TUNE.NAV_TIMEOUT_MS / 2;
     while (Date.now() < deadline) {
-      await sleep(POLL_MS);
+      await sleep(TUNE.POLL_MS);
       if (fingerprint() !== before) return "committed";
     }
   }
-  dbg(`commit: page unchanged ${NAV_TIMEOUT_MS}ms after Continue — FLAG refused it`);
+  dbg(`commit: page unchanged ${TUNE.NAV_TIMEOUT_MS}ms after Continue — FLAG refused it`);
   return "blocked";
 }
 
@@ -339,9 +340,9 @@ export async function commitRepeaterRow(repeater: FlagRepeaterSpec): Promise<Row
   const before = repeaterRowCount(repeater);
   button.click();
 
-  const deadline = Date.now() + ROW_TIMEOUT_MS;
+  const deadline = Date.now() + TUNE.ROW_TIMEOUT_MS;
   while (Date.now() < deadline) {
-    await sleep(POLL_MS);
+    await sleep(TUNE.POLL_MS);
     const now = repeaterRowCount(repeater);
     if (now > before) return { status: "added", rows: now };
   }
@@ -352,6 +353,7 @@ export async function commitRepeaterRow(repeater: FlagRepeaterSpec): Promise<Row
 
 const ERRORS_START = "Submission Errors:";
 const ERRORS_END = "Select what form/section you would like to view";
+const TUNE = tunable("flagNav", { NAV_TIMEOUT_MS, POLL_MS, COMMIT_LABELS, ROW_TIMEOUT_MS, ERRORS_START, ERRORS_END });
 const SECTION_COUNT = /There (?:is|are) \d+ errors? on this page/g;
 const SECTION_MARK = "\u0001";
 
@@ -363,7 +365,7 @@ function reviewText(): string {
 /** True once FLAG's Review & Submit page has rendered its section picker. */
 export function reviewPageLoaded(): boolean {
   const text = reviewText();
-  return text.includes(ERRORS_END) || text.includes(ERRORS_START);
+  return text.includes(TUNE.ERRORS_END) || text.includes(TUNE.ERRORS_START);
 }
 
 /** Where the last section heading ("F.d: Other Information") starts in `s`, or s.length. */
@@ -377,10 +379,10 @@ function lastHeadingStart(s: string): number {
 /** FLAG's "Submission Errors" block, one line per field; null when the page shows no such block. */
 export function reviewPageErrors(): string[] | null {
   const text = reviewText();
-  const start = text.indexOf(ERRORS_START);
+  const start = text.indexOf(TUNE.ERRORS_START);
   if (start < 0) return null;
-  let block = text.slice(start + ERRORS_START.length);
-  const end = block.indexOf(ERRORS_END);
+  let block = text.slice(start + TUNE.ERRORS_START.length);
+  const end = block.indexOf(TUNE.ERRORS_END);
   if (end >= 0) block = block.slice(0, end);
   block = block.replace(SECTION_COUNT, SECTION_MARK);
 

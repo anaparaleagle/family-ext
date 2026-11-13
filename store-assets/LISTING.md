@@ -5,7 +5,7 @@ rather than improvised. Keep this file in step with the manifest.
 
 Dashboard: https://chrome.google.com/webstore/devconsole
 
-Upload: `paraleagle-family-ext-v0.10.10-webstore.zip` (repo root, gitignored —
+Upload: `paraleagle-family-ext-v0.11.0-webstore.zip` (repo root, gitignored —
 rebuild with `npm run build` then re-zip the CONTENTS of `dist/`).
 
 ---
@@ -153,6 +153,8 @@ Host permission — `https://hooks.slack.com/*`
 **Remote code**
 
     No, I am not using remote code. All JavaScript is bundled in the package.
+    The extension reads form maps (page lists and field names, as JSON data) from
+    the ParaLeagle API it signs in to. Nothing it downloads is run as code.
 
 **Data usage** — check these two, and nothing else:
 

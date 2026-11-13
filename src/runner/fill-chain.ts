@@ -18,6 +18,7 @@ import { auditUnmappedFields, normalizeName } from "../engine/telemetry";
 import { DescriptorField, FormConfig, FormPage, RepeaterSpec, RevealSpec, fieldNamesOf } from "./types";
 import { detectCurrentPage } from "./section-detector";
 import { uploadsInFlight } from "../engine/doc-uploader";
+import { tunable } from "../engine/tuning";
 
 export interface PlannedField {
   spec: FieldSpec;
@@ -407,7 +408,7 @@ function shortName(name: string): string {
  * window is reported as a failure, because a declared reveal that was driven and
  * still produced nothing is a genuine bug, not slowness.
  */
-async function waitForRevealed(spec: FieldSpec, timeoutMs = REVEAL_RENDER_TIMEOUT_MS): Promise<boolean> {
+async function waitForRevealed(spec: FieldSpec, timeoutMs = TUNE.REVEAL_RENDER_TIMEOUT_MS): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
     if (locateElement(spec) !== null) return true;
@@ -488,7 +489,7 @@ export async function fillPage(
   const recheckRow = async (rowIndex: number): Promise<void> => {
     const mine = typed.filter((box) => box.rowIndex === rowIndex);
     if (!mine.length) return;
-    if (setASearch) await sleep(LOOKUP_SETTLE_MS);
+    if (setASearch) await sleep(TUNE.LOOKUP_SETTLE_MS);
     for (const done of mine) {
       const again = await retypeIfEmptied(done);
       const at = resultAt.get(done);
@@ -508,7 +509,7 @@ export async function fillPage(
             `so row ${rowIndex} can open`,
         );
         commit.click();
-        await sleep(ROW_COMMIT_SETTLE_MS);
+        await sleep(TUNE.ROW_COMMIT_SETTLE_MS);
       } else {
         dbg(
           `fill: no "${repeater.rowCommitButtonText}" button to close row ${openRow} — ` +
@@ -658,7 +659,7 @@ export async function fillPage(
   // Only an EMPTIED box is re-typed. A box the form reformatted holds our value in
   // its own shape (masks do this to ZIP, SSN and phone), and typing over that
   // starts a fight nobody wins.
-  if (typed.length && setASearch) await sleep(LOOKUP_SETTLE_MS);
+  if (typed.length && setASearch) await sleep(TUNE.LOOKUP_SETTLE_MS);
   for (const done of typed) {
     const again = await retypeIfEmptied(done);
     const at = resultAt.get(done);
@@ -882,6 +883,7 @@ const UPLOAD_PROGRESS_SELECTOR =
 /** How long to wait for a recognized page's inputs to render before filling.
  * Fresh drafts mount their Formik inputs slowly, so give them room. */
 const PAGE_READY_TIMEOUT_MS = 6000;
+const TUNE = tunable("runnerFill", { REVEAL_RENDER_TIMEOUT_MS, ROW_COMMIT_SETTLE_MS, LOOKUP_SETTLE_MS, NEXT_RETRY_WAIT_MS, NEXT_RETRY_WINDOW_MS, DEFAULT_NEXT_TIMEOUT_MS, SAVE_COMMIT_TIMEOUT_MS, ADVANCE_BUTTON_TIMEOUT_MS, CONFIRM_DIALOG_TIMEOUT_MS, UPLOAD_NEXT_TIMEOUT_MS, UPLOAD_SETTLE_TIMEOUT_MS, UPLOAD_ADVANCE_ATTEMPTS, UPLOAD_ADVANCE_WAIT_MS, UPLOAD_ADVANCE_RETRY_MS, EMPTY_UPLOAD_ADVANCE_ATTEMPTS, EMPTY_UPLOAD_ADVANCE_WAIT_MS, EMPTY_UPLOAD_ADVANCE_RETRY_MS, PAGE_READY_TIMEOUT_MS });
 
 /**
  * Advance controls we must NEVER click autonomously, matched on their LABEL —
@@ -1109,7 +1111,7 @@ export function pageErrorSummary(doc: Document = document): string {
  * finish processing a 10MB scan was indistinguishable from a hung one. That is
  * precisely when someone clicks Fill all again and starts a second walk.
  */
-async function waitForNextEnabled(timeoutMs = DEFAULT_NEXT_TIMEOUT_MS): Promise<HTMLButtonElement | null> {
+async function waitForNextEnabled(timeoutMs = TUNE.DEFAULT_NEXT_TIMEOUT_MS): Promise<HTMLButtonElement | null> {
   const start = Date.now();
   let lastTick = 0;
   while (Date.now() - start < timeoutMs) {
@@ -1152,7 +1154,7 @@ async function waitForPageChange(prevUrl: string, timeoutMs = 15000): Promise<bo
 export async function waitForPageReady(
   page: FormPage,
   fieldValues: Record<string, string>,
-  timeoutMs = PAGE_READY_TIMEOUT_MS,
+  timeoutMs = TUNE.PAGE_READY_TIMEOUT_MS,
 ): Promise<void> {
   const plan = planPageFill(page, fieldValues);
   if (plan.length === 0) return; // nothing to fill -> nothing to wait for
@@ -1197,7 +1199,7 @@ export async function waitForPageReady(
  *
  * Never throws — an odd DOM simply resolves and the caller still gates on Next.
  */
-async function waitForUploadToSettle(timeoutMs = UPLOAD_SETTLE_TIMEOUT_MS): Promise<void> {
+async function waitForUploadToSettle(timeoutMs = TUNE.UPLOAD_SETTLE_TIMEOUT_MS): Promise<void> {
   const start = Date.now();
   let announced = false;
   let lastTick = 0;
@@ -1467,7 +1469,7 @@ export async function fillAll(
         );
         break;
       }
-      const nextWindow = nothingAttached ? DEFAULT_NEXT_TIMEOUT_MS : UPLOAD_NEXT_TIMEOUT_MS;
+      const nextWindow = nothingAttached ? TUNE.DEFAULT_NEXT_TIMEOUT_MS : TUNE.UPLOAD_NEXT_TIMEOUT_MS;
       dbg(
         nothingAttached
           ? `fillAll: nothing attached on ${page?.slug ?? "this page"} — not waiting on an upload`
@@ -1502,9 +1504,9 @@ export async function fillAll(
       // an empty evidence page with a "Missing Evidence" warning and only moves on
       // the second. So: two quick clicks here, the full budget when files went up.
       const empty = attachedHere === 0;
-      const attempts = empty ? EMPTY_UPLOAD_ADVANCE_ATTEMPTS : UPLOAD_ADVANCE_ATTEMPTS;
-      const waitMs = empty ? EMPTY_UPLOAD_ADVANCE_WAIT_MS : UPLOAD_ADVANCE_WAIT_MS;
-      const retryMs = empty ? EMPTY_UPLOAD_ADVANCE_RETRY_MS : UPLOAD_ADVANCE_RETRY_MS;
+      const attempts = empty ? TUNE.EMPTY_UPLOAD_ADVANCE_ATTEMPTS : TUNE.UPLOAD_ADVANCE_ATTEMPTS;
+      const waitMs = empty ? TUNE.EMPTY_UPLOAD_ADVANCE_WAIT_MS : TUNE.UPLOAD_ADVANCE_WAIT_MS;
+      const retryMs = empty ? TUNE.EMPTY_UPLOAD_ADVANCE_RETRY_MS : TUNE.UPLOAD_ADVANCE_RETRY_MS;
       if (empty) {
         dbg("fillAll: nothing attached here — clicking past the missing-evidence warning");
       }
@@ -1572,7 +1574,7 @@ export async function fillAll(
         // Dismissing it is both the right click and the proof it worked, so there
         // is nothing left to wait for afterwards.
         let confirmed = false;
-        for (let waited = 0; waited < CONFIRM_DIALOG_TIMEOUT_MS; waited += 300) {
+        for (let waited = 0; waited < TUNE.CONFIRM_DIALOG_TIMEOUT_MS; waited += 300) {
           if (window.location.href !== prevUrl) break;
           const okay = findConfirmationButton();
           if (okay) {
@@ -1583,7 +1585,7 @@ export async function fillAll(
           }
           await sleep(300);
         }
-        if (!confirmed && !(await waitForPageChange(prevUrl, ADVANCE_BUTTON_TIMEOUT_MS))) {
+        if (!confirmed && !(await waitForPageChange(prevUrl, TUNE.ADVANCE_BUTTON_TIMEOUT_MS))) {
           dbg(
             `fillAll: "${page?.advanceButtonText}" did not move the page` +
               pageErrorSummary() +
@@ -1621,7 +1623,7 @@ export async function fillAll(
         }
         dbg('fillAll: no Next — clicking "Save Entry" to commit the row, then advancing');
         saveBtn.click();
-        next = await waitForNextEnabled(SAVE_COMMIT_TIMEOUT_MS);
+        next = await waitForNextEnabled(TUNE.SAVE_COMMIT_TIMEOUT_MS);
         if (!next) {
           if (window.location.href !== prevUrl) {
             // Saving committed and advanced directly (no separate Next). Fall
@@ -1642,11 +1644,11 @@ export async function fillAll(
     // form page, where a single early click used to end the whole walk.
     if (!moved && !isUploadPage) {
       dbg("fillAll: Next did not move the page — waiting and clicking it once more");
-      await sleep(NEXT_RETRY_WAIT_MS);
+      await sleep(TUNE.NEXT_RETRY_WAIT_MS);
       const again = findNextButton();
       if (again) {
         again.click();
-        moved = await waitForPageChange(prevUrl, NEXT_RETRY_WINDOW_MS);
+        moved = await waitForPageChange(prevUrl, TUNE.NEXT_RETRY_WINDOW_MS);
       }
     }
     if (!moved) {

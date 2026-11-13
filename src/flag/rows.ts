@@ -3,6 +3,7 @@ import { bridge } from "./bridge-client";
 import { findButtonByText, isDisabled, normalise, visibleErrors } from "./nav";
 import { setFlagValue } from "./widgets";
 import { FlagAddRowsSpec, FlagField, FlagPickRowsSpec } from "./types";
+import { tunable } from "../engine/tuning";
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -10,6 +11,7 @@ const BOX_TIMEOUT_MS = 6000;
 const REVEAL_TIMEOUT_MS = 3000;
 const POLL_MS = 200;
 const COUNTRY_SETTLE_MS = 1500;
+const TUNE = tunable("flagRows", { BOX_TIMEOUT_MS, REVEAL_TIMEOUT_MS, POLL_MS, COUNTRY_SETTLE_MS });
 const ADD_TEXT = /^\+?\s*add\b/i;
 const NEVER = /add data|add document/i;
 
@@ -21,12 +23,12 @@ export interface AddRowOutcome {
   message?: string;
 }
 
-async function waitFor<T>(probe: () => T | null, timeoutMs = BOX_TIMEOUT_MS): Promise<T | null> {
+async function waitFor<T>(probe: () => T | null, timeoutMs = TUNE.BOX_TIMEOUT_MS): Promise<T | null> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const hit = probe();
     if (hit) return hit;
-    await sleep(POLL_MS);
+    await sleep(TUNE.POLL_MS);
   }
   return probe();
 }
@@ -93,7 +95,7 @@ async function pickOptionNaming(name: string, keyword: string): Promise<boolean>
     const s = document.querySelector<HTMLSelectElement>(`select[name="${CSS.escape(name)}"]`);
     if (!s || !Array.from(s.options).some((o) => o.value)) return null;
     return !s.disabled || normalise(s.selectedOptions[0]?.textContent).includes(want) ? s : null;
-  }, REVEAL_TIMEOUT_MS);
+  }, TUNE.REVEAL_TIMEOUT_MS);
   if (!el) return false;
   const opt = Array.from(el.options).find((o) => o.value && !o.disabled && normalise(o.textContent).includes(want));
   if (!opt) return false;
@@ -119,7 +121,7 @@ async function addOne(spec: FlagAddRowsSpec, row: RowValues, label: string): Pro
     const keyword = field.optionFor?.keywords[row[field.optionFor.from] ?? ""];
     const want = row[field.name];
     if (!want && !keyword) continue;
-    const name = await waitFor(() => domName(field.name), field === first ? BOX_TIMEOUT_MS : REVEAL_TIMEOUT_MS);
+    const name = await waitFor(() => domName(field.name), field === first ? TUNE.BOX_TIMEOUT_MS : TUNE.REVEAL_TIMEOUT_MS);
     if (!name) {
       notes.push(`${field.name}: not on the box`);
       continue;
@@ -134,7 +136,7 @@ async function addOne(spec: FlagAddRowsSpec, row: RowValues, label: string): Pro
     }
     const res = await setFlagValue({ ...field, name } as FlagField, want);
     if (!res.success) notes.push(`${field.name}: ${res.message}`);
-    if (res.success && /country/i.test(field.name)) await sleep(COUNTRY_SETTLE_MS);
+    if (res.success && /country/i.test(field.name)) await sleep(TUNE.COUNTRY_SETTLE_MS);
     else await sleep(150);
   }
 
