@@ -27,6 +27,7 @@ import { FLAG_CONFIGS } from "./registry";
 import { FlagDocument, FlagFormConfig } from "./types";
 import { scrapeReviewFields } from "./review";
 import { reviewPageErrors, reviewPageLoaded } from "./nav";
+import { loadFormMaps } from "../engine/form-maps";
 
 /** Storage keys for the FLAG side. Separate from the myUSCIS payload keys so a
  * loaded DOL form cannot be mistaken for a loaded I-130 or vice versa. */
@@ -811,4 +812,4 @@ let routeTimer: ReturnType<typeof setInterval> | null = setInterval(() => {
   }
 }, 1000);
 
-boot();
+void loadFormMaps().then(boot);

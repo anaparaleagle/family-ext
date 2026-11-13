@@ -70,6 +70,26 @@ never imports the runner; a descriptor never imports the runner's mechanism
 (only its types). The one deliberate edge is `runner/registry.ts`, which imports
 each descriptor — that is the composition root.
 
+## Form maps come from the backend
+
+The page lists, box names, reveals, button words and waits are served by the
+backend at `GET /api/v1/forms/ext-maps/`. The popup fetches them after sign-in and
+saves them; every myUSCIS and FLAG page applies them before the toolbar loads.
+The descriptors under `src/` are the built-in copy, used for any form the
+backend leaves out or when it cannot be reached.
+
+- Portal renamed a box, added a page, changed a reveal: edit
+  `family_visa/forms/ext/form_maps.json` in the backend, or add an
+  `ExtensionFormMap` row in Django admin (superusers) for a same-day fix.
+  No extension release.
+- Waits and button words: the `tuning` block (admin row `_tuning`), keyed by
+  the `tunable(...)` groups in the engine files.
+- A new kind of box or page behaviour is code, and still needs a store release.
+  After changing descriptors here, re-export the backend file:
+  `bun tools/export-form-maps.ts > <backend>/family_visa/forms/ext/form_maps.json`.
+- Raise `min_ext_version` in that file when a map needs a newer extension;
+  older ones then keep their built-in maps and the popup asks for an update.
+
 ## Build & load
 
 ```bash

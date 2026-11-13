@@ -49,6 +49,7 @@ import {
   gateIsAnswered,
   revealGates,
 } from "./types";
+import { tunable } from "../engine/tuning";
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -215,10 +216,10 @@ function isRendered(field: FlagField): boolean {
  * that is a willful violator without also being H-1B dependent.
  */
 async function waitForReveal(field: FlagField): Promise<boolean> {
-  const deadline = Date.now() + REVEAL_TIMEOUT_MS;
+  const deadline = Date.now() + TUNE.REVEAL_TIMEOUT_MS;
   while (Date.now() < deadline) {
     if (isRendered(field)) return true;
-    await sleep(REVEAL_POLL_MS);
+    await sleep(TUNE.REVEAL_POLL_MS);
   }
   return false;
 }
@@ -359,7 +360,7 @@ export async function fillSection(
     // already on the page, so the reveal poll has nothing to wait for. The old
     // extension paused here for exactly this, and without it the next field is
     // answered against a list that is about to be replaced.
-    if (result.success && rebuildsDependents(field)) await sleep(ADDRESS_SETTLE_MS);
+    if (result.success && rebuildsDependents(field)) await sleep(TUNE.ADDRESS_SETTLE_MS);
   }
 
   // The old extension's step 7b, by its own rule: a unit radio can be reset by
@@ -375,7 +376,7 @@ export async function fillSection(
     if (checked && checked.value.toLowerCase() === want.toLowerCase()) continue;
     dbg(`  re-asserting ${field.name} -> "${want}" (was "${checked?.value ?? "unset"}")`);
     const again = await setFlagValue(field, want);
-    await sleep(REASSERT_SETTLE_MS);
+    await sleep(TUNE.REASSERT_SETTLE_MS);
     const outcome = outcomes.find((o) => o.name === field.name);
     if (!outcome) continue;
     if (again.success) {
@@ -403,7 +404,7 @@ export async function fillSection(
     .map((o, index) => ({ o, index }))
     .filter(({ o }) => o.status === "failed" && o.message === "element not on page");
   if (retryable.length) {
-    await sleep(RETRY_WAIT_MS);
+    await sleep(TUNE.RETRY_WAIT_MS);
     for (const { o, index } of retryable) {
       const field = section.fields.find((f) => f.name === o.name);
       const value = field && values[field.name];
@@ -490,7 +491,7 @@ export async function runSection(
       dbg("  row: the previous worksite was not committed — stopping");
       break;
     }
-    await sleep(BETWEEN_ROWS_MS);
+    await sleep(TUNE.BETWEEN_ROWS_MS);
     const next = { ...values, ...rowPatch(section.repeater, patch) };
     const again = await driveSection(section, next, forbidden);
     fields.push(...again.fields);
@@ -510,7 +511,7 @@ async function driveSection(
   const pwdGate = section.fields.find((f) => f.name === PWD_GATE);
   if (pwdGate && values[PWD_LOOKUP_KEY] && values[PWD_GATE] === PWD_BRANCH) {
     const gateOutcome = await fillSection({ ...section, fields: [pwdGate] }, values, forbidden);
-    if (gateOutcome.some((o) => o.status === "filled")) await sleep(AFTER_GATE_MS);
+    if (gateOutcome.some((o) => o.status === "filled")) await sleep(TUNE.AFTER_GATE_MS);
     const pwd = await runPwdLookup(values[PWD_LOOKUP_KEY]);
     const rest = await fillSection(
       { ...section, fields: section.fields.filter((f) => f !== pwdGate) },
@@ -532,7 +533,7 @@ async function driveSection(
   const gateOutcome = gate
     ? await fillSection({ ...section, fields: [gate] }, values, forbidden)
     : [];
-  if (gateOutcome.some((o) => o.status === "filled")) await sleep(AFTER_GATE_MS);
+  if (gateOutcome.some((o) => o.status === "filled")) await sleep(TUNE.AFTER_GATE_MS);
 
   const modal = await runModal(section.modal, values);
   // The calculator owns its boxes whenever it OPENED, not only when it worked.
@@ -573,10 +574,10 @@ async function driveSection(
 
 /** Press the repeater's Add, with the old flow's waits around it. */
 async function addRow(repeater: FlagRepeaterSpec): Promise<RowOutcome> {
-  await sleep(BEFORE_ADD_MS);
+  await sleep(TUNE.BEFORE_ADD_MS);
   const row = await commitRepeaterRow(repeater);
   dbg(`  row: ${row.status}`);
-  await sleep(AFTER_ADD_MS);
+  await sleep(TUNE.AFTER_ADD_MS);
   return row;
 }
 
@@ -652,9 +653,9 @@ export async function fillAll(
       reviewPageLoaded() ||
       (await goToSection({ navLabel: config.reviewNavLabel, title: "Review", fields: [] }));
     if (reviewReached) {
-      const deadline = Date.now() + REVIEW_WAIT_MS;
+      const deadline = Date.now() + TUNE.REVIEW_WAIT_MS;
       while (!reviewPageLoaded() && Date.now() < deadline) await sleep(250);
-      await sleep(REVIEW_SETTLE_MS);
+      await sleep(TUNE.REVIEW_SETTLE_MS);
       reviewErrors = reviewPageErrors() ?? [];
       submit = submitState();
     }
@@ -680,6 +681,7 @@ export async function fillAll(
 
 const REVIEW_SETTLE_MS = 1000;
 const REVIEW_WAIT_MS = 8000;
+const TUNE = tunable("flagFill", { REVEAL_TIMEOUT_MS, REVEAL_POLL_MS, ADDRESS_SETTLE_MS, RETRY_WAIT_MS, REASSERT_SETTLE_MS, AFTER_GATE_MS, BEFORE_ADD_MS, AFTER_ADD_MS, BETWEEN_ROWS_MS, REVIEW_SETTLE_MS, REVIEW_WAIT_MS });
 
 function isSpecial(section: FlagSection): boolean {
   return !!(section.worksiteTable || section.documents || section.addRows || section.pickRows);

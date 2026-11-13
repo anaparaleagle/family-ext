@@ -18,6 +18,7 @@ import { descriptorsForPage, fillUploadPageAll, strayDescriptors } from "./doc-f
 import { STORAGE_KEYS } from "./payload";
 import { configForPath } from "./registry";
 import { FormConfig, FormPage, fieldNamesOf } from "./types";
+import { loadFormMaps } from "../engine/form-maps";
 
 /** The form this page belongs to, or null when we're not on one of ours. */
 function currentConfig(): FormConfig | null {
@@ -802,9 +803,12 @@ function watchRoute(): void {
   }
 }
 
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", boot);
-} else {
-  boot();
-}
-routeTimer = setInterval(watchRoute, 1000);
+void loadFormMaps().then((maps) => {
+  if (maps.updateNeeded) dbg("form maps: this extension is older than the backend's maps need, using built-in maps");
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+  routeTimer = setInterval(watchRoute, 1000);
+});
