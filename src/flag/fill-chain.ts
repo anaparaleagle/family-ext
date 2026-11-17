@@ -649,13 +649,8 @@ export async function fillAll(
   let reviewReached: boolean | undefined;
   let submit: WalkReport["submit"];
   if (config.reviewNavLabel) {
-    reviewReached =
-      reviewPageLoaded() ||
-      (await goToSection({ navLabel: config.reviewNavLabel, title: "Review", fields: [] }));
+    reviewReached = await openReview(config);
     if (reviewReached) {
-      const deadline = Date.now() + TUNE.REVIEW_WAIT_MS;
-      while (!reviewPageLoaded() && Date.now() < deadline) await sleep(250);
-      await sleep(TUNE.REVIEW_SETTLE_MS);
       reviewErrors = reviewPageErrors() ?? [];
       submit = submitState();
     }
@@ -683,7 +678,20 @@ const REVIEW_SETTLE_MS = 1000;
 const REVIEW_WAIT_MS = 8000;
 const TUNE = tunable("flagFill", { REVEAL_TIMEOUT_MS, REVEAL_POLL_MS, ADDRESS_SETTLE_MS, RETRY_WAIT_MS, REASSERT_SETTLE_MS, AFTER_GATE_MS, BEFORE_ADD_MS, AFTER_ADD_MS, BETWEEN_ROWS_MS, REVIEW_SETTLE_MS, REVIEW_WAIT_MS });
 
-function isSpecial(section: FlagSection): boolean {
+/** Go to Review & Submit and wait for its error list to render. */
+export async function openReview(config: FlagFormConfig): Promise<boolean> {
+  if (!config.reviewNavLabel) return false;
+  const reached =
+    reviewPageLoaded() ||
+    (await goToSection({ navLabel: config.reviewNavLabel, title: "Review", fields: [] }));
+  if (!reached) return false;
+  const deadline = Date.now() + TUNE.REVIEW_WAIT_MS;
+  while (!reviewPageLoaded() && Date.now() < deadline) await sleep(250);
+  await sleep(TUNE.REVIEW_SETTLE_MS);
+  return true;
+}
+
+export function isSpecial(section: FlagSection): boolean {
   return !!(section.worksiteTable || section.documents || section.addRows || section.pickRows);
 }
 

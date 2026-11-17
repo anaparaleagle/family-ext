@@ -17,6 +17,8 @@ import {
   FieldOutcome,
   fillAll,
   fillCurrentSection,
+  isSpecial,
+  openReview,
   RowValues,
   SectionOutcome,
   WalkReport,
@@ -25,8 +27,8 @@ import { describeField, unanswered } from "./modal";
 import { flushUnmappedFields } from "../engine/telemetry";
 import { FLAG_CONFIGS } from "./registry";
 import { FlagDocument, FlagFormConfig } from "./types";
-import { scrapeReviewFields } from "./review";
-import { reviewPageErrors, reviewPageLoaded } from "./nav";
+import { readSection, scrapeReviewFields } from "./review";
+import { goToSection, reviewPageErrors, reviewPageLoaded } from "./nav";
 import { loadFormMaps } from "../engine/form-maps";
 
 /** Storage keys for the FLAG side. Separate from the myUSCIS payload keys so a
@@ -293,11 +295,7 @@ function buildToolbar(config: FlagFormConfig): void {
 
   bar.appendChild(button("Fill this section", () => void onFillSection(config)));
   bar.appendChild(button("Fill all sections", () => void onFillAll(config)));
-  // SOF-2191: the LCA summary sign-off only applies to the ETA-9035E — the
-  // PERM forms this same toolbar drives have no equivalent review.
-  if (config.formType === "ETA-9035E") {
-    bar.appendChild(button("Review Summary", () => void onReviewSummary()));
-  }
+  bar.appendChild(button("Review Summary", () => void onReviewSummary(config)));
 
   const status = document.createElement("div");
   status.id = STATUS_ID;
@@ -623,16 +621,7 @@ async function reviewContext(): Promise<ReviewContext | null> {
   };
 }
 
-function renderReviewPanel(
-  discrepancies: LcaDiscrepancy[],
-  readCount: number,
-  flagErrors: string[] | null,
-): void {
-  const panel = document.getElementById(REVIEW_PANEL_ID);
-  if (!panel) return;
-  panel.replaceChildren();
-  panel.style.cssText = "margin-top:8px;padding-top:8px;border-top:1px solid #eee";
-
+function renderFlagErrors(panel: HTMLElement, flagErrors: string[] | null): void {
   const errors = document.createElement("div");
   errors.style.cssText = `white-space:pre-line;margin-bottom:6px;color:${flagErrors?.length ? "#7c2d12" : "#334"}`;
   if (flagErrors === null) {
@@ -646,6 +635,24 @@ function renderReviewPanel(
     errors.textContent = "Review & Submit lists no errors.";
   }
   panel.appendChild(errors);
+}
+
+function openReviewPanel(): HTMLElement | null {
+  const panel = document.getElementById(REVIEW_PANEL_ID);
+  if (!panel) return null;
+  panel.replaceChildren();
+  panel.style.cssText = "margin-top:8px;padding-top:8px;border-top:1px solid #eee";
+  return panel;
+}
+
+function renderReviewPanel(
+  discrepancies: LcaDiscrepancy[],
+  readCount: number,
+  flagErrors: string[] | null,
+): void {
+  const panel = openReviewPanel();
+  if (!panel) return;
+  renderFlagErrors(panel, flagErrors);
 
   const summary = document.createElement("div");
   summary.style.cssText = `font-weight:600;margin-bottom:4px;color:${discrepancies.length ? "#7c2d12" : "#14532d"}`;
@@ -668,11 +675,16 @@ function renderReviewPanel(
   panel.appendChild(button("Sign Off", () => void onSignOff(discrepancies)));
 }
 
+async function onReviewSummary(config: FlagFormConfig): Promise<void> {
+  if (config.formType === "ETA-9035E") await onLcaReviewSummary();
+  else await onEtaReviewSummary(config);
+}
+
 /** "Review Summary" — read whatever LCA compare fields are on the current
  * FLAG page, merge with any already read on earlier pages, diff against the
  * questionnaire, and show the panel. Visit every section that carries a
  * compared box (B, C, F) before trusting a clean result. */
-async function onReviewSummary(): Promise<void> {
+async function onLcaReviewSummary(): Promise<void> {
   await withLock("Review Summary", async () => {
     const ctx = await reviewContext();
     if (!ctx) {
@@ -746,6 +758,151 @@ async function onSignOff(discrepancies: LcaDiscrepancy[]): Promise<void> {
   }
   document.getElementById(REVIEW_PANEL_ID)?.replaceChildren();
   setStatus("LCA summary signed off. The in-process LCA upload is now unlocked.");
+}
+
+// ── PERM summary review: compare only ───────────────────────────────────────
+
+type EtaRowStatus = "match" | "differs" | "not_read" | "filled_by_flag";
+
+interface EtaSummaryRow {
+  box: string;
+  label: string;
+  field: string;
+  flag_value: string;
+  case_value: string;
+  status: EtaRowStatus;
+  note: string;
+}
+
+interface EtaSummary {
+  rows: EtaSummaryRow[];
+  counts: Record<EtaRowStatus, number>;
+  difference_count: number;
+}
+
+const READ_SETTLE_MS = 600;
+const STATUS_ORDER: EtaRowStatus[] = ["differs", "not_read", "filled_by_flag", "match"];
+const STATUS_TAG: Record<EtaRowStatus, { text: string; color: string; background: string }> = {
+  differs: { text: "DIFFERS", color: "#fff", background: "#b91c1c" },
+  not_read: { text: "Not on FLAG's page", color: "#7c2d12", background: "#fde68a" },
+  filled_by_flag: { text: "Filled by FLAG", color: "#334", background: "#e5e7eb" },
+  match: { text: "Match", color: "#14532d", background: "#dcfce7" },
+};
+
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
+function shownValue(value: string): string {
+  if (!value) return "(blank)";
+  return value.length > 160 ? `${value.slice(0, 160)}…` : value;
+}
+
+function etaRow(row: EtaSummaryRow): HTMLElement {
+  const tag = STATUS_TAG[row.status];
+  const item = document.createElement("div");
+  item.style.cssText =
+    "padding:4px 0;border-bottom:1px solid #f1f1f4;line-height:1.35" +
+    (row.status === "differs" ? ";background:#fef2f2" : "");
+  const head = document.createElement("div");
+  const badge = document.createElement("span");
+  badge.textContent = tag.text;
+  badge.style.cssText =
+    "float:right;margin-left:6px;padding:0 4px;border-radius:3px;font-size:11px;" +
+    `color:${tag.color};background:${tag.background}`;
+  const name = document.createElement("strong");
+  name.textContent = `${row.box} `;
+  head.append(badge, name, document.createTextNode(row.label));
+  const flag = document.createElement("div");
+  flag.textContent = `FLAG: ${shownValue(row.flag_value)}`;
+  flag.title = row.flag_value;
+  const kase = document.createElement("div");
+  kase.textContent = `Case: ${shownValue(row.case_value)}`;
+  kase.title = row.case_value;
+  item.append(head, flag, kase);
+  if (row.note) {
+    const note = document.createElement("div");
+    note.style.color = "#556";
+    note.textContent = row.note;
+    item.appendChild(note);
+  }
+  return item;
+}
+
+function renderEtaPanel(summary: EtaSummary, flagErrors: string[] | null, unread: string[]): void {
+  const panel = openReviewPanel();
+  if (!panel) return;
+  renderFlagErrors(panel, flagErrors);
+
+  const counts = summary.counts;
+  const headline = document.createElement("div");
+  headline.style.cssText =
+    `font-weight:600;margin-bottom:4px;color:${summary.difference_count ? "#b91c1c" : "#14532d"}`;
+  headline.textContent = summary.difference_count
+    ? `${summary.difference_count} box(es) on FLAG differ from the case.`
+    : "No box on FLAG differs from the case.";
+  panel.appendChild(headline);
+
+  const notes: string[] = [`${counts.match} match.`];
+  if (counts.not_read) notes.push(`${counts.not_read} box(es) the case fills are not on FLAG's page.`);
+  if (counts.filled_by_flag) notes.push(`${counts.filled_by_flag} box(es) FLAG fills itself.`);
+  if (unread.length) notes.push(`Could not open: ${unread.join(", ")}.`);
+  notes.push("Appendix tables and documents are not compared.");
+  const sub = document.createElement("div");
+  sub.style.cssText = "margin-bottom:6px;color:#334;line-height:1.35";
+  sub.textContent = notes.join(" ");
+  panel.appendChild(sub);
+
+  const list = document.createElement("div");
+  list.style.cssText = "max-height:45vh;overflow-y:auto;border-top:1px solid #eee";
+  const rows = [...summary.rows].sort(
+    (a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status),
+  );
+  for (const row of rows) list.appendChild(etaRow(row));
+  panel.appendChild(list);
+}
+
+/** Read every section of the draft, end on Review & Submit, and compare with the case. Never edits FLAG. */
+async function onEtaReviewSummary(config: FlagFormConfig): Promise<void> {
+  await withLock("Review Summary", async () => {
+    const ctx = await reviewContext();
+    if (!ctx) {
+      setStatus(`Load the case for the ${config.formType} in the ParaLeagle extension popup first.`);
+      return;
+    }
+
+    const flagValues: Record<string, string> = {};
+    const unread: string[] = [];
+    for (const section of config.sections) {
+      if (isSpecial(section) || !(section.fields.length || section.reviewOnly?.length)) continue;
+      setStatus(`Reading ${section.title}…`);
+      if (!(await goToSection(section))) {
+        unread.push(section.title);
+        continue;
+      }
+      await sleep(READ_SETTLE_MS);
+      Object.assign(flagValues, readSection(section));
+    }
+
+    setStatus("Opening Review & Submit…");
+    const flagErrors = (await openReview(config)) ? reviewPageErrors() ?? [] : null;
+    if (!Object.keys(flagValues).length) {
+      openReviewPanel();
+      setStatus("Could not read any box from this FLAG draft. Open the draft and try again.");
+      return;
+    }
+
+    setStatus("Comparing with the case…");
+    const resp = await apiPost<EtaSummary>(
+      `/cases/${encodeURIComponent(ctx.caseId)}/eta-summary/compare/`,
+      { form: config.formType, flag_values: flagValues },
+      ctx,
+    );
+    if (!resp.ok || !resp.data) {
+      setStatus(`Review failed: ${resp.error ?? "unknown error"}`);
+      return;
+    }
+    setStatus(`Read ${Object.keys(flagValues).length} box(es) from FLAG. Nothing on FLAG was changed.`);
+    renderEtaPanel(resp.data, flagErrors, unread);
+  });
 }
 
 // ── boot ────────────────────────────────────────────────────────────────────

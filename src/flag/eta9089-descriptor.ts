@@ -105,6 +105,7 @@ export const ETA9089_SECTIONS: FlagSection[] = [
     navLabel: "Job Opportunity and Wage Information",
     title: "E — Job Opportunity and Wage",
     fields: [money("jobOppWageFrom"), money("jobOppWageTo"), radio("jobOppWagePer"), area("jobOppWageConditions")],
+    reviewOnly: [t("jobOppPWDNumber")],
   },
   {
     navLabel: "Worksite Information",

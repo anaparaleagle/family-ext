@@ -283,6 +283,8 @@ export interface FlagSection {
   documents?: FlagDocumentsSpec;
   addRows?: FlagAddRowsSpec;
   pickRows?: FlagPickRowsSpec;
+  /** Read by Review Summary, never filled. */
+  reviewOnly?: FlagField[];
 }
 
 /** A control the runner must never touch, and why. Enforced, not advisory. */

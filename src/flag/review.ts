@@ -18,8 +18,10 @@
 // ===========================================================================
 
 import { locateElement } from "../engine/value-setter";
-import { FlagField, flagFieldSpec } from "./types";
+import { FlagField, FlagSection, flagFieldSpec } from "./types";
 import { ETA9035_SECTIONS } from "./eta9035-descriptor";
+import { fieldContainer, locateFlagField, startsWithBox } from "./locate";
+import { CODE_PATTERN, selectContainer, shownSelectValue } from "./widgets";
 
 /**
  * The FLAG fields compared against the questionnaire, named exactly as
@@ -73,9 +75,40 @@ function readRadioValue(name: string): string {
   return (checked?.value ?? "").trim();
 }
 
+function readCheckbox(field: FlagField): string {
+  const el = locateFlagField(field) as HTMLInputElement | null;
+  return el && (el.checked || el.getAttribute("aria-checked") === "true") ? "true" : "";
+}
+
+/** The codes an autosuggest box shows, its own label left out (labels quote example codes). */
+function readCodes(field: FlagField): string {
+  const el = locateFlagField(field) as HTMLInputElement | null;
+  if (!el) return "";
+  const own = el.value.match(CODE_PATTERN);
+  if (own && !field.multi) return own[0];
+  const box = fieldContainer(el, field.boxPrefix);
+  let text = box.textContent ?? "";
+  for (const label of Array.from(box.querySelectorAll<HTMLElement>("label, legend, p, span, div"))) {
+    const t = label.textContent ?? "";
+    if (field.boxPrefix && label.childElementCount <= 8 && startsWithBox(t, field.boxPrefix)) text = text.replace(t, " ");
+  }
+  const codes = [...(own ?? []), ...(text.match(CODE_PATTERN) ?? [])];
+  return [...new Set(codes)].join("; ");
+}
+
 /** Read one field's current value off the live FLAG page, "" when absent. */
 export function readFlagValue(field: FlagField): string {
   if (field.kind === "radio") return readRadioValue(field.name);
+  if (field.kind === "checkbox") return readCheckbox(field);
+  if (field.widget === "autosuggest") return readCodes(field);
+  if (field.widget === "react-select") {
+    const el = locateFlagField(field);
+    return el ? shownSelectValue(selectContainer(el)) : "";
+  }
+  if (field.boxPrefix || field.afterName) {
+    const el = locateFlagField(field) as HTMLInputElement | HTMLTextAreaElement | null;
+    return (el?.value ?? "").trim();
+  }
 
   const el = locateElement(flagFieldSpec(field));
   if (!el) return "";
@@ -99,6 +132,26 @@ export function scrapeReviewFields(): Record<string, string> {
   for (const field of REVIEW_FIELDS) {
     const value = readFlagValue(field);
     if (value !== "") values[field.name] = value;
+  }
+  return values;
+}
+
+const SELECT_PLACEHOLDER = /^-\s*select\s*-$/i;
+
+function isOnPage(field: FlagField): boolean {
+  if (field.kind === "radio") {
+    return !!document.querySelector(`input[type="radio"][name="${CSS.escape(field.name)}"]`);
+  }
+  return !!locateFlagField(field);
+}
+
+/** Every box of `section` that FLAG has drawn, as FLAG holds it ("" for a drawn blank box). */
+export function readSection(section: FlagSection): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const field of [...section.fields, ...(section.reviewOnly ?? [])]) {
+    if (!isOnPage(field)) continue;
+    const value = readFlagValue(field);
+    values[field.name] = SELECT_PLACEHOLDER.test(value) ? "" : value;
   }
   return values;
 }

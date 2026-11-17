@@ -314,7 +314,7 @@ function shownWithoutInput(container: HTMLElement, input: HTMLInputElement): str
   return ((container.textContent ?? "") + " " + input.value).toLowerCase();
 }
 
-const CODE_PATTERN = /\b\d{2}-\d{4}(?:\.\d{2})?\b|\b\d{6}\b/g;
+export const CODE_PATTERN = /\b\d{2}-\d{4}(?:\.\d{2})?\b|\b\d{6}\b/g;
 
 function bareCode(code: string): string {
   return code.trim().replace(/\.00$/, "").toLowerCase();
@@ -452,7 +452,7 @@ async function setAutosuggest(field: FlagField, value: string): Promise<SetResul
 
 // ── react-select (county, BLS area) ─────────────────────────────────────────
 
-function selectContainer(el: HTMLElement): HTMLElement {
+export function selectContainer(el: HTMLElement): HTMLElement {
   let node: HTMLElement | null = el;
   for (let depth = 0; node && depth < 6; depth++, node = node.parentElement) {
     if (/(^|\s)[\w-]*container\b/i.test(node.className || "") && node.querySelector("input")) return node;
@@ -480,7 +480,7 @@ function optionMatches(text: string, name: string): number {
   return -1;
 }
 
-function shownSelectValue(container: HTMLElement): string {
+export function shownSelectValue(container: HTMLElement): string {
   const single = container.querySelector<HTMLElement>('[class*="singleValue"], [class*="single-value"]');
   return (single?.textContent ?? "").trim();
 }
