@@ -208,6 +208,9 @@ async function downloadDocument(doc: FlagDocument): Promise<File | string> {
   } catch (err) {
     return `download failed: ${err instanceof Error ? err.message : String(err)}`;
   }
+  if (res?.error === "HTTP 403") {
+    return "link expired. Pick the case again in the extension popup, then Fill again";
+  }
   if (!res?.success || !res.dataBase64) return `download failed: ${res?.error ?? "no data"}`;
   const bytes = fromBase64(res.dataBase64);
   if (!bytes.length) return "the download was empty";
